@@ -1,0 +1,197 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.dude.dudeapp">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+
+    <!-- CRITICAL for Android 14+ full-screen call UI -->
+    <uses-permission
+        android:name="android.permission.USE_FULL_SCREEN_INTENT"
+        tools:ignore="ProtectedPermissions" />
+
+    <uses-permission
+        android:name="android.permission.SYSTEM_ALERT_WINDOW"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+    <!-- CRITICAL for Android 14+ — allows app to manage its own full-screen intent -->
+    <uses-permission android:name="android.permission.MANAGE_APP_USE_FULL_SCREEN_INTENTS"
+        tools:ignore="ProtectedPermissions" />
+
+    <application
+        android:name="${applicationName}"
+        android:label="Dude"
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"
+        android:allowBackup="false"
+        android:showOnLockScreen="true"
+        android:requestLegacyExternalStorage="true">
+
+        <!-- MAIN ACTIVITY -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:resizeableActivity="true"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             CALLKIT INCOMING ACTIVITY
+             This is the full-screen WhatsApp-style call screen.
+             The intent-filter is CRITICAL — it allows the activity to
+             be launched via Intent from MyFirebaseMessagingService
+             when the app is killed on Android 14+.
+        ════════════════════════════════════════════════════════════════ -->
+        <activity
+            android:name="com.hiennv.flutter_callkit_incoming.CallkitIncomingActivity"
+            android:exported="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleInstance"
+            android:screenOrientation="portrait"
+            android:taskAffinity="com.hiennv.flutter_callkit_incoming.INCOMING_CALL_AFFINITY"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:configChanges="orientation"
+            tools:replace="android:configChanges,android:launchMode,android:showWhenLocked,android:turnScreenOn,android:taskAffinity,android:excludeFromRecents,android:noHistory">
+            <!-- Intent filter so activity can be started from killed state -->
+            <intent-filter>
+                <action android:name="${applicationId}.com.hiennv.flutter_callkit_incoming.ACTION_CALL_INCOMING" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- CALLKIT BROADCAST RECEIVER -->
+        <receiver
+            android:name="com.hiennv.flutter_callkit_incoming.CallkitIncomingBroadcastReceiver"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_ACCEPT" />
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_DECLINE" />
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_ENDED" />
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_TIMEOUT" />
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_CALLBACK" />
+                <action android:name="com.dude.dudeapp.ACTION_CALL_INCOMING" />
+            </intent-filter>
+        </receiver>
+
+        <!-- CALLKIT FOREGROUND SERVICE — keeps ringtone alive -->
+        <service
+            android:name="com.hiennv.flutter_callkit_incoming.CallkitIncomingService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall"
+            android:stopWithTask="false" />
+
+        <service
+            android:name="com.hiennv.flutter_callkit_incoming.CallkitSoundPlayerService"
+            android:exported="false"
+            android:stopWithTask="true" />
+
+        <!-- FIREBASE MESSAGING — custom handler runs first (priority 200) -->
+        <service
+            android:name=".MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter android:priority="200">
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Zego FCM handler — runs after ours (priority 100) -->
+        <service
+            android:name="com.zegocloud.uikit.prebuilt.call.ZegoFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter android:priority="100">
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- ZEGO -->
+        <receiver
+            android:name="com.zegocloud.uikit.prebuilt.call.ZegoCallReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.zegocloud.uikit.ACTION_CALL_INVITATION" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name="im.zego.zim.internal.ZIMAndroidNotificationService"
+            android:exported="false"
+            android:stopWithTask="false" />
+
+        <!-- CALL ACTION RECEIVER for backup notification buttons -->
+        <receiver
+            android:name=".CallActionReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="ACCEPT_CALL" />
+                <action android:name="DECLINE_CALL" />
+            </intent-filter>
+        </receiver>
+
+        <!-- METADATA -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="promo_channel" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_notify" />
+        <meta-data
+            android:name="com.hiennv.flutter_callkit_incoming.FULL_SCREEN_INTENT"
+            android:value="true" />
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/facebook_app_id" />
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="@string/facebook_client_token" />
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
+    </application>
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="phonepe" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+    </queries>
+
+</manifest>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1010402276504",
+    "project_id": "dude-1621c",
+    "storage_bucket": "dude-1621c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1010402276504:android:cd9235771a56c071210ced",
+        "android_client_info": {
+          "package_name": "com.dude.dudeapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXDd_iRfBvcJgWeuAZYn1i4JhEHRNVxEM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
