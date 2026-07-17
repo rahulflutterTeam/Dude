@@ -1,11 +1,11 @@
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
-import 'package:dude/StaffScreenScreens/StaffBottomNavBar/StaffBottomNavBar.dart';
 import 'package:dude/StaffScreenScreens/StaffInterestLanguage/staffInterestLanguage.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 class StaffInterestScreen extends StatefulWidget {
@@ -43,66 +43,61 @@ class _StaffInterestScreenState extends State<StaffInterestScreen> {
     return Consumer<StaffViewModel>(
       builder: (context, vm, child) {
         return Scaffold(
-          backgroundColor: const Color(0xFF100a0a),
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40), // top
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
+          backgroundColor: DudeTheme.background,
+          body: PremiumAmbientBackground(
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14.0),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 20),
-
-                    // Logo
-                    SvgPicture.asset("assets/Images/dude.svg", height: 40),
-
-                    const SizedBox(height: 30),
-
-                    // Title
-                    Center(
-                      child: AppText(
-                        "Select your Interest",
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
+                    const Center(child: DudeLogo(height: 54)),
+                    const SizedBox(height: 26),
+                    _stepLabel("1 OF 2  •  YOUR VIBE"),
+                    const SizedBox(height: 13),
+                    const Text(
+                      "What do you enjoy talking about?",
+                      style: TextStyle(
                         color: Colors.white,
+                        fontSize: 27,
+                        height: 1.18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.6,
                       ),
                     ),
-
-                    const SizedBox(height: 8),
-
-                    // Subtitle
-                    Center(
-                      child: AppText(
-                        "Select a few of your interests to match with users who have similar things in common.",
-                        fontSize: 15,
-                        color: const Color(0xFFc7c7cc),
-                        maxLines: 3,
-                        textAlign: TextAlign.center,
+                    const SizedBox(height: 9),
+                    const Text(
+                      "Choose at least 3 topics. These help Dude connect you with people who share your vibe.",
+                      style: TextStyle(
+                        color: DudeTheme.textSubtle,
+                        fontSize: 14,
+                        height: 1.5,
                       ),
                     ),
-
-                    const SizedBox(height: 40),
-
-                    // Interest Chips
-                    // Replace the Interest Chips section and Continue Button in your build method
-
-                    // Interest Chips → ListView
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Text(
+                          "$selectedCount selected",
+                          style: const TextStyle(
+                            color: DudeTheme.accentBright,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          canProceed
+                              ? "Ready to continue"
+                              : "${3 - selectedCount} more needed",
+                          style: const TextStyle(
+                            color: DudeTheme.textSubtle,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     Expanded(
                       child: ListView.separated(
                         itemCount: categories.length,
@@ -118,37 +113,36 @@ class _StaffInterestScreenState extends State<StaffInterestScreen> {
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 14,
+                                horizontal: 15,
+                                vertical: 15,
                               ),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? const Color(0xFFaecc01).withOpacity(0.08)
-                                    : const Color(0xFF231d1d),
-                                borderRadius: BorderRadius.circular(10),
+                                    ? DudeTheme.accentDim
+                                    : DudeTheme.surface.withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
                                   color: isSelected
-                                      ? const Color(0xFFaecc01)
-                                      : Colors.white.withOpacity(0.12),
-                                  width: isSelected ? 1.8 : 1,
+                                      ? DudeTheme.accent
+                                      : DudeTheme.borderSubtle,
+                                  width: isSelected ? 1.4 : 1,
                                 ),
                               ),
                               child: Row(
                                 children: [
-                                  // Checkbox indicator
                                   AnimatedContainer(
                                     duration: const Duration(milliseconds: 200),
                                     width: 22,
                                     height: 22,
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? const Color(0xFFaecc01)
+                                          ? DudeTheme.accent
                                           : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(5),
+                                      borderRadius: BorderRadius.circular(7),
                                       border: Border.all(
                                         color: isSelected
-                                            ? const Color(0xFFaecc01)
-                                            : Colors.white.withOpacity(0.3),
+                                            ? DudeTheme.accent
+                                            : DudeTheme.border,
                                         width: 1.5,
                                       ),
                                     ),
@@ -156,22 +150,23 @@ class _StaffInterestScreenState extends State<StaffInterestScreen> {
                                         ? const Icon(
                                             Icons.check,
                                             size: 15,
-                                            color: Colors.black,
+                                            color: Colors.white,
                                           )
                                         : null,
                                   ),
                                   const SizedBox(width: 14),
-                                  // Label
-                                  Text(
-                                    categories[index],
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? const Color(0xFFaecc01)
-                                          : Colors.grey[400],
-                                      fontSize: 15,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.w400,
+                                  Expanded(
+                                    child: Text(
+                                      categories[index],
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : DudeTheme.textMuted,
+                                        fontSize: 14,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -182,7 +177,6 @@ class _StaffInterestScreenState extends State<StaffInterestScreen> {
                       ),
                     ),
 
-                    // Continue Button
                     if (vm.interestError != null) ...[
                       const SizedBox(height: 16),
                       Center(
@@ -219,6 +213,7 @@ class _StaffInterestScreenState extends State<StaffInterestScreen> {
                                     );
 
                                 if (success) {
+                                  if (!context.mounted) return;
                                   Utils.snackBar(
                                     "Interests saved successfully!",
                                   );
@@ -227,6 +222,7 @@ class _StaffInterestScreenState extends State<StaffInterestScreen> {
                                     page: const staffInterestLanguageScreen(),
                                   );
                                 } else {
+                                  if (!context.mounted) return;
                                   Utils.snackBarErrorMessage(
                                     vm.interestError ??
                                         "Failed to save interests. Try again.",
@@ -235,18 +231,13 @@ class _StaffInterestScreenState extends State<StaffInterestScreen> {
                               },
                         child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(16),
                             gradient: canProceed && !vm.isUpdatingInterests
-                                ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFFaecc01),
-                                      Color(0xFFaecc01),
-                                    ],
-                                  )
+                                ? DudeTheme.premiumAccentGradient
                                 : const LinearGradient(
                                     colors: [
-                                      Color(0xFF353535),
-                                      Color(0xFF353535),
+                                      Color(0xFF452331),
+                                      Color(0xFF301923),
                                     ],
                                   ),
                           ),
@@ -265,7 +256,7 @@ class _StaffInterestScreenState extends State<StaffInterestScreen> {
                                         ? "Continue → ($selectedCount selected)"
                                         : "Select at least 3 interests",
                                     style: const TextStyle(
-                                      color: Colors.black,
+                                      color: Colors.white,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -275,7 +266,7 @@ class _StaffInterestScreenState extends State<StaffInterestScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -285,4 +276,22 @@ class _StaffInterestScreenState extends State<StaffInterestScreen> {
       },
     );
   }
+
+  Widget _stepLabel(String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(
+      color: DudeTheme.accentDim,
+      borderRadius: BorderRadius.circular(30),
+      border: Border.all(color: DudeTheme.accent.withValues(alpha: 0.35)),
+    ),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: DudeTheme.accentBright,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.7,
+      ),
+    ),
+  );
 }

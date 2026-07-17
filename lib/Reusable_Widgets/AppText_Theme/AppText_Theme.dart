@@ -34,17 +34,19 @@ class AppText extends StatefulWidget {
 class _AppTextState extends State<AppText> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseStyle = theme.textTheme.bodyMedium ?? const TextStyle();
+
     return Text(
       widget.data,
       textAlign: widget.textAlign ?? TextAlign.left,
       style:
           widget.style ??
-          TextStyle(
+          baseStyle.copyWith(
             decoration: widget.decoration,
-            color: widget.color ?? Theme.of(context).colorScheme.surfaceBright,
-            fontFamily: 'Manrope',
+            color: widget.color ?? theme.colorScheme.onSurface,
             fontSize: widget.fontSize,
-            letterSpacing: widget.letterSpacing ?? -0.7,
+            letterSpacing: widget.letterSpacing,
             overflow: widget.overflow,
             fontWeight: widget.fontWeight,
           ),

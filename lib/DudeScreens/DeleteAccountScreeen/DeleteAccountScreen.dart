@@ -3,6 +3,7 @@ import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
 import 'package:dude/DudeScreens/LoginScreens/LoginScreen.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -16,7 +17,7 @@ class DeleteAccountScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF1c122d),
+          backgroundColor: DudeTheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -86,24 +87,12 @@ class DeleteAccountScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0A14),
+      backgroundColor: DudeTheme.background,
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF241b40),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF2b1e4e),
-            ],
-          ),
+          gradient: DudeTheme.backgroundGradient,
         ),
         child: SafeArea(
           child: Padding(
@@ -117,7 +106,7 @@ class DeleteAccountScreen extends StatelessWidget {
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2c1e4f),
+                      color: DudeTheme.surfaceRaised,
                       borderRadius: BorderRadius.circular(40),
                     ),
                     child: const Padding(
@@ -186,10 +175,10 @@ class DeleteAccountScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF1c122d), Color(0xFF261247)],
+                        colors: [DudeTheme.surface, DudeTheme.surfaceRaised],
                       ),
                       border: Border.all(
-                        color: const Color(0xFF2A1F38),
+                        color: DudeTheme.surfaceRaised,
                         width: 1,
                       ),
                     ),
@@ -223,7 +212,7 @@ class DeleteAccountScreen extends StatelessWidget {
           width: 8,
           height: 8,
           decoration: const BoxDecoration(
-            color: Color(0xFFB0A8C0),
+            color: DudeTheme.textMid,
             shape: BoxShape.circle,
           ),
         ),

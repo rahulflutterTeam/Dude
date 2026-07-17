@@ -6,7 +6,7 @@ import 'package:dude/APIService/Remote/network/BaseApiService.dart';
 import 'package:dude/DudeScreens/AuthService.dart';
 
 class SupportTicketService {
-  static final String baseUrl = "https://api.pair-ever.com/api/v1/";
+  static final String baseUrl = "https://api.dudee.online/api/v1/";
 
   Future<Map<String, String>> _headers() async {
     final token = await AuthService.getToken() ?? '';

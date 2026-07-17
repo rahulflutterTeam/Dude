@@ -1,5 +1,6 @@
 package com.dude.dudeapp
 
+import android.annotation.SuppressLint
 import android.app.Activity.RESULT_OK
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,6 +12,7 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.core.content.ContextCompat
@@ -102,11 +104,26 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
-        if (intent.getBooleanExtra("fromNotification", false)) {
-            MyFirebaseMessagingService.pendingCallId     = intent.getStringExtra("callId")
-            MyFirebaseMessagingService.pendingCallerName = intent.getStringExtra("callerName")
-            MyFirebaseMessagingService.pendingCallerId   = intent.getStringExtra("callerId")
-            MyFirebaseMessagingService.pendingIsVideo    = intent.getBooleanExtra("isVideo", false)
+        val accepted = intent.getBooleanExtra("fromNotification", false) ||
+                intent.action?.contains("CALL_ACCEPT", ignoreCase = true) == true
+        if (accepted) {
+            val data = intent.getBundleExtra("EXTRA_CALLKIT_CALL_DATA")
+            MyFirebaseMessagingService.pendingCallId =
+                data?.getString("EXTRA_CALLKIT_ID") ?: intent.getStringExtra("callId")
+                    ?: MyFirebaseMessagingService.pendingCallId
+            MyFirebaseMessagingService.pendingCallerName =
+                data?.getString("EXTRA_CALLKIT_NAME_CALLER") ?: intent.getStringExtra("callerName")
+                    ?: MyFirebaseMessagingService.pendingCallerName
+            MyFirebaseMessagingService.pendingCallerId =
+                data?.getString("EXTRA_CALLKIT_HANDLE") ?: intent.getStringExtra("callerId")
+                    ?: MyFirebaseMessagingService.pendingCallerId
+            if (data != null) {
+                MyFirebaseMessagingService.pendingIsVideo =
+                    data.getInt("EXTRA_CALLKIT_TYPE", 0) == 1
+            } else if (intent.hasExtra("isVideo")) {
+                MyFirebaseMessagingService.pendingIsVideo = intent.getBooleanExtra("isVideo", false)
+            }
+            MyFirebaseMessagingService.pendingAction = "ACCEPT"
         }
     }
 
@@ -191,9 +208,40 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
 
+                    "isIgnoringBatteryOptimizations" -> {
+                        val ignoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                            pm.isIgnoringBatteryOptimizations(packageName)
+                        } else { true }
+                        result.success(ignoring)
+                    }
+
+                    "requestIgnoreBatteryOptimizations" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                                try {
+                                    @SuppressLint("BatteryLife")
+                                    val i = Intent(
+                                        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                        Uri.parse("package:$packageName")
+                                    )
+                                    startActivity(i)
+                                } catch (e: Exception) {
+                                    try {
+                                        startActivity(
+                                            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                        )
+                                    } catch (_: Exception) {}
+                                }
+                            }
+                        }
+                        result.success(null)
+                    }
+
                     "getAcceptedCallData" -> {
                         val callId = MyFirebaseMessagingService.pendingCallId
-                        if (callId != null) {
+                        if (callId != null && MyFirebaseMessagingService.pendingAction == "ACCEPT") {
                             result.success(mapOf(
                                 "callId"     to callId,
                                 "callerName" to (MyFirebaseMessagingService.pendingCallerName ?: ""),
@@ -201,10 +249,16 @@ class MainActivity : FlutterActivity() {
                                 "isVideo"    to MyFirebaseMessagingService.pendingIsVideo
                             ))
                             MyFirebaseMessagingService.pendingCallId = null
+                            MyFirebaseMessagingService.pendingAction = null
                         } else {
                             result.success(null)
                         }
                     }
+
+                    "hasAcceptedCallData" -> result.success(
+                        MyFirebaseMessagingService.pendingAction == "ACCEPT" &&
+                                MyFirebaseMessagingService.pendingCallId != null
+                    )
 
                     else -> result.notImplemented()
                 }

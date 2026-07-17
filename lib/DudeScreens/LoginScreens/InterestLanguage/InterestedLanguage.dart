@@ -4,8 +4,10 @@ import 'package:dude/DudeScreens/LoginScreens/ViewModel/LoginVM.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
 import 'package:provider/provider.dart';
 
 class InterestLanguageScreen extends StatefulWidget {
@@ -76,12 +78,12 @@ class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
                 begin: Alignment.topRight,
                 end: Alignment.bottomLeft,
                 colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
+                  DudeTheme.background,
+                  DudeTheme.surface,
+                  DudeTheme.background,
+                  DudeTheme.background,
+                  DudeTheme.background,
+                  DudeTheme.background,
                 ],
               ),
             ),
@@ -95,7 +97,7 @@ class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 10),
-                        SvgPicture.asset("assets/Images/dude.svg", height: 40),
+                        DudeLogo(height: 40),
                         const SizedBox(height: 30),
 
                         Row(
@@ -121,7 +123,7 @@ class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
                         AppText(
                           "Select a Few of your Language to match with users who have similar things in common.",
                           fontSize: 15,
-                          color: const Color(0xFFc7c7cc),
+                          color: DudeTheme.textMuted,
                           maxLines: 2,
                         ),
 
@@ -202,8 +204,8 @@ class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
                           gradient: selectedLanguage != null
                               ? const LinearGradient(
                                   colors: [
-                                    Color(0xFFd0e844),
-                                    Color(0xFFd0e844),
+                                    DudeTheme.accent,
+                                    DudeTheme.accent,
                                   ],
                                 )
                               : const LinearGradient(

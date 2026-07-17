@@ -1,5 +1,6 @@
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 
 class RefundPolicyScreen extends StatelessWidget {
@@ -8,22 +9,12 @@ class RefundPolicyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0A14),
+      backgroundColor: DudeTheme.background,
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF241b40),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF2b1e4e),
-            ],
-          ),
+          gradient: DudeTheme.backgroundGradient,
         ),
         child: SafeArea(
           child: Column(
@@ -37,7 +28,7 @@ class RefundPolicyScreen extends StatelessWidget {
                       onTap: () => bondNavigator.backPage(context),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2c1e4f),
+                          color: DudeTheme.surfaceRaised,
                           borderRadius: BorderRadius.circular(40),
                         ),
                         child: const Padding(
@@ -223,7 +214,7 @@ class RefundPolicyScreen extends StatelessWidget {
       child: Text(
         text,
         style: const TextStyle(
-          color: Color(0xFFd2ea46),
+          color: DudeTheme.accent,
           fontSize: 17.5,
           fontWeight: FontWeight.w600,
         ),

@@ -1,6 +1,11 @@
 import 'package:intl/intl.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Dude_Utils/DateTimeFormatter/history_time_formatter.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_animations.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
 import 'package:dude/StaffScreenScreens/RecentCallScreen/Model/recentCallModel.dart';
 import 'package:dude/StaffScreenScreens/StaffBottomNavBar/StaffBottomNavBar.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
@@ -104,27 +109,12 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
     return Consumer<StaffViewModel>(
       builder: (context, vm, child) {
         return Scaffold(
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
+          backgroundColor: DudeTheme.background,
+          body: PremiumAmbientBackground(
             child: SafeArea(
               child: vm.isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
+                      child: CircularProgressIndicator(color: DudeTheme.accent),
                     )
                   : vm.errorMessage != null
                   ? Center(
@@ -133,13 +123,14 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
                         children: [
                           Text(
                             vm.errorMessage!,
-                            style: const TextStyle(color: Colors.redAccent),
+                            style: TextStyle(color: DudeTheme.danger),
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton(
                             onPressed: vm.refresh,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFB86AF6),
+                              backgroundColor: DudeTheme.accent,
+                              foregroundColor: DudeTheme.textOnAccent,
                             ),
                             child: const Text("Retry"),
                           ),
@@ -174,48 +165,18 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
           widget.backPage
               ? GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A1F38),
-                      borderRadius: BorderRadius.circular(40),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Icon(
-                        Icons.arrow_back,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-                    ),
-                  ),
+                  child: _buildBackButton(),
                 )
               : GestureDetector(
                   onTap: () => bondNavigator.newPageRemoveUntil(
                     context,
                     page: const StaffBottomBar(index: 0),
                   ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A1F38),
-                      borderRadius: BorderRadius.circular(40),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Icon(
-                        Icons.arrow_back,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-                    ),
-                  ),
+                  child: _buildBackButton(),
                 ),
           const SizedBox(width: 16),
-          const Text(
-            "Recent Calls",
-            style: TextStyle(
-              color: Colors.white,
+          Text("Recent Calls", style: TextStyle(
+              color: DudeTheme.textPrimary,
               fontSize: 22,
               fontWeight: FontWeight.w700,
             ),
@@ -226,18 +187,36 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF2A1F38),
+                color: DudeTheme.surface,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white12),
+                border: Border.all(color: DudeTheme.border),
               ),
               child: Icon(
                 isSearchVisible ? Icons.search : Icons.close,
-                color: Colors.white,
+                color: DudeTheme.textPrimary,
                 size: 26,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBackButton() {
+    return Container(
+      decoration: BoxDecoration(
+        color: DudeTheme.surface,
+        borderRadius: BorderRadius.circular(40),
+        border: Border.all(color: DudeTheme.border),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.all(8.0),
+        child: Icon(
+          Icons.arrow_back,
+          color: DudeTheme.textPrimary,
+          size: 26,
+        ),
       ),
     );
   }
@@ -253,35 +232,30 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
           final isSelected = selectedFilter == filter;
           return GestureDetector(
             onTap: () => setState(() => selectedFilter = filter),
-            child: Container(
+            child: AnimatedContainer(
+              duration: PremiumAnimations.fast,
               margin: const EdgeInsets.only(right: 10),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                gradient: isSelected
-                    ? const LinearGradient(
-                        colors: [Color(0xFFbcd71c), Color(0xFFbcd71c)],
-                      )
-                    : const LinearGradient(
-                        colors: [Color(0xFF2A1F38), Color(0xFF1C1426)],
-                      ),
-                border: isSelected
-                    ? null
-                    : Border.all(color: const Color(0xFF3A2A4A), width: 1),
+                gradient: isSelected ? DudeTheme.premiumAccentGradient : null,
+                color: isSelected ? null : DudeTheme.surface,
+                border: Border.all(
+                  color: isSelected
+                      ? DudeTheme.accent.withOpacity(0.5)
+                      : DudeTheme.border,
+                  width: isSelected ? 1.2 : 1,
+                ),
                 boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: const Color(0xFFB86AF6).withOpacity(0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
+                    ? DudeTheme.accentGlowShadow(blur: 12)
                     : null,
               ),
               child: Text(
                 filter.toUpperCase(),
                 style: TextStyle(
-                  color: isSelected ? Colors.black : const Color(0xFFB0A8C0),
+                  color: isSelected
+                      ? DudeTheme.textOnAccent
+                      : DudeTheme.textMuted,
                   fontSize: 14,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 ),
@@ -327,38 +301,29 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Animated gradient circle with icon
             Center(
               child: Icon(
                 Icons.call_end_rounded,
                 size: 60,
-                color: Colors.grey.shade800,
+                color: DudeTheme.textSubtle.withOpacity(0.5),
               ),
             ),
-
             const SizedBox(height: 22),
-
-            // Premium title text
-            const Text(
-              "No Call History Yet",
-              style: TextStyle(
-                color: Colors.white,
+            Text("No Call History Yet", style: TextStyle(
+                color: DudeTheme.textPrimary,
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
               ),
             ),
-
             const SizedBox(height: 12),
-
-            // Subtle description
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Text(
                 "Your call history will appear here.",
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.grey[400],
+                  color: DudeTheme.textSubtle,
                   fontSize: 15,
                   height: 1.4,
                 ),
@@ -372,117 +337,113 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
       return Center(
         child: Text(
           "No ${selectedFilter} yet",
-          style: const TextStyle(color: Colors.white70, fontSize: 18),
+          style: TextStyle(
+            color: DudeTheme.textMuted,
+            fontSize: 18,
+          ),
         ),
       );
     }
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
+      physics: PremiumAnimations.scrollPhysics,
       itemCount: filteredCalls.length,
       itemBuilder: (context, index) {
         final call = filteredCalls[index];
-        final isMissed = call.status == CallStatus.missed;
-        final isVideo = call.callType.toLowerCase() == "video";
-        final earnedAmount = _earnedAmountForCall(call);
+        return PremiumStaggerItem(
+          index: index.clamp(0, 12),
+          child: _callCard(call),
+        );
+      },
+    );
+  }
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2A1F38), Color(0xFF1C1426)],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF3A2A4A)),
+  Widget _callCard(CallHistoryItem call) {
+    final isMissed = call.status == CallStatus.missed;
+    final isVideo = call.callType.toLowerCase() == "video";
+    final earnedAmount = _earnedAmountForCall(call);
+
+    return PremiumGlassCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 26,
+            backgroundImage: const AssetImage("assets/Images/men.png"),
+            backgroundColor: DudeTheme.surfaceRaised,
           ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundImage: AssetImage("assets/Images/men.png"),
-                backgroundColor: const Color(0xFF3A2A4A),
-              ),
-              const SizedBox(width: 14),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  call.userName,
+                  style: TextStyle(
+                    color: isMissed ? DudeTheme.danger : DudeTheme.textPrimary,
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
                   children: [
-                    Text(
-                      call.userName,
-                      style: TextStyle(
-                        color: isMissed ? Colors.redAccent : Colors.white,
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Icon(
+                      isMissed ? Icons.call_received : Icons.call_made,
+                      color: isMissed ? DudeTheme.danger : DudeTheme.success,
+                      size: 17,
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(
-                          isMissed ? Icons.call_received : Icons.call_made,
-                          color: isMissed
-                              ? Colors.redAccent
-                              : Colors.greenAccent,
-                          size: 17,
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        HistoryTimeFormatter.list(call.createdAt),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: DudeTheme.textSubtle,
+                          fontSize: 13.5,
                         ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            HistoryTimeFormatter.list(call.createdAt),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFB0A8C0),
-                              fontSize: 13.5,
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
+              ],
+            ),
+          ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isVideo ? Icons.videocam_rounded : Icons.call_rounded,
+                color: isVideo ? DudeTheme.accent : DudeTheme.success,
+                size: 26,
               ),
-
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    isVideo ? Icons.videocam_rounded : Icons.call_rounded,
-                    color: isVideo
-                        ? const Color(0xFFB86AF6)
-                        : const Color(0xFF7BFF9E),
-                    size: 26,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    formatCallDurationCompact(call.callDuration),
-                    style: TextStyle(
-                      color: isMissed ? Colors.redAccent : Colors.white70,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isMissed
-                        ? "₹0.00"
-                        : "Earn ${_formatEarnedAmount(earnedAmount)}",
-                    style: TextStyle(
-                      color: isMissed
-                          ? Colors.redAccent
-                          : const Color(0xFFBCD71C),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 4),
+              Text(
+                formatCallDurationCompact(call.callDuration),
+                style: TextStyle(
+                  color: isMissed ? DudeTheme.danger : DudeTheme.textMuted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isMissed
+                    ? "₹0.00"
+                    : "Earn ${_formatEarnedAmount(earnedAmount)}",
+                style: TextStyle(
+                  color: isMissed ? DudeTheme.danger : DudeTheme.accent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -571,12 +532,12 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
     return Theme(
       data: Theme.of(context).copyWith(
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFbcd71c),
-          onPrimary: Colors.black,
-          surface: Color(0xFF2A1F38),
-          onSurface: Colors.white,
+          primary: DudeTheme.accent,
+          onPrimary: DudeTheme.textOnAccent,
+          surface: DudeTheme.surface,
+          onSurface: DudeTheme.textPrimary,
         ),
-        dialogBackgroundColor: const Color(0xFF1C1426),
+        dialogBackgroundColor: DudeTheme.background,
       ),
       child: child!,
     );
@@ -654,10 +615,10 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withOpacity(0.15),
+                  color: DudeTheme.dangerDim,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: const Color(0xFFEF4444).withOpacity(0.3),
+                    color: DudeTheme.danger.withOpacity(0.3),
                   ),
                 ),
                 child: const Row(
@@ -665,14 +626,14 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
                   children: [
                     Icon(
                       Icons.clear_rounded,
-                      color: Color(0xFFEF4444),
+                      color: DudeTheme.danger,
                       size: 16,
                     ),
                     SizedBox(width: 6),
                     Text(
                       'Reset Filters',
                       style: TextStyle(
-                        color: Color(0xFFEF4444),
+                        color: DudeTheme.danger,
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                       ),
@@ -698,8 +659,8 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFFB0A8C0),
+          style: TextStyle(
+            color: DudeTheme.textSubtle,
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -710,12 +671,10 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF100E1E),
+              color: DudeTheme.surface,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: isActive
-                    ? const Color(0xFFbcd71c)
-                    : const Color(0xFF2A1F38),
+                color: isActive ? DudeTheme.accent : DudeTheme.border,
                 width: 1.5,
               ),
             ),
@@ -726,7 +685,9 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
                   child: Text(
                     value,
                     style: TextStyle(
-                      color: isActive ? Colors.white : const Color(0xFF6B6585),
+                      color: isActive
+                          ? DudeTheme.textPrimary
+                          : DudeTheme.textSubtle,
                       fontSize: 13,
                       fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                     ),
@@ -735,9 +696,7 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
                 ),
                 Icon(
                   Icons.calendar_today_rounded,
-                  color: isActive
-                      ? const Color(0xFFbcd71c)
-                      : const Color(0xFF6B6585),
+                  color: isActive ? DudeTheme.accent : DudeTheme.textSubtle,
                   size: 15,
                 ),
               ],
@@ -777,22 +736,15 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
+      child: PremiumGlassCard(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C1426),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF3A2A4A)),
-        ),
         child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'STATS SUMMARY',
-                  style: TextStyle(
-                    color: Color(0xFFbcd71c),
+                Text('STATS SUMMARY', style: TextStyle(
+                    color: DudeTheme.accent,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.8,
@@ -800,8 +752,8 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
                 ),
                 Text(
                   'Connected: $totalConnected | Missed: $totalMissed',
-                  style: const TextStyle(
-                    color: Color(0xFFB0A8C0),
+                  style: TextStyle(
+                    color: DudeTheme.textSubtle,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -816,25 +768,25 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
                   label: 'TOTAL CALLS',
                   value: '${calls.length}',
                   icon: Icons.phone_callback_rounded,
-                  color: Colors.white,
+                  color: DudeTheme.textPrimary,
                 ),
                 _statsCol(
                   label: 'AUDIO / VIDEO',
                   value: '$audioCount / $videoCount',
                   icon: Icons.call_merge_rounded,
-                  color: const Color(0xFFB86AF6),
+                  color: DudeTheme.accent,
                 ),
                 _statsCol(
                   label: 'TOTAL DURATION',
                   value: durationText == "Missed" ? "0s" : durationText,
                   icon: Icons.access_time_rounded,
-                  color: const Color(0xFF7BFF9E),
+                  color: DudeTheme.success,
                 ),
                 _statsCol(
                   label: 'EARNINGS',
                   value: '₹${totalEarned.toStringAsFixed(2)}',
                   icon: Icons.monetization_on_outlined,
-                  color: const Color(0xFFbcd71c),
+                  color: DudeTheme.accent,
                 ),
               ],
             ),
@@ -867,8 +819,8 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
           const SizedBox(height: 3),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF6B6585),
+            style: TextStyle(
+              color: DudeTheme.textSubtle,
               fontSize: 9,
               fontWeight: FontWeight.w700,
             ),

@@ -1,3 +1,4 @@
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -30,24 +31,12 @@ class RefundsCancellationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0A14),
+      backgroundColor: DudeTheme.background,
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF241b40),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF2b1e4e),
-            ],
-          ),
+          gradient: DudeTheme.backgroundGradient,
         ),
         child: SafeArea(
           child: Padding(
@@ -62,7 +51,7 @@ class RefundsCancellationsScreen extends StatelessWidget {
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 20),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2c1e4f),
+                        color: DudeTheme.surfaceRaised,
                         borderRadius: BorderRadius.circular(40),
                       ),
                       child: const Padding(
@@ -239,16 +228,16 @@ class RefundsCancellationsScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1c122d),
+          color: DudeTheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF2A1F38), width: 1),
+          border: Border.all(color: DudeTheme.surfaceRaised, width: 1),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF2c1e4f),
+                color: DudeTheme.surfaceRaised,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: const Color(0xFFbdd534), size: 24),
@@ -270,7 +259,7 @@ class RefundsCancellationsScreen extends StatelessWidget {
                   Text(
                     detail,
                     style: const TextStyle(
-                      color: Color(0xFFB0A8C0),
+                      color: DudeTheme.textMid,
                       fontSize: 13,
                     ),
                   ),

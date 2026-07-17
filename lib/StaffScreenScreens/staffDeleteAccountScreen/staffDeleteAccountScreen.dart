@@ -1,4 +1,7 @@
 import 'package:dude/DudeScreens/Splash/SplashScreen2.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -15,7 +18,7 @@ class staffDeleteAccountScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF241b40),
+          backgroundColor: DudeTheme.surfaceRaised,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -34,9 +37,7 @@ class staffDeleteAccountScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text(
-                "Cancel",
-                style: TextStyle(color: Color(0xFFB0A8C0), fontSize: 16),
+              child: Text("Cancel", style: TextStyle(color: DudeTheme.textMid, fontSize: 16),
               ),
             ),
             TextButton(
@@ -85,23 +86,8 @@ class staffDeleteAccountScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF241b40),
-              Color(0xFF1C1426),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF2b1e4e),
-            ],
-          ),
-        ),
+      backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(20.0),
@@ -116,7 +102,7 @@ class staffDeleteAccountScreen extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2A1F38),
+                          color: DudeTheme.surface,
                           borderRadius: BorderRadius.circular(40),
                           border: Border.all(color: Colors.white12),
                         ),
@@ -175,14 +161,10 @@ class staffDeleteAccountScreen extends StatelessWidget {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFaecc01), Color(0xFF8ab800)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      gradient: DudeTheme.premiumAccentGradient,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFaecc01).withOpacity(0.4),
+                          color: DudeTheme.accent.withOpacity(0.4),
                           blurRadius: 15,
                           offset: const Offset(0, 6),
                         ),
@@ -211,7 +193,7 @@ class staffDeleteAccountScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: const Color(0xFFB0A8C0).withOpacity(0.4),
+                        color: DudeTheme.textMid.withOpacity(0.4),
                       ),
                     ),
                     alignment: Alignment.center,
@@ -244,7 +226,7 @@ class staffDeleteAccountScreen extends StatelessWidget {
           width: 7,
           height: 7,
           decoration: const BoxDecoration(
-            color: Color(0xFFB86AF6),
+            color: DudeTheme.accent,
             shape: BoxShape.circle,
           ),
         ),

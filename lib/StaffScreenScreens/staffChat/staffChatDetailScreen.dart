@@ -1,4 +1,7 @@
 import 'package:dude/DudeScreens/Chat/backend_chat_service.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
@@ -315,7 +318,7 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: isMine ? const Color(0xFFB86AF6) : const Color(0xFF2A1F38),
+              color: isMine ? DudeTheme.accent : DudeTheme.surfaceRaised,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(16),
                 topRight: const Radius.circular(16),
@@ -336,23 +339,8 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF241b40),
-              Color(0xFF1C1426),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF2b1e4e),
-            ],
-          ),
-        ),
+      backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
         child: SafeArea(
           child: Column(
             children: [
@@ -366,7 +354,7 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2A1F38),
+                          color: DudeTheme.surface,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white12),
                         ),
@@ -381,10 +369,10 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
 
                     CircleAvatar(
                       radius: 24,
-                      backgroundColor: const Color(0xFF3A2A4A),
-                      child: const Icon(
+                      backgroundColor: DudeTheme.border,
+                      child: Icon(
                         Icons.person,
-                        color: Color(0xFFB86AF6),
+                        color: DudeTheme.accent,
                         size: 28,
                       ),
                     ),
@@ -409,15 +397,13 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
                                 width: 9,
                                 height: 9,
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFF7DFF63),
+                                  color: DudeTheme.online,
                                   shape: BoxShape.circle,
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              const Text(
-                                "Active now",
-                                style: TextStyle(
-                                  color: Color(0xFF7DFF63),
+                              Text("Active now", style: TextStyle(
+                                  color: DudeTheme.online,
                                   fontSize: 13,
                                 ),
                               ),
@@ -436,7 +422,7 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
                     ? _buildMessageList()
                     : const Center(
                         child: CircularProgressIndicator(
-                          color: Color(0xFFB86AF6),
+                          color: DudeTheme.accent,
                         ),
                       ),
               ),
@@ -445,9 +431,9 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1C1426),
+                  color: DudeTheme.surface,
                   border: Border(
-                    top: BorderSide(color: Color(0xFF2E2040), width: 1),
+                    top: BorderSide(color: DudeTheme.border, width: 1),
                   ),
                 ),
                 child: Row(
@@ -459,9 +445,9 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
                           vertical: 12,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2A1F38),
+                          color: DudeTheme.surface,
                           borderRadius: BorderRadius.circular(30),
-                          border: Border.all(color: const Color(0xFF3A2A4A)),
+                          border: Border.all(color: DudeTheme.border),
                         ),
                         child: TextField(
                           controller: _textController,
@@ -473,7 +459,7 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
                           maxLines: 4,
                           decoration: const InputDecoration(
                             hintText: "Type a message...",
-                            hintStyle: TextStyle(color: Color(0xFF6B5F7A)),
+                            hintStyle: TextStyle(color: DudeTheme.textSubtle),
                             border: InputBorder.none,
                           ),
                         ),
@@ -485,11 +471,10 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
                       onTap: _sendMessage,
                       child: Container(
                         padding: const EdgeInsets.all(14),
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFFB86AF6), Color(0xFF7B4DFF)],
-                          ),
+                        decoration: BoxDecoration(
+                          gradient: DudeTheme.premiumAccentGradient,
                           shape: BoxShape.circle,
+                          boxShadow: DudeTheme.accentGlowShadow(blur: 12, spread: -2),
                         ),
                         child: const Icon(
                           Icons.send_rounded,

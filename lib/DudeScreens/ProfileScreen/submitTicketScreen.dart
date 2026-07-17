@@ -1,5 +1,6 @@
 // submit_ticket_screen.dart
 import 'dart:io';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dude/APIService/support_ticket_service.dart';
@@ -71,14 +72,14 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF080612),
+      backgroundColor: DudeTheme.background,
       appBar: AppBar(
         leading: BackButton(color: Colors.white54),
         title: Text(
           'Submit Ticket',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: const Color(0xFF100E1E),
+        backgroundColor: DudeTheme.surface,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -94,7 +95,7 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
               SizedBox(height: 8),
             ],
             Card(
-              color: const Color(0xFF100E1E),
+              color: DudeTheme.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -160,7 +161,7 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
             ),
             SizedBox(height: 16),
             Card(
-              color: const Color(0xFF100E1E),
+              color: DudeTheme.surface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -208,7 +209,7 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
                     SizedBox(height: 8),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E1A30),
+                        backgroundColor: DudeTheme.border,
                         foregroundColor: Colors.white,
                         side: BorderSide(color: Colors.grey[700]!),
                         shape: RoundedRectangleBorder(

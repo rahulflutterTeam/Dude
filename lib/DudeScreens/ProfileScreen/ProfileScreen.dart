@@ -11,29 +11,16 @@ import 'package:dude/DudeScreens/Splash/SplashScreen2.dart';
 import 'package:dude/DudeScreens/Transactions/TransactionScreen.dart';
 import 'package:dude/DudeScreens/WalletScreen/WalletScreen.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-// ── Design tokens ─────────────────────────────────────────────────────────
-const _kBg = Color(0xFF080612);
-const _kCard = Color(0xFF100E1E);
-const _kCardBorder = Color(0xFF1E1A30);
-const _kAccent = Color(0xFFD4F53C);
-const _kAccentDim = Color(0xFF2A3010);
-const _kPurple = Color(0xFF7B5CF5);
-const _kPurpleDim = Color(0xFF1C1535);
-const _kText = Color(0xFFFFFFFF);
-const _kTextSub = Color(0xFF6B6585);
-const _kTextMid = Color(0xFFADA8C0);
-const _kDanger = Color(0xFFEF4444);
-const _kDangerDim = Color(0xFF1E0404);
-// ──────────────────────────────────────────────────────────────────────────
 
 class ProfileScreen extends StatefulWidget {
   final bool backPage;
@@ -44,9 +31,11 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _fadeCtrl;
   late final Animation<double> _fadeAnim;
+  late final AnimationController _avatarPulseCtrl;
+  late final Animation<double> _avatarPulseAnim;
   String _appVersion = '';
 
   @override
@@ -57,6 +46,13 @@ class _ProfileScreenState extends State<ProfileScreen>
       duration: const Duration(milliseconds: 450),
     );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _avatarPulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat(reverse: true);
+    _avatarPulseAnim = Tween<double>(begin: 0.85, end: 1.12).animate(
+      CurvedAnimation(parent: _avatarPulseCtrl, curve: Curves.easeInOut),
+    );
     _fadeCtrl.forward();
     _loadAppVersion();
   }
@@ -64,6 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void dispose() {
     _fadeCtrl.dispose();
+    _avatarPulseCtrl.dispose();
     super.dispose();
   }
 
@@ -121,16 +118,16 @@ class _ProfileScreenState extends State<ProfileScreen>
 
         if (userVM.isLoading) {
           return const Scaffold(
-            backgroundColor: _kBg,
+            backgroundColor: DudeTheme.background,
             body: Center(
-              child: CircularProgressIndicator(color: _kAccent, strokeWidth: 2),
+              child: CircularProgressIndicator(color: DudeTheme.accent, strokeWidth: 2),
             ),
           );
         }
 
         if (user == null) {
           return Scaffold(
-            backgroundColor: _kBg,
+            backgroundColor: DudeTheme.background,
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -139,13 +136,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      color: _kPurpleDim,
+                      color: DudeTheme.accentDim,
                       shape: BoxShape.circle,
-                      border: Border.all(color: _kPurple.withOpacity(0.3)),
+                      border: Border.all(color: DudeTheme.accent.withOpacity(0.3)),
                     ),
                     child: const Icon(
                       Icons.person_off_outlined,
-                      color: _kPurple,
+                      color: DudeTheme.accent,
                       size: 28,
                     ),
                   ),
@@ -153,7 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   const Text(
                     'No user data',
                     style: TextStyle(
-                      color: _kText,
+                      color: DudeTheme.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                     ),
@@ -167,7 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        color: _kAccent,
+                        color: DudeTheme.accent,
                         borderRadius: BorderRadius.circular(30),
                       ),
                       child: const Text(
@@ -186,52 +183,52 @@ class _ProfileScreenState extends State<ProfileScreen>
         }
 
         return Scaffold(
-          backgroundColor: _kBg,
-          body: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0E0A1E),
-                  Color(0xFF080612),
-                  Color(0xFF080612),
-                  Color(0xFF0D0A1C),
-                ],
-              ),
-            ),
+          backgroundColor: DudeTheme.background,
+          body: PremiumAmbientBackground(
             child: SafeArea(
               child: FadeTransition(
                 opacity: _fadeAnim,
                 child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   child: Column(
                     children: [
-                      // ── Top Bar ──────────────────────────────────────
-                      _buildTopBar(),
-                      const SizedBox(height: 28),
-
-                      // ── Avatar + Name ────────────────────────────────
-                      _buildProfileHero(user),
-                      const SizedBox(height: 32),
-
-                      // ── Stats Row ────────────────────────────────────
-                      _buildStatsRow(user),
-                      const SizedBox(height: 28),
-
-                      // ── Menu ─────────────────────────────────────────
-                      _buildMenuSection(context, user),
+                      PremiumStaggerItem(
+                        index: 0,
+                        child: _buildTopBar(),
+                      ),
+                      const SizedBox(height: 20),
+                      PremiumStaggerItem(
+                        index: 1,
+                        child: _buildProfileHeader(user),
+                      ),
+                      const SizedBox(height: 20),
+                      PremiumStaggerItem(
+                        index: 2,
+                        child: _buildWalletBanner(user),
+                      ),
+                      const SizedBox(height: 20),
+                      PremiumStaggerItem(
+                        index: 3,
+                        child: _buildQuickActionsGrid(context),
+                      ),
                       const SizedBox(height: 16),
-
-                      // ── Logout ───────────────────────────────────────
-                      _buildLogoutSection(context, userVM),
-                      const SizedBox(height: 28),
-
-                      // ── Support footer ───────────────────────────────
-                      _buildSupportFooter(),
-                      const SizedBox(height: 18),
-                      _buildSecureVersionFooter(),
-                      const SizedBox(height: 40),
+                      PremiumStaggerItem(
+                        index: 4,
+                        child: _buildMoreOptions(context),
+                      ),
+                      const SizedBox(height: 16),
+                      PremiumStaggerItem(
+                        index: 5,
+                        child: _buildLogoutSection(context, userVM),
+                      ),
+                      const SizedBox(height: 20),
+                      PremiumStaggerItem(
+                        index: 6,
+                        child: _buildSecureVersionFooter(),
+                      ),
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
@@ -249,10 +246,9 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       child: Row(
         children: [
-          // Back button
           GestureDetector(
             onTap: () {
               HapticFeedback.lightImpact();
@@ -264,49 +260,57 @@ class _ProfileScreenState extends State<ProfileScreen>
                     );
             },
             child: Container(
-              width: 40,
-              height: 40,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
-                color: _kCard,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _kCardBorder),
+                color: DudeTheme.surface.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: DudeTheme.border.withValues(alpha: 0.5),
+                ),
               ),
               child: const Icon(
                 Icons.arrow_back_ios_new_rounded,
-                color: _kText,
-                size: 16,
+                color: DudeTheme.textPrimary,
+                size: 18,
               ),
             ),
           ),
-
           const Expanded(
             child: Text(
-              'Profile',
+              'My Profile',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: _kText,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+                color: DudeTheme.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
                 letterSpacing: -0.2,
               ),
             ),
           ),
-
-          // Edit button
           GestureDetector(
             onTap: () {
               HapticFeedback.lightImpact();
-              bondNavigator.newPage(context, page: const EditProfileScreen());
+              bondNavigator.newPage(
+                context,
+                page: const AccountSettingsScreen(),
+              );
             },
             child: Container(
-              width: 40,
-              height: 40,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
-                color: _kAccentDim,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _kAccent.withOpacity(0.35)),
+                color: DudeTheme.surface.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: DudeTheme.border.withValues(alpha: 0.5),
+                ),
               ),
-              child: const Icon(Icons.edit_rounded, color: _kAccent, size: 18),
+              child: const Icon(
+                Icons.settings_rounded,
+                color: DudeTheme.accent,
+                size: 20,
+              ),
             ),
           ),
         ],
@@ -314,144 +318,140 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // PROFILE HERO
-  // ─────────────────────────────────────────────────────────────────────
-
-  Widget _buildProfileHero(dynamic user) {
-    return Column(
-      children: [
-        // Avatar with glow ring
-        Stack(
-          alignment: Alignment.bottomRight,
+  Widget _buildProfileHeader(dynamic user) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: PremiumGlassCard(
+        glow: true,
+        padding: const EdgeInsets.all(16),
+        radius: 20,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: 104,
-              height: 104,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [_kAccent, _kPurple],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                AnimatedBuilder(
+                  animation: _avatarPulseAnim,
+                  builder: (context, child) {
+                    return Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: DudeTheme.accent.withValues(
+                              alpha: 0.22 * _avatarPulseAnim.value,
+                            ),
+                            blurRadius: 20 * _avatarPulseAnim.value,
+                          ),
+                        ],
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: DudeTheme.premiumAccentGradient,
+                    ),
+                    padding: const EdgeInsets.all(2),
+                    child: ClipOval(
+                      child: user.image != null &&
+                              (user.image as String).isNotEmpty
+                          ? Image.network(
+                              user.image as String,
+                              width: 72,
+                              height: 72,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                'assets/Images/men.png',
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Image.asset(
+                              'assets/Images/men.png',
+                              fit: BoxFit.cover,
+                            ),
+                    ),
+                  ),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _kAccent.withOpacity(0.25),
-                    blurRadius: 20,
-                    spreadRadius: 2,
+                Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: DudeTheme.success,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: DudeTheme.background, width: 2),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.name ?? 'User',
+                    style: const TextStyle(
+                      color: DudeTheme.textPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  if (user.phone != null &&
+                      user.phone.toString().isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      '+91 ${user.phone}',
+                      style: TextStyle(
+                        color: DudeTheme.textMuted.withValues(alpha: 0.9),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _infoChip(
+                        Icons.badge_outlined,
+                        'ID ${user.memberID}',
+                      ),
+                      _infoChip(
+                        Icons.calendar_today_outlined,
+                        'Since ${_formatJoinDate(user.createdAt)}',
+                      ),
+                      _infoChip(Icons.verified_rounded, 'Active', accent: true),
+                    ],
                   ),
                 ],
               ),
-              padding: const EdgeInsets.all(2.5),
-              child: ClipOval(
-                child: user.image != null && (user.image as String).isNotEmpty
-                    ? Image.network(
-                        user.image as String,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Image.asset(
-                          "assets/Images/men.png",
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Image.asset("assets/Images/men.png", fit: BoxFit.cover),
-              ),
             ),
-            // Online indicator
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: const Color(0xFF22C55E),
-                shape: BoxShape.circle,
-                border: Border.all(color: _kBg, width: 3),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 14),
-
-        // Name
-        Text(
-          user.name ?? 'User',
-          style: const TextStyle(
-            color: _kText,
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
-        ),
-
-        const SizedBox(height: 6),
-
-        // Member ID pill
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-          decoration: BoxDecoration(
-            color: _kCard,
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: _kCardBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.tag_rounded, color: _kTextSub, size: 13),
-              const SizedBox(width: 4),
-              Text(
-                'ID: ${user.memberID}',
-                style: const TextStyle(
-                  color: _kTextMid,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.3,
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                bondNavigator.newPage(context, page: const EditProfileScreen());
+              },
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: DudeTheme.accentDim,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: DudeTheme.accent.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.edit_rounded,
+                  color: DudeTheme.accent,
+                  size: 18,
                 ),
               ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────
-  // STATS ROW
-  // ─────────────────────────────────────────────────────────────────────
-
-  Widget _buildStatsRow(dynamic user) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: _kCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _kCardBorder),
-        ),
-        child: Row(
-          children: [
-            _statTile(
-              label: 'Balance',
-              value: '${user.coinBalance ?? 0}',
-              assetIcon: "assets/Images/paircoin.png",
-              color: _kAccent,
-              showAddButton: true,
-              onTap: () =>
-                  bondNavigator.newPage(context, page: const WalletScreen()),
-            ),
-            _vDivider(),
-            _statTile(
-              label: 'Member Since',
-              value: _formatJoinDate(user.createdAt),
-              icon: Icons.calendar_today_rounded,
-              color: _kPurple,
-            ),
-            _vDivider(),
-            _statTile(
-              label: 'Status',
-              value: 'Active',
-              icon: Icons.verified_rounded,
-              color: const Color(0xFF22C55E),
             ),
           ],
         ),
@@ -459,6 +459,304 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  Widget _infoChip(IconData icon, String text, {bool accent = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: accent
+            ? DudeTheme.accent.withValues(alpha: 0.12)
+            : DudeTheme.background.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: accent
+              ? DudeTheme.accent.withValues(alpha: 0.35)
+              : DudeTheme.border.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 11,
+            color: accent ? DudeTheme.accent : DudeTheme.textSubtle,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: accent ? DudeTheme.accent : DudeTheme.textMid,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWalletBanner(dynamic user) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          bondNavigator.newPage(context, page: const WalletScreen());
+        },
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+          decoration: BoxDecoration(
+            gradient: DudeTheme.premiumAccentGradient,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: DudeTheme.accentGlowShadow(blur: 22, spread: -4),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Wallet balance',
+                      style: TextStyle(
+                        color: DudeTheme.textOnAccent.withValues(alpha: 0.85),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${user.coinBalance ?? 0}',
+                      style: const TextStyle(
+                        color: DudeTheme.textOnAccent,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tap to add coins',
+                      style: TextStyle(
+                        color: DudeTheme.textOnAccent.withValues(alpha: 0.75),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.add_rounded,
+                      color: DudeTheme.textOnAccent,
+                      size: 18,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Add',
+                      style: TextStyle(
+                        color: DudeTheme.textOnAccent,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsGrid(BuildContext context) {
+    final actions = [
+      _QuickAction(
+        icon: Icons.receipt_long_rounded,
+        label: 'Transactions',
+        color: DudeTheme.accent,
+        onTap: () => bondNavigator.newPage(
+          context,
+          page: const TransactionsScreen(backPage: true),
+        ),
+      ),
+      _QuickAction(
+        icon: Icons.card_giftcard_rounded,
+        label: 'Refer & Earn',
+        color: DudeTheme.accentBright,
+        onTap: () => bondNavigator.newPage(
+          context,
+          page: const ReferEarnScreen(backPage: true),
+        ),
+      ),
+      _QuickAction(
+        icon: Icons.support_agent_rounded,
+        label: 'Support',
+        color: DudeTheme.warning,
+        onTap: () =>
+            bondNavigator.newPage(context, page: HelpAndSupportScreen()),
+      ),
+      _QuickAction(
+        icon: Icons.mail_outline_rounded,
+        label: 'Email us',
+        color: DudeTheme.accentDeep,
+        onTap: _launchEmail,
+      ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionLabel('Quick actions'),
+          const SizedBox(height: 10),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: actions.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.55,
+            ),
+            itemBuilder: (context, index) {
+              final action = actions[index];
+              return _quickActionTile(action);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickActionTile(_QuickAction action) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        action.onTap();
+      },
+      child: PremiumGlassCard(
+        padding: const EdgeInsets.all(14),
+        radius: 16,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: action.color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(
+                  color: action.color.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Icon(action.icon, color: action.color, size: 20),
+            ),
+            Text(
+              action.label,
+              style: const TextStyle(
+                color: DudeTheme.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoreOptions(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionLabel('More'),
+          const SizedBox(height: 10),
+          PremiumGlassCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _compactMenuRow(
+                  icon: Icons.undo_rounded,
+                  title: 'Refunds & Cancellations',
+                  onTap: () => bondNavigator.newPage(
+                    context,
+                    page: const RefundsCancellationsScreen(),
+                  ),
+                ),
+                _divider(),
+                _compactMenuRow(
+                  icon: Icons.privacy_tip_outlined,
+                  title: 'Privacy Policy',
+                  onTap: _openPrivacyPolicy,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compactMenuRow({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        child: Row(
+          children: [
+            Icon(icon, color: DudeTheme.accent, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: DudeTheme.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: DudeTheme.textSubtle.withValues(alpha: 0.8),
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   String _formatJoinDate(dynamic date) {
     if (date == null) return '—';
     try {
@@ -483,156 +781,16 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  Widget _statTile({
-    required String label,
-    required String value,
-    IconData? icon,
-    String? assetIcon,
-    required Color color,
-    bool showAddButton = false,
-    VoidCallback? onTap,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: assetIcon != null
-                  ? Center(child: Image.asset(assetIcon, width: 20, height: 20))
-                  : Icon(icon, color: color, size: 17),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (showAddButton) ...[
-                  Container(
-                    width: 18,
-                    height: 18,
-                    decoration: const BoxDecoration(
-                      color: _kAccent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.add_rounded,
-                      color: Colors.black,
-                      size: 14,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                ],
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(label, style: const TextStyle(color: _kTextSub, fontSize: 10)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _vDivider() => Container(width: 1, height: 48, color: _kCardBorder);
-
-  // ─────────────────────────────────────────────────────────────────────
-  // MENU SECTION
-  // ─────────────────────────────────────────────────────────────────────
-
-  Widget _buildMenuSection(BuildContext context, dynamic user) {
+  Widget _sectionLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _kCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _kCardBorder),
-        ),
-        child: Column(
-          children: [
-            _menuTile(
-              assetIcon: "assets/Images/paircoin.png",
-              iconColor: _kAccent,
-              iconBg: _kAccentDim,
-              title: 'Wallet',
-              subtitle: 'Manage your balance',
-              onTap: () =>
-                  bondNavigator.newPage(context, page: const WalletScreen()),
-            ),
-            _divider(),
-            _menuTile(
-              icon: Icons.receipt_long_rounded,
-              iconColor: _kPurple,
-              iconBg: _kPurpleDim,
-              title: 'Transactions',
-              subtitle: 'View payment history',
-              onTap: () => bondNavigator.newPage(
-                context,
-                page: const TransactionsScreen(backPage: true),
-              ),
-            ),
-            _divider(),
-            _menuTile(
-              icon: Icons.manage_accounts_outlined,
-              iconColor: const Color(0xFF38BDF8),
-              iconBg: const Color(0xFF071520),
-              title: 'Account Settings',
-              subtitle: 'Privacy & preferences',
-              onTap: () => bondNavigator.newPage(
-                context,
-                page: const AccountSettingsScreen(),
-              ),
-            ),
-            _divider(),
-            _menuTile(
-              icon: Icons.manage_accounts_outlined,
-              iconColor: const Color(0xFF38BDF8),
-              iconBg: const Color(0xFF071520),
-              title: 'Refunds & Cancellations',
-              subtitle: 'Subscription Cancellation',
-              onTap: () => bondNavigator.newPage(
-                context,
-                page: const RefundsCancellationsScreen(),
-              ),
-            ),
-            _divider(),
-            _menuTile(
-              icon: Icons.card_giftcard_rounded,
-              iconColor: const Color(0xFF38BDF8),
-              iconBg: const Color(0xFF071520),
-              title: 'Refer & Earn',
-              subtitle: 'Refer Your Friends',
-              onTap: () => bondNavigator.newPage(
-                context,
-                page: const ReferEarnScreen(backPage: true),
-              ),
-            ),
-            _divider(),
-            _menuTile(
-              icon: Icons.support_agent_rounded,
-              iconColor: const Color(0xFFF59E0B),
-              iconBg: const Color(0xFF211500),
-              title: 'Contact Us',
-              subtitle: 'Chat with support',
-              onTap: () {
-                bondNavigator.newPage(context, page: HelpAndSupportScreen());
-              },
-            ),
-          ],
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          color: DudeTheme.textSubtle.withValues(alpha: 0.9),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.1,
         ),
       ),
     );
@@ -640,84 +798,8 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _divider() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Container(height: 1, color: _kCardBorder),
+    child: Container(height: 1, color: DudeTheme.border),
   );
-
-  Widget _menuTile({
-    IconData? icon,
-    String? assetIcon,
-    required Color iconColor,
-    required Color iconBg,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            // Icon box
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: iconColor.withOpacity(0.2)),
-              ),
-              child: assetIcon != null
-                  ? Center(child: Image.asset(assetIcon, width: 24, height: 24))
-                  : Icon(icon, color: iconColor, size: 20),
-            ),
-            const SizedBox(width: 14),
-
-            // Text
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: _kText,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: _kTextSub, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-
-            // Arrow
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: _kCardBorder,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: _kTextMid,
-                size: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // ─────────────────────────────────────────────────────────────────────
   // LOGOUT SECTION
@@ -734,9 +816,9 @@ class _ProfileScreenState extends State<ProfileScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: _kDangerDim,
+            color: DudeTheme.dangerDim,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: _kDanger.withOpacity(0.3)),
+            border: Border.all(color: DudeTheme.danger.withOpacity(0.3)),
           ),
           child: Row(
             children: [
@@ -744,13 +826,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: _kDanger.withOpacity(0.15),
+                  color: DudeTheme.danger.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _kDanger.withOpacity(0.25)),
+                  border: Border.all(color: DudeTheme.danger.withOpacity(0.25)),
                 ),
                 child: const Icon(
                   Icons.logout_rounded,
-                  color: _kDanger,
+                  color: DudeTheme.danger,
                   size: 20,
                 ),
               ),
@@ -762,7 +844,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     Text(
                       'Logout',
                       style: TextStyle(
-                        color: _kDanger,
+                        color: DudeTheme.danger,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
@@ -779,12 +861,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: _kDanger.withOpacity(0.1),
+                  color: DudeTheme.danger.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.arrow_forward_ios_rounded,
-                  color: _kDanger,
+                  color: DudeTheme.danger,
                   size: 12,
                 ),
               ),
@@ -803,9 +885,9 @@ class _ProfileScreenState extends State<ProfileScreen>
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: _kCard,
+            color: DudeTheme.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _kCardBorder),
+            border: Border.all(color: DudeTheme.border),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -815,13 +897,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: _kDangerDim,
+                  color: DudeTheme.dangerDim,
                   shape: BoxShape.circle,
-                  border: Border.all(color: _kDanger.withOpacity(0.3)),
+                  border: Border.all(color: DudeTheme.danger.withOpacity(0.3)),
                 ),
                 child: const Icon(
                   Icons.logout_rounded,
-                  color: _kDanger,
+                  color: DudeTheme.danger,
                   size: 26,
                 ),
               ),
@@ -829,7 +911,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               const Text(
                 'Logout',
                 style: TextStyle(
-                  color: _kText,
+                  color: DudeTheme.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                 ),
@@ -838,7 +920,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               const Text(
                 'Are you sure you want to\nsign out of your account?',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: _kTextSub, fontSize: 14),
+                style: TextStyle(color: DudeTheme.textSubtle, fontSize: 14),
               ),
               const SizedBox(height: 24),
               Row(
@@ -851,13 +933,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                         height: 46,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: _kCardBorder,
+                          color: DudeTheme.border,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Text(
                           'Cancel',
                           style: TextStyle(
-                            color: _kTextMid,
+                            color: DudeTheme.textMid,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -883,7 +965,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         height: 46,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: _kDanger,
+                          color: DudeTheme.danger,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Text(
@@ -905,67 +987,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // SUPPORT FOOTER
-  // ─────────────────────────────────────────────────────────────────────
-
-  Widget _buildSupportFooter() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: _kCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kCardBorder),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: _kAccentDim,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.mail_outline_rounded,
-                color: _kAccent,
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Need Help?',
-                    style: TextStyle(color: _kTextMid, fontSize: 12),
-                  ),
-                  const SizedBox(height: 2),
-                  GestureDetector(
-                    onTap: _launchEmail,
-                    child: const Text(
-                      'dudeofficial@gmail.com',
-                      style: TextStyle(
-                        color: _kAccent,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.underline,
-                        decorationColor: _kAccent,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSecureVersionFooter() {
     final versionText = _appVersion.isEmpty
         ? 'Version loading'
@@ -977,19 +998,19 @@ class _ProfileScreenState extends State<ProfileScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: _kCard.withOpacity(0.55),
+              color: DudeTheme.surface.withOpacity(0.55),
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: _kAccent.withOpacity(0.18)),
+              border: Border.all(color: DudeTheme.accent.withOpacity(0.18)),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.verified_user_rounded, color: _kAccent, size: 16),
+                Icon(Icons.verified_user_rounded, color: DudeTheme.accent, size: 16),
                 SizedBox(width: 6),
                 Text(
                   '100% Safe and private',
                   style: TextStyle(
-                    color: _kText,
+                    color: DudeTheme.textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1011,4 +1032,18 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
+}
+
+class _QuickAction {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 }

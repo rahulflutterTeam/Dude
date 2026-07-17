@@ -2,8 +2,9 @@ import 'package:dude/DudeScreens/BottomNavBar/BottomNavBar.dart';
 import 'package:dude/DudeScreens/HomeScreen/HomeScreen.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
 
 class AllsetScreen extends StatefulWidget {
   const AllsetScreen({super.key});
@@ -24,10 +25,10 @@ class _AllsetScreenState extends State<AllsetScreen> {
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
             colors: [
-              Color(0xFF5A1F3F),
-              Color(0xFF5A1F3F),
-              Color(0xFF140810),
-              Color(0xFF140810),
+              DudeTheme.background,
+              DudeTheme.background,
+              DudeTheme.background,
+              DudeTheme.background,
             ],
           ),
         ),
@@ -43,7 +44,7 @@ class _AllsetScreenState extends State<AllsetScreen> {
                     const SizedBox(height: 10),
 
                     /// Logo
-                    SvgPicture.asset("assets/Images/dude.svg", height: 40),
+                    DudeLogo(height: 40),
 
                     const SizedBox(height: 30),
 
@@ -70,7 +71,7 @@ class _AllsetScreenState extends State<AllsetScreen> {
                     AppText(
                       "You’re ready to start discovering meaningful connections.",
                       fontSize: 15,
-                      color: const Color(0xFFc7c7cc),
+                      color: DudeTheme.textMuted,
                       maxLines: 2,
                     ),
                   ],
@@ -99,7 +100,7 @@ class _AllsetScreenState extends State<AllsetScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFB86AF6), Color(0xFFFF6A6A)],
+                        colors: [DudeTheme.accent, DudeTheme.accent],
                       ),
                     ),
                     child: Center(

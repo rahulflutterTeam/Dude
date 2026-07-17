@@ -2,6 +2,7 @@ import 'package:dude/DudeScreens/Chat/backend_chat_service.dart';
 import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -326,7 +327,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: isMine ? const Color(0xFFB86AF6) : const Color(0xFF2A1F38),
+              color: isMine ? DudeTheme.accent : DudeTheme.surfaceRaised,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(16),
                 topRight: const Radius.circular(16),
@@ -357,12 +358,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
+                  DudeTheme.background,
+                  DudeTheme.surface,
+                  DudeTheme.background,
+                  DudeTheme.background,
+                  DudeTheme.background,
+                  DudeTheme.background,
                 ],
               ),
             ),
@@ -379,7 +380,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2A1F38),
+                              color: DudeTheme.surfaceRaised,
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white12),
                             ),
@@ -394,7 +395,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
                         CircleAvatar(
                           radius: 24,
-                          backgroundColor: const Color(0xFF3A2A4A),
+                          backgroundColor: DudeTheme.surfaceRaised,
                           child: const Icon(
                             Icons.person,
                             color: Color(0xFFB86AF6),
@@ -458,7 +459,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   Container(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF1C1426),
+                      color: DudeTheme.surface,
                       border: Border(
                         top: BorderSide(color: Color(0xFF2E2040), width: 1),
                       ),
@@ -472,10 +473,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                               vertical: 12,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2A1F38),
+                              color: DudeTheme.surfaceRaised,
                               borderRadius: BorderRadius.circular(30),
                               border: Border.all(
-                                color: const Color(0xFF3A2A4A),
+                                color: DudeTheme.surfaceRaised,
                               ),
                             ),
                             child: TextField(

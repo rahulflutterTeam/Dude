@@ -1,8 +1,14 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:dude/DudeScreens/LoginScreens/LoginOtpScreen.dart';
 import 'package:dude/DudeScreens/LoginScreens/ViewModel/LoginVM.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Dude_Utils/otp/otp_autofill_service.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/login_auth_shell.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:dude/StaffScreenScreens/LiveSeflieVerificationScreen/LiveVerificationScreen.dart';
 import 'package:dude/StaffScreenScreens/ProfileVerficationScreen/ProfileVerficationScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffBottomNavBar/StaffBottomNavBar.dart';
@@ -12,7 +18,6 @@ import 'package:dude/StaffScreenScreens/VerificationInprogressScreen/Verificatio
 import 'package:dude/StaffScreenScreens/VerificationUnsuccessfulScreen/VerificationUnsuccessScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 class LoginOtpStaffScreen extends StatefulWidget {
@@ -28,50 +33,121 @@ class _LoginOtpStaffScreenState extends State<LoginOtpStaffScreen> {
   final TextEditingController _otpController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
+  int _resendSeconds = 30;
+  bool _canResend = false;
+  bool _autoVerifyTriggered = false;
+  Timer? _resendTimer;
+  Timer? _autoVerifyTimer;
+
   @override
   void initState() {
     super.initState();
     _startOtpAutofill();
+    _startResendTimer();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final vm = Provider.of<LoginViewModel>(context, listen: false);
-
       if (vm.autoOtp != null) {
-        _otpController.text = vm.autoOtp!;
-        setState(() {}); // refresh hearts
+        _applyOtp(vm, vm.autoOtp!, autoVerify: true);
       }
-
       _focusNode.requestFocus();
     });
+  }
+
+  void _applyOtp(
+    LoginViewModel vm,
+    String code, {
+    bool autoVerify = false,
+  }) {
+    final otp = code.length > 4 ? code.substring(0, 4) : code;
+    _otpController.text = otp;
+    _otpController.selection = TextSelection.collapsed(offset: otp.length);
+    setState(() {});
+
+    if (autoVerify && otp.length == 4) {
+      _scheduleAutoVerify(vm);
+    }
+  }
+
+  void _scheduleAutoVerify(LoginViewModel vm) {
+    if (_autoVerifyTriggered || vm.isVerifying) return;
+    if (!_isValidOtp(_otpController.text.trim())) return;
+
+    _autoVerifyTimer?.cancel();
+    _autoVerifyTimer = Timer(const Duration(milliseconds: 650), () {
+      if (!mounted) return;
+      _tryAutoVerify(vm);
+    });
+  }
+
+  void _tryAutoVerify(LoginViewModel vm) {
+    if (_autoVerifyTriggered || vm.isVerifying) return;
+    if (!_isValidOtp(_otpController.text.trim())) return;
+
+    _autoVerifyTriggered = true;
+    _verifyOtp(vm);
+  }
+
+  void _startResendTimer() {
+    _resendSeconds = 30;
+    _canResend = false;
+    _resendTimer?.cancel();
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        if (_resendSeconds > 0) {
+          _resendSeconds--;
+        } else {
+          _canResend = true;
+          timer.cancel();
+        }
+      });
+    });
+  }
+
+  Future<void> _resendOtp() async {
+    if (!_canResend) return;
+
+    final staffVM = context.read<StaffViewModel>();
+    final success = await staffVM.registerStaffNew(phone: widget.phoneNumber);
+
+    if (!mounted) return;
+
+    if (success) {
+      _otpController.clear();
+      _autoVerifyTriggered = false;
+      _startResendTimer();
+      Utils.snackBar('OTP resent successfully!');
+
+      await OtpAutofillService.instance.stop();
+      await _startOtpAutofill();
+
+      final loginVM = context.read<LoginViewModel>();
+      if (loginVM.autoOtp != null) {
+        _applyOtp(loginVM, loginVM.autoOtp!, autoVerify: true);
+      }
+    } else {
+      Utils.snackBarErrorMessage('Failed to resend OTP. Try again.');
+    }
   }
 
   Future<void> _startOtpAutofill() async {
     await OtpAutofillService.instance.start(
       onCodeReceived: (code) {
         if (!mounted) return;
-        _otpController.text = code.length > 4 ? code.substring(0, 4) : code;
-        _otpController.selection = TextSelection.collapsed(
-          offset: _otpController.text.length,
-        );
-        setState(() {});
+        final vm = context.read<LoginViewModel>();
+        _applyOtp(vm, code, autoVerify: true);
       },
     );
   }
 
-  void _handleOtpFill() {
-    final vm = Provider.of<LoginViewModel>(context, listen: false);
-
-    if (vm.autoOtp != null && _otpController.text != vm.autoOtp) {
-      _otpController.text = vm.autoOtp!;
-      setState(() {});
-    }
-  }
-
   @override
   void dispose() {
-    final vm = Provider.of<LoginViewModel>(context, listen: false);
-    vm.removeListener(_handleOtpFill);
-
+    _resendTimer?.cancel();
+    _autoVerifyTimer?.cancel();
     OtpAutofillService.instance.stop();
     _otpController.dispose();
     _focusNode.dispose();
@@ -80,284 +156,184 @@ class _LoginOtpStaffScreenState extends State<LoginOtpStaffScreen> {
 
   bool _isValidOtp(String otp) => RegExp(r'^\d{4}$').hasMatch(otp);
 
-  // Method to open keyboard
-  void _openKeyboard() {
-    _focusNode.requestFocus();
-    // Force keyboard to show
-    SystemChannels.textInput.invokeMethod('TextInput.show');
+  Future<void> _verifyOtp(LoginViewModel vm) async {
+    final otp = _otpController.text.trim();
+
+    if (otp.isEmpty) {
+      _autoVerifyTriggered = false;
+      Utils.snackBarErrorMessage('Please enter the OTP');
+      return;
+    }
+    if (!_isValidOtp(otp)) {
+      _autoVerifyTriggered = false;
+      Utils.snackBarErrorMessage('Please enter all 4 digits');
+      return;
+    }
+
+    final success = await vm.staffVerifyOtp(widget.phoneNumber, otp);
+    if (!mounted) return;
+
+    if (!success) {
+      _autoVerifyTriggered = false;
+      Utils.snackBarErrorMessage('Invalid OTP');
+      return;
+    }
+
+    final staffVM = context.read<StaffViewModel>();
+    await staffVM.fetchStaffSingleData();
+    if (!mounted) return;
+
+    final staff = staffVM.currentStaff;
+    final formStatus = int.tryParse(staff?.formStatus ?? '0') ?? 0;
+    final approval = staff?.isApproved?.toLowerCase().trim() ?? 'pending';
+    final isRegister = staff?.isRegister;
+
+    if (isRegister == false) {
+      bondNavigator.newPage(context, page: const StaffRegisterScreen());
+      return;
+    }
+    if (approval == '0') {
+      bondNavigator.newPageRemoveUntil(
+        context,
+        page: const VerificationInprogressScreen(),
+      );
+      return;
+    }
+    if (formStatus >= 3) {
+      bondNavigator.newPageRemoveUntil(context, page: const StaffBottomBar());
+    } else if (formStatus == 2) {
+      if (approval == '1') {
+        bondNavigator.newPageRemoveUntil(context, page: const StaffBottomBar());
+      } else if (approval.contains('2') ||
+          approval == 'declined' ||
+          approval == 'not approved') {
+        bondNavigator.newPageRemoveUntil(
+          context,
+          page: const VerificationUnsuccessScreen(),
+        );
+      } else {
+        bondNavigator.newPageRemoveUntil(
+          context,
+          page: const VerificationInprogressScreen(),
+        );
+      }
+    } else if (formStatus == 1) {
+      bondNavigator.newPageRemoveUntil(
+        context,
+        page: const LiveVerificationScreen(),
+      );
+    } else {
+      bondNavigator.newPageRemoveUntil(
+        context,
+        page: const ProfileVerficationScreen(),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<LoginViewModel>(
       builder: (context, vm, child) {
-        return Scaffold(
-          resizeToAvoidBottomInset: true,
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-                colors: [
-                  Color(0xFF241b40), // top
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
-            child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        return LoginAuthShell(
+          showBack: true,
+          showLogo: true,
+          title: 'Verify your number',
+          subtitle:
+              'Enter the 4-digit code we sent to +91 ${widget.phoneNumber}',
+          form: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _StaffOtpAutofillHint(isAndroid: Platform.isAndroid),
+              const SizedBox(height: 16),
+              AutofillGroup(
+                child: Stack(
                   children: [
-                    const SizedBox(height: 10),
-                    SvgPicture.asset("assets/Images/dude.svg", height: 50),
-                    const SizedBox(height: 30),
-                    Center(
-                      child: Image.asset(
-                        "assets/Images/gender.png",
-                        width: 280,
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-
-                    AppText(
-                      "Enter your code",
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // OTP Input Section
-                    Column(
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Hidden TextField for input
-                        SizedBox(
-                          height: 1,
-                          child: TextField(
-                            cursorColor: Colors.transparent,
-                            controller: _otpController,
-                            focusNode: _focusNode,
-                            autofocus: true,
-                            keyboardType: TextInputType.number,
-                            autofillHints: const [AutofillHints.oneTimeCode],
-                            textInputAction: TextInputAction.done,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            maxLength: 4,
-                            style: const TextStyle(
-                              fontSize: 1,
-                              color: Colors.transparent,
-                            ),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              counterText: '',
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        // Heart Display (Clickable)
-                        Row(
-                          children: [
-                            GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: _openKeyboard,
-                              child: HeartOtpDisplay(
-                                length: 4,
-                                controller: _otpController,
-                              ),
-                            ),
-                          ],
+                        OtpBoxDisplay(
+                          length: 4,
+                          controller: _otpController,
+                          activeIndex: _otpController.text.length,
                         ),
                       ],
                     ),
-
-                    // if (vm.verifyError != null) ...[
-                    //   const SizedBox(height: 16),
-                    //   Text(
-                    //     vm.verifyError!,
-                    //     style: const TextStyle(color: Colors.redAccent, fontSize: 14),
-                    //     textAlign: TextAlign.center,
-                    //   ),
-                    // ],
-                    const SizedBox(height: 40),
-
-                    // Login Button
-                    GestureDetector(
-                      onTap: vm.isVerifying
-                          ? null
-                          : () async {
-                              final otp = _otpController.text.trim();
-
-                              if (otp.isEmpty) {
-                                Utils.snackBarErrorMessage(
-                                  "Please enter the OTP",
-                                );
-                                return;
-                              }
-                              if (!_isValidOtp(otp)) {
-                                Utils.snackBarErrorMessage(
-                                  "Please enter all 4 digits",
-                                );
-                                return;
-                              }
-
-                              final success = await vm.staffVerifyOtp(
-                                widget.phoneNumber,
-                                otp,
-                              );
-
-                              if (success) {
-                                final staffVM = Provider.of<StaffViewModel>(
-                                  context,
-                                  listen: false,
-                                );
-
-                                // Fetch latest staff data after login
-                                await staffVM.fetchStaffSingleData();
-
-                                final staff = staffVM.currentStaff;
-
-                                final formStatus =
-                                    int.tryParse(staff?.formStatus ?? '0') ?? 0;
-                                final approval =
-                                    staff?.isApproved?.toLowerCase().trim() ??
-                                    'pending';
-                                final isRegister = staff?.isRegister;
-                                print("isRegister ::::: ${isRegister}");
-
-                                print("After OTP → formStatus: $formStatus");
-                                print("After OTP → isApproved: $approval");
-                                if (isRegister == false) {
-                                  bondNavigator.newPage(
-                                    context,
-                                    page: StaffRegisterScreen(),
-                                  );
-                                  return;
-                                }
-                                if (approval == "0") {
-                                  bondNavigator.newPageRemoveUntil(
-                                    context,
-                                    page: const VerificationInprogressScreen(),
-                                  );
-                                  return;
-                                }
-
-                                if (formStatus >= 3) {
-                                  // Fully completed → go to dashboard
-                                  bondNavigator.newPageRemoveUntil(
-                                    context,
-                                    page: const StaffBottomBar(),
-                                  );
-                                } else if (formStatus == 2) {
-                                  if (approval == '1') {
-                                    // Approved
-                                    bondNavigator.newPageRemoveUntil(
-                                      context,
-                                      page: const StaffBottomBar(),
-                                    );
-                                  } else if (approval.contains('2') ||
-                                      approval == 'declined' ||
-                                      approval == 'not approved') {
-                                    bondNavigator.newPageRemoveUntil(
-                                      context,
-                                      page: const VerificationUnsuccessScreen(),
-                                    );
-                                  } else {
-                                    // Pending
-                                    bondNavigator.newPageRemoveUntil(
-                                      context,
-                                      page:
-                                          const VerificationInprogressScreen(),
-                                    );
-                                  }
-                                } else if (formStatus == 1) {
-                                  bondNavigator.newPageRemoveUntil(
-                                    context,
-                                    page: const LiveVerificationScreen(),
-                                  );
-                                } else {
-                                  // First time staff
-                                  bondNavigator.newPageRemoveUntil(
-                                    context,
-                                    page: const ProfileVerficationScreen(),
-                                  );
-                                }
-                              } else {
-                                Utils.snackBarErrorMessage("Invalid Otp");
-                              }
-                            },
-                      child: Container(
-                        height: 50,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          gradient: vm.isVerifying
-                              ? const LinearGradient(
-                                  colors: [Colors.grey, Colors.blueGrey],
-                                )
-                              : const LinearGradient(
-                                  colors: [
-                                    Color(0xFFbdd534),
-                                    Color(0xFFbdd534),
-                                  ],
-                                ),
-                        ),
-                        child: Center(
-                          child: vm.isVerifying
-                              ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : const Text(
-                                  "Login  →",
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // Keyboard Toggle Button (Optional)
-                    Center(
-                      child: TextButton(
-                        onPressed: _openKeyboard,
-                        child: const Text(
-                          "Tap to open keyboard",
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                            decoration: TextDecoration.underline,
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onTap: () => _focusNode.requestFocus(),
+                        behavior: HitTestBehavior.translucent,
+                        child: TextField(
+                          controller: _otpController,
+                          focusNode: _focusNode,
+                          keyboardType: TextInputType.number,
+                          autofillHints: const [AutofillHints.oneTimeCode],
+                          textInputAction: TextInputAction.done,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          maxLength: 4,
+                          style: const TextStyle(
+                            fontSize: 1,
+                            color: Colors.transparent,
                           ),
+                          cursorColor: Colors.transparent,
+                          decoration: kOtpHiddenFieldDecoration,
+                          onChanged: (value) {
+                            setState(() {});
+                            if (value.length == 4) {
+                              _scheduleAutoVerify(vm);
+                            } else {
+                              _autoVerifyTriggered = false;
+                              _autoVerifyTimer?.cancel();
+                            }
+                          },
+                          onSubmitted: (_) {
+                            if (_isValidOtp(_otpController.text.trim())) {
+                              _tryAutoVerify(vm);
+                            }
+                          },
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "Didn't receive the code? ",
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 13,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _canResend && !vm.isVerifying ? _resendOtp : null,
+                    child: Text(
+                      _canResend
+                          ? 'Resend OTP'
+                          : 'Resend in ${_resendSeconds}s',
+                      style: TextStyle(
+                        color: _canResend
+                            ? DudeTheme.accent
+                            : Colors.white.withValues(alpha: 0.35),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              PremiumPrimaryButton(
+                label: 'Continue →',
+                loading: vm.isVerifying,
+                height: 54,
+                onTap: vm.isVerifying ? null : () => _tryAutoVerify(vm),
+              ),
+            ],
           ),
         );
       },
@@ -365,46 +341,42 @@ class _LoginOtpStaffScreenState extends State<LoginOtpStaffScreen> {
   }
 }
 
-class HeartOtpDisplay extends StatelessWidget {
-  final int length;
-  final TextEditingController controller;
+class _StaffOtpAutofillHint extends StatelessWidget {
+  final bool isAndroid;
 
-  const HeartOtpDisplay({
-    super.key,
-    required this.length,
-    required this.controller,
-  });
+  const _StaffOtpAutofillHint({required this.isAndroid});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(length, (index) {
-        final text = controller.text;
-        final char = index < text.length ? text[index] : "-";
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Icon(
-                Icons.favorite,
-                color: Color(0xFFbdd534).withOpacity(0.1),
-                size: 70,
-              ),
-              Text(
-                char,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: DudeTheme.accentDim.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: DudeTheme.accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isAndroid ? Icons.sms_outlined : Icons.keyboard_alt_outlined,
+            color: DudeTheme.accent,
+            size: 20,
           ),
-        );
-      }),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isAndroid
+                  ? 'When SMS arrives, tap Allow — OTP fills here automatically.'
+                  : 'OTP from Messages will appear above keyboard — tap to fill.',
+              style: TextStyle(
+                color: DudeTheme.textMuted.withValues(alpha: 0.95),
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

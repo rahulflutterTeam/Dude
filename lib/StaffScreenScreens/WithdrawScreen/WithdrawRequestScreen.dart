@@ -1,6 +1,9 @@
 // lib/DudeScreens/WalletScreen/WithdrawalRequestScreen.dart
 
 import 'dart:ui';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+
 import 'package:dude/DudeScreens/WalletScreen/razorPayFlow/ViewModel/PaymentVM.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
@@ -56,7 +59,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF241b40),
+        backgroundColor: DudeTheme.surfaceRaised,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           "Delete Detail?",
@@ -188,7 +191,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => Dialog(
-        backgroundColor: const Color(0xFF1C1426),
+        backgroundColor: DudeTheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -202,12 +205,12 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                     height: 40,
                     width: 40,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFaecc01).withOpacity(0.15),
+                      color: DudeTheme.accent.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.account_balance_wallet_outlined,
-                      color: Color(0xFFaecc01),
+                      color: DudeTheme.accent,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -226,8 +229,8 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
               const SizedBox(height: 18),
               Text(
                 accountText,
-                style: const TextStyle(
-                  color: Color(0xFFB0A8C0),
+                style: TextStyle(
+                  color: DudeTheme.textMid,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
@@ -242,7 +245,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 14),
-                child: Divider(color: Color(0xFF3A2A4A), height: 1),
+                child: Divider(color: DudeTheme.border, height: 1),
               ),
               _buildConfirmRow(
                 "Amount sent to bank",
@@ -250,10 +253,8 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                 isTotal: true,
               ),
               const SizedBox(height: 14),
-              const Text(
-                "Only the final amount after fee deduction will be submitted.",
-                style: TextStyle(
-                  color: Color(0xFFB0A8C0),
+              Text("Only the final amount after fee deduction will be submitted.", style: TextStyle(
+                  color: DudeTheme.textMid,
                   fontSize: 12,
                   height: 1.4,
                 ),
@@ -265,7 +266,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context, false),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFF3A2A4A)),
+                        side: const BorderSide(color: DudeTheme.border),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
@@ -280,7 +281,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(context, true),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFaecc01),
+                        backgroundColor: DudeTheme.accent,
                         foregroundColor: Colors.black,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -316,7 +317,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
           child: Text(
             label,
             style: TextStyle(
-              color: isTotal ? Colors.white : const Color(0xFFB0A8C0),
+              color: isTotal ? Colors.white : DudeTheme.textMid,
               fontSize: isTotal ? 15 : 13,
               fontWeight: isTotal ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -328,7 +329,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
           style: TextStyle(
             color:
                 valueColor ??
-                (isTotal ? const Color(0xFFaecc01) : Colors.white),
+                (isTotal ? DudeTheme.accent : Colors.white),
             fontSize: isTotal ? 18 : 14,
             fontWeight: isTotal ? FontWeight.w900 : FontWeight.w700,
           ),
@@ -358,14 +359,14 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
             height: 16,
             width: 16,
             child: CircularProgressIndicator(
-              color: Color(0xFFaecc01),
+              color: DudeTheme.accent,
               strokeWidth: 2,
             ),
           ),
           SizedBox(width: 10),
           Text(
             "Checking withdrawal fee...",
-            style: TextStyle(color: Color(0xFFB0A8C0), fontSize: 13),
+            style: TextStyle(color: DudeTheme.textMid, fontSize: 13),
           ),
         ],
       );
@@ -373,25 +374,23 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
 
     if (staffVM.feeManagementError != null ||
         staffVM.staffWithdrawalFeeConfig == null) {
-      return const Text(
-        "Withdrawal fee will be confirmed while processing.",
-        style: TextStyle(color: Color(0xFFB0A8C0), fontSize: 13),
+      return Text("Withdrawal fee will be confirmed while processing.", style: TextStyle(color: DudeTheme.textMid, fontSize: 13),
       );
     }
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1426),
+        color: DudeTheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF3A2A4A)),
+        border: Border.all(color: DudeTheme.border),
       ),
       child: Column(
         children: [
           _buildFeeRow("Withdrawal amount", "₹${_formatAmount(amount)}"),
           const SizedBox(height: 8),
           _buildFeeRow("Fee deduction", "- ₹${_formatAmount(fee)}"),
-          const Divider(height: 20, color: Color(0xFF3A2A4A)),
+          const Divider(height: 20, color: DudeTheme.border),
           _buildFeeRow(
             "You will receive",
             "₹${_formatAmount(netAmount)}",
@@ -409,7 +408,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
         Text(
           label,
           style: TextStyle(
-            color: isTotal ? Colors.white : const Color(0xFFB0A8C0),
+            color: isTotal ? Colors.white : DudeTheme.textMid,
             fontSize: isTotal ? 15 : 13,
             fontWeight: isTotal ? FontWeight.w700 : FontWeight.w500,
           ),
@@ -417,7 +416,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
         Text(
           value,
           style: TextStyle(
-            color: isTotal ? const Color(0xFFaecc01) : Colors.white,
+            color: isTotal ? DudeTheme.accent : Colors.white,
             fontSize: isTotal ? 16 : 14,
             fontWeight: isTotal ? FontWeight.w800 : FontWeight.w600,
           ),
@@ -438,28 +437,13 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
         final netAmount = staffVM.staffWithdrawalNetAmountFor(enteredAmount);
 
         return Scaffold(
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
-            child: SafeArea(
+          backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
+        child: SafeArea(
               child: vm.isFetchingBankDetails
                   ? const Center(
                       child: CircularProgressIndicator(
-                        color: Color(0xFFB86AF6),
+                        color: DudeTheme.accent,
                       ),
                     )
                   : SingleChildScrollView(
@@ -478,7 +462,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF2A1F38),
+                                    color: DudeTheme.surface,
                                     shape: BoxShape.circle,
                                     border: Border.all(color: Colors.white12),
                                   ),
@@ -516,17 +500,17 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF2A1F38),
+                                  color: DudeTheme.surface,
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: const Color(0xFF3A2A4A),
+                                    color: DudeTheme.border,
                                   ),
                                 ),
                                 child: Column(
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.account_balance_wallet_outlined,
-                                      color: Color(0xFFd9f155),
+                                      color: DudeTheme.accent,
                                       size: 60,
                                     ),
                                     const SizedBox(height: 16),
@@ -539,10 +523,8 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 8),
-                                    const Text(
-                                      "Add your bank account or UPI ID to withdraw earnings",
-                                      style: TextStyle(
-                                        color: Color(0xFFB0A8C0),
+                                    Text("Add your bank account or UPI ID to withdraw earnings", style: TextStyle(
+                                        color: DudeTheme.textMid,
                                         fontSize: 14,
                                       ),
                                       textAlign: TextAlign.center,
@@ -556,8 +538,8 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                                       decoration: BoxDecoration(
                                         gradient: const LinearGradient(
                                           colors: [
-                                            Color(0xFFd9f155),
-                                            Color(0xFFd9f155),
+                                            DudeTheme.accent,
+                                            DudeTheme.accent,
                                           ],
                                         ),
                                         borderRadius: BorderRadius.circular(10),
@@ -581,19 +563,17 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF2A1F38),
+                                color: DudeTheme.surface,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: const Color(0xFF3A2A4A),
+                                  color: DudeTheme.border,
                                 ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    "Saved Account Details",
-                                    style: TextStyle(
-                                      color: Color(0xFFB0A8C0),
+                                  Text("Saved Account Details", style: TextStyle(
+                                      color: DudeTheme.textMid,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -607,7 +587,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                                       child: Container(
                                         padding: const EdgeInsets.all(14),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF1C1426),
+                                          color: DudeTheme.surface,
                                           borderRadius: BorderRadius.circular(
                                             14,
                                           ),
@@ -618,7 +598,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                                               detail.isUpi
                                                   ? Icons.qr_code_rounded
                                                   : Icons.account_balance,
-                                              color: const Color(0xFFaecc01),
+                                              color: DudeTheme.accent,
                                               size: 26,
                                             ),
                                             const SizedBox(width: 14),
@@ -631,8 +611,8 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                                                     detail.isUpi
                                                         ? "UPI ID"
                                                         : "Bank Account",
-                                                    style: const TextStyle(
-                                                      color: Color(0xFFB0A8C0),
+                                                    style: TextStyle(
+                                                      color: DudeTheme.textMid,
                                                       fontSize: 13,
                                                     ),
                                                   ),
@@ -674,19 +654,17 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF2A1F38),
+                                color: DudeTheme.surface,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: const Color(0xFF3A2A4A),
+                                  color: DudeTheme.border,
                                 ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    "Enter Amount (₹)",
-                                    style: TextStyle(
-                                      color: Color(0xFFB0A8C0),
+                                  Text("Enter Amount (₹)", style: TextStyle(
+                                      color: DudeTheme.textMid,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -796,8 +774,8 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                                       decoration: BoxDecoration(
                                         gradient: const LinearGradient(
                                           colors: [
-                                            Color(0xFFaecc01),
-                                            Color(0xFFaecc01),
+                                            DudeTheme.accent,
+                                            DudeTheme.accent,
                                           ],
                                         ),
                                         borderRadius: BorderRadius.circular(16),

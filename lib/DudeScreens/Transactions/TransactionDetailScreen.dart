@@ -3,6 +3,8 @@ import 'package:dude/Dude_Utils/DateTimeFormatter/history_time_formatter.dart';
 import 'package:dude/DudeScreens/Transactions/Model/TransactionHistoryModel.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:flutter/material.dart';
 
 class TransactionDetailsScreen extends StatelessWidget {
@@ -17,30 +19,12 @@ class TransactionDetailsScreen extends StatelessWidget {
     final formattedDate = HistoryTimeFormatter.detail(transaction.createdAt);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0A14),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF241b40),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF2b1e4e),
-            ],
-          ),
-        ),
+      backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
         child: SafeArea(
           child: SingleChildScrollView(
             child: Column(
               children: [
-                // Top Bar
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
@@ -48,28 +32,34 @@ class TransactionDetailsScreen extends StatelessWidget {
                       GestureDetector(
                         onTap: () => bondNavigator.backPage(context),
                         child: Container(
+                          width: 42,
+                          height: 42,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2c1e4f),
-                            borderRadius: BorderRadius.circular(40),
-                          ),
-                          child: const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Icon(
-                              Icons.arrow_back,
-                              color: Colors.white,
-                              size: 28,
+                            color: DudeTheme.surface.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: DudeTheme.border.withValues(alpha: 0.5),
                             ),
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: DudeTheme.textPrimary,
+                            size: 18,
                           ),
                         ),
                       ),
-                      const Spacer(),
-                      AppText(
-                        "Transaction Details",
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                      const Expanded(
+                        child: Text(
+                          'Transaction Details',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: DudeTheme.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 42),
                     ],
                   ),
                 ),
@@ -85,7 +75,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xFFe4f773),
+                          color: DudeTheme.accent,
                           width: 3,
                         ),
                       ),
@@ -118,7 +108,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                     Text(
                       "ID: ${transaction.razorpayOrderId.substring(0, 10)}...",
                       style: const TextStyle(
-                        color: Color(0xFFB0A8C0),
+                        color: DudeTheme.textMid,
                         fontSize: 14,
                       ),
                     ),
@@ -128,13 +118,18 @@ class TransactionDetailsScreen extends StatelessWidget {
                 const SizedBox(height: 30),
 
                 // Amount
-                Text(
-                  "₹${transaction.totalAmount}",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 42,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                ShaderMask(
+                  blendMode: BlendMode.srcIn,
+                  shaderCallback: (bounds) =>
+                      DudeTheme.premiumAccentGradient.createShader(bounds),
+                  child: Text(
+                    '₹${transaction.totalAmount}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 42,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
 
@@ -181,7 +176,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                 Text(
                   formattedDate,
                   style: const TextStyle(
-                    color: Color(0xFFB0A8C0),
+                    color: DudeTheme.textMid,
                     fontSize: 14,
                   ),
                 ),
@@ -191,108 +186,116 @@ class TransactionDetailsScreen extends StatelessWidget {
                 // Transaction Details Card
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0xFF1c122d),
-                          Color(0xFF1c122e),
-                          Color(0xFF261247),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: const Color(0xFF2A1F38),
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Payment Gateway Header
-                        Row(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              DudeTheme.surface.withValues(alpha: 0.92),
+                              DudeTheme.accentDim.withValues(alpha: 0.4),
+                              DudeTheme.surfaceRaised.withValues(alpha: 0.82),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: DudeTheme.accent.withValues(alpha: 0.35),
+                          ),
+                          boxShadow: DudeTheme.accentGlowShadow(
+                            blur: 16,
+                            spread: -6,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF2c1e4f),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.payment,
-                                  color: Color(0xFFe4f773),
-                                  size: 32,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  AppText(
-                                    "Razorpay Payment",
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  Text(
-                                    "Secure Payment Gateway",
-                                    style: TextStyle(
-                                      color: Color(0xFFB0A8C0),
-                                      fontSize: 13,
+                            Row(
+                              children: [
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    gradient: DudeTheme.premiumAccentGradient,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: DudeTheme.accentGlowShadow(
+                                      blur: 12,
+                                      spread: -4,
                                     ),
                                   ),
-                                ],
+                                  child: const Icon(
+                                    Icons.payment_rounded,
+                                    color: DudeTheme.textOnAccent,
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      AppText(
+                                        'Razorpay Payment',
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      Text(
+                                        'Secure Payment Gateway',
+                                        style: TextStyle(
+                                          color: DudeTheme.textMid,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 18),
+                              child: Divider(
+                                color: DudeTheme.border,
+                                thickness: 1,
                               ),
                             ),
+                            _buildDetailRow(
+                              'Transaction ID:',
+                              transaction.razorpayOrderId,
+                            ),
+                            const SizedBox(height: 18),
+                            _buildDetailRow(
+                              'Payment ID:',
+                              transaction.razorpayPaymentId ?? 'N/A',
+                            ),
+                            const SizedBox(height: 18),
+                            _buildDetailRow(
+                              'Amount:',
+                              '₹${transaction.totalAmount} ${transaction.currency}',
+                            ),
+                            const SizedBox(height: 18),
+                            _buildDetailRow(
+                              'User:',
+                              '${transaction.userName} (${transaction.userPhone})',
+                            ),
+                            if (transaction.razorpaySignature != null) ...[
+                              const SizedBox(height: 18),
+                              _buildDetailRow(
+                                'Signature:',
+                                transaction.razorpaySignature!.length > 20
+                                    ? '${transaction.razorpaySignature!.substring(0, 20)}...'
+                                    : transaction.razorpaySignature!,
+                              ),
+                            ],
                           ],
                         ),
-
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 18),
-                          child: Divider(
-                            color: Color(0xFF2A1F38),
-                            thickness: 1,
-                          ),
-                        ),
-
-                        // Transaction Details
-                        _buildDetailRow(
-                          "Transaction ID:",
-                          transaction.razorpayOrderId,
-                        ),
-                        const SizedBox(height: 18),
-                        _buildDetailRow(
-                          "Payment ID:",
-                          transaction.razorpayPaymentId ?? "N/A",
-                        ),
-                        const SizedBox(height: 18),
-                        _buildDetailRow(
-                          "Amount:",
-                          "₹${transaction.totalAmount} ${transaction.currency}",
-                        ),
-                        const SizedBox(height: 18),
-                        _buildDetailRow(
-                          "User:",
-                          "${transaction.userName} (${transaction.userPhone})",
-                        ),
-                        if (transaction.razorpaySignature != null) ...[
-                          const SizedBox(height: 18),
-                          _buildDetailRow(
-                            "Signature:",
-                            transaction.razorpaySignature!.length > 20
-                                ? "${transaction.razorpaySignature!.substring(0, 20)}..."
-                                : transaction.razorpaySignature!,
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -313,7 +316,7 @@ class TransactionDetailsScreen extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            color: Color(0xFFB0A8C0),
+            color: DudeTheme.textMid,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),

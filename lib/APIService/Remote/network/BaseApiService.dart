@@ -1,6 +1,6 @@
 abstract class BaseApiService {
   // final String baseUrl = "https://bondingbackend.onrender.com/api/v1/";
-  final String baseUrl = "https://api.pair-ever.com/api/v1/";
+  final String baseUrl = "https://api.dudee.online/api/v1/";
   // final String baseUrl = "http://192.168.1.43:7000/api/v1/";
 
   final String baseUrlV2 = "";

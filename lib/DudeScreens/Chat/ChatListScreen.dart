@@ -11,6 +11,11 @@ import 'package:dude/Dude_Utils/DateTimeFormatter/history_time_formatter.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_animations.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -174,24 +179,8 @@ class _ChatListScreenState extends State<ChatListScreen>
     return Consumer2<UserViewModel, StaffViewModel>(
       builder: (context, userVM, staffVM, child) {
         return Scaffold(
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
+          backgroundColor: DudeTheme.background,
+          body: PremiumAmbientBackground(
             child: SafeArea(
               child: Column(
                 children: [
@@ -227,7 +216,7 @@ class _ChatListScreenState extends State<ChatListScreen>
             ),
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF282323),
+                color: DudeTheme.surface,
                 borderRadius: BorderRadius.circular(40),
               ),
               padding: const EdgeInsets.all(8.0),
@@ -246,68 +235,80 @@ class _ChatListScreenState extends State<ChatListScreen>
               fontWeight: FontWeight.w700,
               color: Colors.white,
             ),
+            const Spacer(),
           ],
-          const Spacer(),
           if (!isSearchActive)
-            GestureDetector(
-              onTap: () => setState(() => isSearchActive = true),
-              child: Image.asset(
-                'assets/Images/search.png',
-                color: Colors.white,
+            IconButton(
+              onPressed: () => setState(() => isSearchActive = true),
+              tooltip: 'Search chats',
+              icon: const Icon(
+                Icons.search_rounded,
+                color: DudeTheme.textPrimary,
+                size: 26,
               ),
             ),
-          if (isSearchActive)
+          if (isSearchActive) ...[
+            const SizedBox(width: 10),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(30),
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF282223),
-                            Color(0xFF271c1f),
-                            Color(0xFF23121a),
-                          ],
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(30),
+                      gradient: DudeTheme.cardGradient,
+                      border: Border.all(
+                        color: DudeTheme.accent.withValues(alpha: 0.75),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: TextField(
+                      autofocus: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        hintText: 'Search by name',
+                        hintStyle: TextStyle(
+                          color: DudeTheme.textMuted,
+                          fontSize: 15,
                         ),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                          width: 0.8,
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: DudeTheme.textMuted,
+                          size: 22,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 11,
                         ),
                       ),
-                      child: TextField(
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: 'Search by name',
-                          hintStyle: const TextStyle(
-                            color: Color(0xFFc7c7cc),
-                            fontSize: 16,
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.search,
-                            color: Colors.white70,
-                            size: 22,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                        ),
-                        onChanged: (value) => setState(
-                          () => _searchQuery = value.trim().toLowerCase(),
-                        ),
+                      onChanged: (value) => setState(
+                        () => _searchQuery = value.trim().toLowerCase(),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
+            const SizedBox(width: 4),
+            IconButton(
+              onPressed: () {
+                FocusScope.of(context).unfocus();
+                setState(() {
+                  isSearchActive = false;
+                  _searchQuery = '';
+                });
+              },
+              tooltip: 'Close search',
+              icon: const Icon(
+                Icons.close_rounded,
+                color: DudeTheme.textPrimary,
+                size: 26,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -380,7 +381,7 @@ class _ChatListScreenState extends State<ChatListScreen>
           ElevatedButton(
             onPressed: _retryConnection,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFcc529f),
+              backgroundColor: DudeTheme.accent,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               shape: RoundedRectangleBorder(
@@ -429,34 +430,38 @@ class _ChatListScreenState extends State<ChatListScreen>
 
     return RefreshIndicator(
       onRefresh: () => _loadConversations(showLoader: false),
-      color: const Color(0xFFcc529f),
+      color: DudeTheme.accent,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        physics: PremiumAnimations.scrollPhysics,
         itemCount: items.length,
-        separatorBuilder: (_, __) => const Divider(color: Colors.white10),
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           final conversation = items[index];
           final staffId = conversation.peerId.isNotEmpty
               ? conversation.peerId
               : staffVM.getStaffIdByMemberId(conversation.peerMemberId) ??
                     conversation.peerMemberId;
-          return _ConversationTile(
-            conversation: conversation,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatDetailScreen(
-                    conversationID: conversation.id,
-                    peerMemberID: conversation.peerMemberId,
-                    name: conversation.peerName,
-                    staffId: staffId,
+          return PremiumStaggerItem(
+            index: index.clamp(0, 12),
+            child: _ConversationTile(
+              conversation: conversation,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatDetailScreen(
+                      conversationID: conversation.id,
+                      peerMemberID: conversation.peerMemberId,
+                      name: conversation.peerName,
+                      staffId: staffId,
+                    ),
                   ),
-                ),
-              ).then((_) {
-                if (mounted) _loadConversations(showLoader: false);
-              });
-            },
+                ).then((_) {
+                  if (mounted) _loadConversations(showLoader: false);
+                });
+              },
+            ),
           );
         },
       ),
@@ -474,44 +479,54 @@ class _ConversationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final timeLabel = HistoryTimeFormatter.timeAgo(conversation.lastMessageAt);
 
-    return ListTile(
+    return PremiumGlassCard(
       onTap: onTap,
-      contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(
-        radius: 24,
-        backgroundColor: const Color(0xFF3A2A4A),
-        backgroundImage: conversation.peerImage.isEmpty
-            ? null
-            : NetworkImage(conversation.peerImage),
-        child: conversation.peerImage.isEmpty
-            ? Text(
-                conversation.peerName.isEmpty
-                    ? 'C'
-                    : conversation.peerName.characters.first,
-                style: const TextStyle(color: Colors.white),
-              )
-            : null,
-      ),
-      title: Text(
-        conversation.peerName,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      subtitle: Text(
-        conversation.lastMessage.isEmpty
-            ? 'No messages yet'
-            : conversation.lastMessage,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: Colors.white70, fontSize: 13),
-      ),
-      trailing: timeLabel.isEmpty && conversation.unreadCount == 0
-          ? null
-          : Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: DudeTheme.surfaceRaised,
+            backgroundImage: conversation.peerImage.isEmpty
+                ? null
+                : NetworkImage(conversation.peerImage),
+            child: conversation.peerImage.isEmpty
+                ? Text(
+                    conversation.peerName.isEmpty
+                        ? 'C'
+                        : conversation.peerName.characters.first,
+                    style: const TextStyle(color: Colors.white),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  conversation.peerName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  conversation.lastMessage.isEmpty
+                      ? 'No messages yet'
+                      : conversation.lastMessage,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          if (timeLabel.isNotEmpty || conversation.unreadCount > 0)
+            Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (timeLabel.isNotEmpty)
@@ -531,8 +546,9 @@ class _ConversationTile extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFcc529f),
+                      gradient: DudeTheme.premiumAccentGradient,
                       borderRadius: BorderRadius.circular(999),
+                      boxShadow: DudeTheme.accentGlowShadow(blur: 8),
                     ),
                     child: Text(
                       conversation.unreadCount.toString(),
@@ -542,6 +558,8 @@ class _ConversationTile extends StatelessWidget {
                 ],
               ],
             ),
+        ],
+      ),
     );
   }
 }

@@ -1,6 +1,9 @@
 // lib/DudeScreens/WalletScreen/WithdrawDetailScreen.dart
 
 import 'dart:ui';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+
 import 'package:dude/Dude_Utils/DateTimeFormatter/history_time_formatter.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
@@ -26,10 +29,8 @@ class WithdrawDetailScreen extends StatelessWidget {
         : transaction.accountNumber;
 
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        color: const Color(0xFF100a0a),
+      backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
         child: SafeArea(
           child: SingleChildScrollView(
             child: Column(

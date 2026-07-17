@@ -47,6 +47,12 @@
 	<string>This app needs microphone access for audio and video calls.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Dude needs access to your photo library so you can select and upload profile pictures or share images during chats.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>voip</string>
+		<string>remote-notification</string>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

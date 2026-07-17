@@ -10,6 +10,7 @@
 #include <connectivity_plus/connectivity_plus_windows_plugin.h>
 #include <file_selector_windows/file_selector_windows.h>
 #include <firebase_core/firebase_core_plugin_c_api.h>
+#include <firebase_database/firebase_database_plugin_c_api.h>
 #include <flutter_volume_controller/flutter_volume_controller_plugin_c_api.h>
 #include <permission_handler_windows/permission_handler_windows_plugin.h>
 #include <screen_brightness_windows/screen_brightness_windows_plugin.h>
@@ -27,6 +28,8 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("FileSelectorWindows"));
   FirebaseCorePluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FirebaseCorePluginCApi"));
+  FirebaseDatabasePluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("FirebaseDatabasePluginCApi"));
   FlutterVolumeControllerPluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FlutterVolumeControllerPluginCApi"));
   PermissionHandlerWindowsPluginRegisterWithRegistrar(

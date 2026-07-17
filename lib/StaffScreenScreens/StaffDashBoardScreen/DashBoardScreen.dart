@@ -10,8 +10,12 @@ import 'package:dude/DudeScreens/HomeScreen/call_balance_sync.dart';
 import 'package:dude/DudeScreens/HomeScreen/callService.dart';
 import 'package:dude/DudeScreens/HomeScreen/zego_lifecycle.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
 import 'package:dude/StaffScreenScreens/RecentCallScreen/RecentCallScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffDashBoardScreen/Model/StaffSingleDataModel.dart';
 import 'package:dude/StaffScreenScreens/StaffProfileScreen/staffProfileScreen.dart';
@@ -28,7 +32,6 @@ import 'package:flutter_callkit_incoming/entities/call_kit_params.dart';
 import 'package:flutter_callkit_incoming/entities/ios_params.dart';
 import 'package:flutter_callkit_incoming/entities/notification_params.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,29 +43,26 @@ import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 
 const _windowChannel = MethodChannel('com.dude.dudeapp/window');
 
-// ── Design tokens ─────────────────────────────────────────────────────────
-const _kBg = Color(0xFF0D0D1A);
-const _kCard = Color(0xFF13132A);
-const _kCardBorder = Color(0xFF2A2A4A);
-const _kAccent = Color(0xFFD4F53C);
-const _kAccent2 = Color(0xFFB8E832);
-const _kPurple = Color(0xFF6C4EF5);
-const _kPurple2 = Color(0xFF9B6DFF);
-const _kText = Color(0xFFFFFFFF);
-const _kTextSub = Color(0xFF8888AA);
-const _kGold = Color(0xFFFFCC00);
+/// Wraps [FlutterCallkitIncoming.endAllCalls] so the native
+/// `argument "content" is null` PlatformException can never abort call flow.
+Future<void> _safeEndAllCalls() async {
+  try {
+    await FlutterCallkitIncoming.endAllCalls();
+  } catch (e) {
+    debugPrint('endAllCalls ignored (no active/valid call): $e');
+  }
+}
+
 const _kCommunityGroupUrl =
     'https://chat.whatsapp.com/BZ8VkPf99GDGP8cU8EhpNy?s=cl&p=a&ilr=2';
-// ──────────────────────────────────────────────────────────────────────────
-
-// SharedPreferences keys
 const _kIsOnlineKey = 'staff_is_online';
 const _kCallTypeKey = 'staff_call_type';
 
 enum StaffCallType { audio, video, both }
 
 class BondingDashboardPage extends StatefulWidget {
-  const BondingDashboardPage({super.key});
+  const BondingDashboardPage({super.key, this.launchingAcceptedCall = false});
+  final bool launchingAcceptedCall;
 
   @override
   State<BondingDashboardPage> createState() => _BondingDashboardPageState();
@@ -94,15 +94,22 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
   bool _killedStateAcceptPending = false;
   bool _isCallBeingHandled = false;
   bool _isZegoShowingUI = false;
+  bool _showAcceptedCallConnecting = false;
   String? _pendingCallID;
   String _pendingCallCustomData = '';
-  final ValueNotifier<CallBalanceOverlayData> _staffCallBalanceData =
+  // App-lifetime notifier. The Zego call overlay (config.foreground) holds a
+  // reference to this and can outlive this State during call-screen
+  // transitions, so it must NOT be disposed with the dashboard — otherwise the
+  // overlay's initState addListener hits a "used after being disposed" crash.
+  static final ValueNotifier<CallBalanceOverlayData> _staffCallBalanceData =
       ValueNotifier<CallBalanceOverlayData>(
         const CallBalanceOverlayData.empty(),
       );
   bool _isCallkitListenerSetup = false;
+  bool _isStaffCallEnding = false;
   Timer? _acceptTimeoutTimer;
   Timer? _toggleTimeoutTimer;
+  bool _isDashboardDisposed = false;
 
   // ─────────────────────────────────────────────────────────────────────────
   // PERSISTENCE HELPERS
@@ -172,6 +179,8 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
   @override
   void initState() {
     super.initState();
+    _showAcceptedCallConnecting = widget.launchingAcceptedCall;
+    _killedStateAcceptPending = widget.launchingAcceptedCall;
     WidgetsBinding.instance.addObserver(this);
     _socketCallBalanceTopUpHandler = _handleSocketCallBalanceTopUp;
     AppUpdateService.checkForUpdate(context);
@@ -184,20 +193,35 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
       final persistedOnline = await _loadPersistedOnlineStatus();
       if (mounted) setState(() => _isOnline = persistedOnline);
 
-      // ── Step 2: Fetch server data ────────────────────────────────────────
+      // ── Step 2: Fetch staff profile (needed for Zego memberID) ───────────
       final staffVM = context.read<StaffViewModel>();
       await staffVM.fetchStaffSingleData();
-      await staffVM.fetchStaffCallStats();
-      await staffVM.fetchWeeklyCallGraph();
 
       final staff = staffVM.currentStaff;
       if (staff == null || staff.memberID.isEmpty) return;
 
-      // ── Step 3: Resolve call type (local pref wins) ──────────────────────
       final resolvedCallType = await _loadPersistedCallType(staff.callType);
       if (mounted) setState(() => _selectedCallType = resolvedCallType);
 
-      // ── Step 4: Connect socket using the persisted online status ─────────
+      // ── Step 3: Register with Zego as early as possible (killed-state) ─
+      await _detectKilledStateAccept();
+      if (persistedOnline) {
+        await _initZego(staff);
+      }
+      if (_killedStateAcceptPending) _startAcceptTimeout();
+
+      if (Platform.isAndroid) {
+        if (await Permission.notification.isDenied) {
+          await Permission.notification.request();
+        }
+        await FlutterCallkitIncoming.requestFullIntentPermission();
+        if (!await Permission.systemAlertWindow.isGranted) {
+          await Permission.systemAlertWindow.request();
+        }
+        await _ensureBatteryOptimizationDisabled();
+      }
+
+      // ── Step 4: Socket + dashboard stats ─────────────────────────────────
       if (persistedOnline) {
         if (!socketService.isConnected) {
           socketService.connectStaff(staff.memberID);
@@ -212,27 +236,14 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
         if (mounted) debugPrint("📡 Status change: $data");
       });
 
-      await _detectKilledStateAccept();
-      if (persistedOnline) {
-        await _initZego(staff);
-      }
-
-      if (Platform.isAndroid) {
-        if (await Permission.notification.isDenied) {
-          await Permission.notification.request();
-        }
-        await FlutterCallkitIncoming.requestFullIntentPermission();
-        if (!await Permission.systemAlertWindow.isGranted) {
-          await Permission.systemAlertWindow.request();
-        }
-      }
-
-      if (_killedStateAcceptPending) _startAcceptTimeout();
+      await staffVM.fetchStaffCallStats();
+      await staffVM.fetchWeeklyCallGraph();
     });
   }
 
   @override
   void dispose() {
+    _isDashboardDisposed = true;
     WidgetsBinding.instance.removeObserver(this);
     _callEventSubscription?.cancel();
     _callBalanceSyncSubscription?.cancel();
@@ -241,7 +252,9 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
     );
     _acceptTimeoutTimer?.cancel();
     _toggleTimeoutTimer?.cancel();
-    _staffCallBalanceData.dispose();
+    // Do not dispose: it is app-lifetime and may still be referenced by the
+    // Zego call overlay. Just reset it to the empty state.
+    _staffCallBalanceData.value = const CallBalanceOverlayData.empty();
 
     if (socketService.isConnected) socketService.disconnect();
     if (_isOnCall) _updateBusyStatus(false);
@@ -441,44 +454,26 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _detectKilledStateAccept() async {
+    // Do NOT use activeCalls() — on Android it returns ringing calls too, which
+    // falsely auto-accepts the first killed-state call instead of letting it ring.
     bool detected = false;
+
     try {
-      final activeCalls = await FlutterCallkitIncoming.activeCalls();
-      if (activeCalls != null) {
-        final list = activeCalls is List ? activeCalls : [activeCalls];
-        if (list.isNotEmpty) {
-          detected = true;
+      final data = await _windowChannel.invokeMethod('getAcceptedCallData');
+      if (data != null && data is Map) {
+        final action = (data['action'] as String? ?? 'ACCEPT').toUpperCase();
+        if (action == 'DECLINE') {
+          await _safeEndAllCalls();
           try {
-            final first = list.first;
-            if (first is Map) {
-              _pendingCallID =
-                  first['id']?.toString() ?? first['callID']?.toString();
-            }
+            await ZegoUIKitPrebuiltCallInvitationService().reject();
           } catch (_) {}
+          return;
         }
+        detected = true;
+        _pendingCallID = data['callId'] as String?;
       }
     } catch (e) {
-      debugPrint("activeCalls() error: $e");
-    }
-
-    if (!detected) {
-      try {
-        final data = await _windowChannel.invokeMethod('getAcceptedCallData');
-        if (data != null && data is Map) {
-          final action = (data['action'] as String? ?? 'ACCEPT').toUpperCase();
-          if (action == 'DECLINE') {
-            await FlutterCallkitIncoming.endAllCalls();
-            try {
-              await ZegoUIKitPrebuiltCallInvitationService().reject();
-            } catch (_) {}
-            return;
-          }
-          detected = true;
-          _pendingCallID = data['callId'] as String?;
-        }
-      } catch (e) {
-        debugPrint("getAcceptedCallData error: $e");
-      }
+      debugPrint("getAcceptedCallData error: $e");
     }
 
     if (detected) {
@@ -499,14 +494,22 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
       _isCallBeingHandled = true;
       try {
         ZegoUIKitPrebuiltCallInvitationService().enterAcceptedOfflineCall();
+        _finishAcceptedCallConnecting();
       } catch (e) {
         try {
           await ZegoUIKitPrebuiltCallInvitationService().accept();
+          _finishAcceptedCallConnecting();
         } catch (e2) {
           _isCallBeingHandled = false;
         }
       }
     });
+  }
+
+  void _finishAcceptedCallConnecting() {
+    if (mounted && _showAcceptedCallConnecting) {
+      setState(() => _showAcceptedCallConnecting = false);
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -577,7 +580,7 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
   }
 
   void _applyStaffCallBalanceTopUp(CallBalanceTopUpPayload payload) {
-    if (!mounted) return;
+    if (!mounted || _isDashboardDisposed) return;
 
     final hasActiveCallOverlay =
         _staffCallBalanceData.value.initialBalance > 0 ||
@@ -589,11 +592,13 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
         ? payload.pricePerMin
         : current.pricePerMin;
 
-    _staffCallBalanceData.value = CallBalanceOverlayData(
-      initialBalance: payload.coinBalance,
-      pricePerMin: pricePerMin,
-      maxSeconds: payload.maxSeconds,
-      syncedElapsedSeconds: payload.elapsedSeconds,
+    _setStaffCallBalanceData(
+      CallBalanceOverlayData(
+        initialBalance: payload.coinBalance,
+        pricePerMin: pricePerMin,
+        maxSeconds: payload.maxSeconds,
+        syncedElapsedSeconds: payload.elapsedSeconds,
+      ),
     );
   }
 
@@ -668,11 +673,13 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
                 try {
                   ZegoUIKitPrebuiltCallInvitationService()
                       .enterAcceptedOfflineCall();
-                  await FlutterCallkitIncoming.endAllCalls();
+                  _finishAcceptedCallConnecting();
+                  await _safeEndAllCalls();
                 } catch (e) {
                   try {
                     await ZegoUIKitPrebuiltCallInvitationService().accept();
-                    await FlutterCallkitIncoming.endAllCalls();
+                    _finishAcceptedCallConnecting();
+                    await _safeEndAllCalls();
                   } catch (e2) {
                     _isCallBeingHandled = false;
                   }
@@ -690,35 +697,38 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
               _isCallBeingHandled = false;
             },
         onIncomingCallCanceled: (callID, caller, customData) async {
+          if (_isDashboardDisposed) return;
           _resetCallState();
-          await FlutterCallkitIncoming.endAllCalls();
+          await _safeEndAllCalls();
         },
         onIncomingCallTimeout: (callID, caller) async {
+          if (_isDashboardDisposed) return;
           _resetCallState();
-          await FlutterCallkitIncoming.endAllCalls();
+          await _safeEndAllCalls();
         },
         onIncomingCallAcceptButtonPressed: () async {
           _isZegoShowingUI = false;
           _isCallBeingHandled = true;
           _pendingCallID = null;
-          await FlutterCallkitIncoming.endAllCalls();
+          await _safeEndAllCalls();
         },
         onIncomingCallDeclineButtonPressed: () async {
+          if (_isDashboardDisposed) return;
           _resetCallState();
-          await FlutterCallkitIncoming.endAllCalls();
+          await _safeEndAllCalls();
         },
       ),
       events: ZegoUIKitPrebuiltCallEvents(
         onCallEnd: (event, defaultAction) {
-          _resetCallState(markAvailable: true);
-          FlutterCallkitIncoming.endAllCalls();
-          defaultAction();
+          _onStaffCallEnded(event, defaultAction);
         },
         user: ZegoCallUserEvents(
           onLeave: (user) {
-            ZegoUIKit().leaveRoom();
-            _resetCallState(markAvailable: true);
-            FlutterCallkitIncoming.endAllCalls();
+            if (_isDashboardDisposed) return;
+            debugPrint('📞 Staff remote user left → ${user.id}');
+            // Do not call leaveRoom() here. Zego triggers onCallEnd with
+            // defaultAction to pop the call page; leaving the room early leaves
+            // the UI stuck on screen.
           },
         ),
         room: ZegoCallRoomEvents(
@@ -744,8 +754,16 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
             }
 
             if (state.reason == ZegoRoomStateChangedReason.Logout) {
-              _resetCallState(markAvailable: true);
-              FlutterCallkitIncoming.endAllCalls();
+              if (_isDashboardDisposed || _isStaffCallEnding || !_isOnCall) {
+                return;
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (_isDashboardDisposed || _isStaffCallEnding || !_isOnCall) {
+                  return;
+                }
+                _resetCallState(markAvailable: true);
+                unawaited(_safeEndAllCalls());
+              });
             }
           },
         ),
@@ -792,7 +810,8 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
         config
           ..turnOnCameraWhenJoining = false
           ..turnOnMicrophoneWhenJoining = false
-          ..useSpeakerWhenJoining = true;
+          ..useSpeakerWhenJoining = true
+          ..rootNavigator = true;
         return config;
       },
     );
@@ -843,10 +862,12 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
       return;
     }
 
-    _staffCallBalanceData.value = CallBalanceOverlayData(
-      initialBalance: balance,
-      pricePerMin: pricePerMin,
-      maxSeconds: maxSeconds,
+    _setStaffCallBalanceData(
+      CallBalanceOverlayData(
+        initialBalance: balance,
+        pricePerMin: pricePerMin,
+        maxSeconds: maxSeconds,
+      ),
     );
   }
 
@@ -918,12 +939,49 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
   // HELPERS
   // ─────────────────────────────────────────────────────────────────────────
 
+  void _setStaffCallBalanceData(CallBalanceOverlayData data) {
+    if (_isDashboardDisposed) return;
+    _staffCallBalanceData.value = data;
+  }
+
+  void _onStaffCallEnded(
+    ZegoCallEndEvent event,
+    VoidCallback defaultAction, {
+    bool markAvailable = true,
+  }) {
+    if (_isDashboardDisposed) {
+      defaultAction();
+      return;
+    }
+    if (_isStaffCallEnding) {
+      defaultAction();
+      return;
+    }
+    _isStaffCallEnding = true;
+
+    debugPrint('📞 Staff onCallEnd → ${event.reason}');
+
+    defaultAction();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_isDashboardDisposed) {
+        _isStaffCallEnding = false;
+        return;
+      }
+      _resetCallState(markAvailable: markAvailable);
+      unawaited(_safeEndAllCalls());
+      _isStaffCallEnding = false;
+    });
+  }
+
   void _resetCallState({bool markAvailable = false}) {
+    if (_isDashboardDisposed) return;
+
     _acceptTimeoutTimer?.cancel();
     _killedStateAcceptPending = false;
     _pendingCallID = null;
     _pendingCallCustomData = '';
-    _staffCallBalanceData.value = const CallBalanceOverlayData.empty();
+    _setStaffCallBalanceData(const CallBalanceOverlayData.empty());
     _isZegoShowingUI = false;
     _isCallBeingHandled = false;
 
@@ -952,6 +1010,20 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
         data: 'package:com.dude.dudeapp',
       );
       await intent.launch();
+    }
+  }
+
+  Future<void> _ensureBatteryOptimizationDisabled() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final ignoring = await _windowChannel.invokeMethod(
+        'isIgnoringBatteryOptimizations',
+      );
+      if (ignoring == false) {
+        await _windowChannel.invokeMethod('requestIgnoreBatteryOptimizations');
+      }
+    } catch (e) {
+      debugPrint("battery optimization request error: $e");
     }
   }
 
@@ -999,26 +1071,39 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
 
   @override
   Widget build(BuildContext context) {
-    // Show a minimal loader until persisted state is ready — prevents flicker
+    if (_showAcceptedCallConnecting) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF050505),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.call_rounded, color: Color(0xFFF2608C), size: 54),
+              SizedBox(height: 22),
+              Text(
+                'Connecting call...',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: 24),
+              CircularProgressIndicator(color: Color(0xFFF2608C)),
+            ],
+          ),
+        ),
+      );
+    }
     if (_isOnline == null || _selectedCallType == null) {
       return Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF241b40),
-                Color(0xFF1C1426),
-                Color(0xFF12151c),
-                Color(0xFF12151c),
-                Color(0xFF12151c),
-                Color(0xFF2b1e4e),
-              ],
-            ),
-          ),
+        backgroundColor: DudeTheme.background,
+        body: PremiumAmbientBackground(
           child: const Center(
-            child: CircularProgressIndicator(color: _kAccent),
+            child: CircularProgressIndicator(
+              color: DudeTheme.accent,
+              strokeWidth: 2,
+            ),
           ),
         ),
       );
@@ -1028,47 +1113,35 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
       builder: (context, vm, child) {
         final staff = vm.currentStaff;
         return Scaffold(
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
+          backgroundColor: DudeTheme.background,
+          body: PremiumAmbientBackground(
             child: SafeArea(
               child: RefreshIndicator(
                 onRefresh: _refreshAllData,
-                color: _kAccent,
-                backgroundColor: _kCard,
+                color: DudeTheme.accent,
+                backgroundColor: DudeTheme.surface,
                 child: vm.isFetchingSingleStaff
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         children: const [
                           SizedBox(height: 300),
                           Center(
-                            child: CircularProgressIndicator(color: _kAccent),
+                            child: CircularProgressIndicator(
+                              color: DudeTheme.accent,
+                              strokeWidth: 2,
+                            ),
                           ),
                         ],
                       )
                     : vm.singleStaffError != null
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(height: 300),
+                        children: [
+                          const SizedBox(height: 300),
                           Center(
                             child: Text(
-                              "Error loading profile",
-                              style: TextStyle(color: Colors.redAccent),
+                              vm.singleStaffError!,
+                              style: TextStyle(color: DudeTheme.danger),
                             ),
                           ),
                         ],
@@ -1080,8 +1153,8 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
                           SizedBox(height: 300),
                           Center(
                             child: Text(
-                              "No profile data",
-                              style: TextStyle(color: _kTextSub),
+                              'No profile data',
+                              style: TextStyle(color: DudeTheme.textMuted),
                             ),
                           ),
                         ],
@@ -1090,24 +1163,42 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
                         physics: const AlwaysScrollableScrollPhysics(),
                         child: Column(
                           children: [
-                            const SizedBox(height: 12),
-                            _topBar(staff),
-                            const SizedBox(height: 16),
+                            PremiumStaggerItem(
+                              index: 0,
+                              child: _buildTopBar(staff),
+                            ),
+                            const SizedBox(height: 14),
+                            PremiumStaggerItem(
+                              index: 1,
+                              child: _buildOnlineStatusCard(),
+                            ),
                             if (_isOnCall) ...[
-                              _onCallBanner(),
                               const SizedBox(height: 12),
+                              PremiumStaggerItem(
+                                index: 2,
+                                child: _onCallBanner(),
+                              ),
                             ],
-                            _earningsCard(staff),
-                            const SizedBox(height: 12),
-                            _actionButtons(staff),
-                            const SizedBox(height: 20),
-                            _callTypeSelector(),
-                            const SizedBox(height: 20),
-                            _callsSection(),
-                            const SizedBox(height: 20),
-                            _quickLinks(),
-                            const SizedBox(height: 12),
-                            _quickChatAccess(),
+                            const SizedBox(height: 16),
+                            PremiumStaggerItem(
+                              index: 3,
+                              child: _buildEarningsHero(staff),
+                            ),
+                            const SizedBox(height: 16),
+                            PremiumStaggerItem(
+                              index: 4,
+                              child: _buildQuickActionsGrid(staff),
+                            ),
+                            const SizedBox(height: 16),
+                            PremiumStaggerItem(
+                              index: 5,
+                              child: _buildCallTypeSection(),
+                            ),
+                            const SizedBox(height: 16),
+                            PremiumStaggerItem(
+                              index: 6,
+                              child: _buildCallsSection(),
+                            ),
                             const SizedBox(height: 100),
                           ],
                         ),
@@ -1120,181 +1211,63 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // TOP BAR — logo · Online/Offline pill · avatar
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _topBar(StaffSingleProfile staff) {
-    final isOnline = _isOnline!; // safe: guarded by build() null-check above
+  Widget _buildTopBar(StaffSingleProfile staff) {
+    final firstName = (staff.name ?? 'Staff').split(' ').first;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Row(
         children: [
-          SvgPicture.asset("assets/Images/dude.svg", height: 46),
-          const SizedBox(width: 36),
-
-          // ── Online / Offline pill ──────────────────────────────────────
-          GestureDetector(
-            onTap: _isTogglingStatus ? null : _toggleOnlineStatus,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF221b3c),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _kCardBorder),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Online option
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isOnline
-                          ? const Color(0xFF1C2E1C)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isOnline
-                                ? const Color(0xFF7dff63)
-                                : Colors.transparent,
-                            border: isOnline
-                                ? null
-                                : Border.all(color: Colors.white24, width: 1.5),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        // Show spinner while toggling
-                        if (_isTogglingStatus && isOnline)
-                          const SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: _kAccent,
-                            ),
-                          )
-                        else
-                          Text(
-                            "Online",
-                            style: TextStyle(
-                              color: isOnline
-                                  ? const Color(0xFF7dff63)
-                                  : _kTextSub,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                      ],
-                    ),
+          const DudeLogo(height: 36),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hi, $firstName',
+                  style: TextStyle(
+                    color: DudeTheme.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
                   ),
-
-                  // Offline option
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: !isOnline
-                          ? const Color(0xFF2A1C1C)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: !isOnline
-                                ? Colors.redAccent
-                                : Colors.transparent,
-                            border: !isOnline
-                                ? null
-                                : Border.all(color: Colors.white24, width: 1.5),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        if (_isTogglingStatus && !isOnline)
-                          const SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.redAccent,
-                            ),
-                          )
-                        else
-                          Text(
-                            "Offline",
-                            style: TextStyle(
-                              color: !isOnline ? Colors.white70 : _kTextSub,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                      ],
-                    ),
+                ),
+                Text(
+                  'Staff dashboard',
+                  style: TextStyle(
+                    color: DudeTheme.textMuted.withValues(alpha: 0.95),
+                    fontSize: 12,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-
-          const Spacer(),
-
-          // Avatar
           GestureDetector(
-            onTap: () => bondNavigator.newPage(
-              context,
-              page: StaffProfileScreen(backPage: true),
-            ),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              bondNavigator.newPage(
+                context,
+                page: const StaffProfileScreen(backPage: true),
+              );
+            },
             child: Container(
-              width: 42,
-              height: 42,
+              width: 46,
+              height: 46,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: _kAccent.withOpacity(0.6), width: 2),
+                gradient: DudeTheme.premiumAccentGradient,
+                boxShadow: DudeTheme.accentGlowShadow(blur: 12, spread: -6),
               ),
+              padding: const EdgeInsets.all(2),
               child: ClipOval(
                 child: Image(
                   image: (staff.image != null && staff.image!.isNotEmpty)
                       ? NetworkImage(staff.image!)
-                      : const AssetImage("assets/Images/women.png"),
+                      : const AssetImage('assets/Images/women.png'),
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) =>
-                      Image.asset("assets/Images/women.png", fit: BoxFit.cover),
-                  loadingBuilder: (_, child, progress) {
-                    if (progress == null) return child;
-                    return const Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _kAccent,
-                        ),
-                      ),
-                    );
-                  },
+                      Image.asset('assets/Images/women.png', fit: BoxFit.cover),
                 ),
               ),
             ),
@@ -1304,148 +1277,88 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
     );
   }
 
-  Widget _onCallBanner() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.orange.withOpacity(0.6)),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.call, color: Colors.orange, size: 16),
-          SizedBox(width: 8),
-          Text(
-            "You are currently on a call",
-            style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildOnlineStatusCard() {
+    final isOnline = _isOnline!;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // EARNINGS CARD
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _earningsCard(StaffSingleProfile staff) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: const LinearGradient(
-            begin: Alignment.bottomLeft,
-            end: Alignment.topRight,
-            colors: [
-              Color(0xFF140a27),
-              Color(0xFF1e0e3a),
-              Color(0xFF1e0e3a),
-              Color(0xFF140a27),
-            ],
-          ),
-          border: Border.all(color: _kCardBorder),
-        ),
+      child: PremiumGlassCard(
+        glow: isOnline,
+        padding: const EdgeInsets.all(14),
+        radius: 20,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Total Earnings",
-                          style: TextStyle(color: _kTextSub, fontSize: 13),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "₹${staff.staffEarned!.toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            color: _kText,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                      ],
+            Row(
+              children: [
+                Icon(
+                  isOnline
+                      ? Icons.wifi_tethering_rounded
+                      : Icons.power_settings_new_rounded,
+                  color: isOnline ? DudeTheme.success : DudeTheme.textSubtle,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isOnline ? 'You are online' : 'You are offline',
+                  style: TextStyle(
+                    color: DudeTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                if (_isTogglingStatus)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: DudeTheme.accent,
                     ),
                   ),
-                  Image.asset(
-                    "assets/Images/coins.png",
-                    height: 100,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.monetization_on,
-                      color: _kGold,
-                      size: 70,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Divider(color: Color(0xFF2A2A4A), height: 1),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Pending payouts:",
-                          style: TextStyle(color: _kTextSub, fontSize: 12),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          "₹${staff.pendingBalance!.toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            color: _kAccent,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: _isTogglingStatus ? null : _toggleOnlineStatus,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: DudeTheme.background.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: DudeTheme.border.withValues(alpha: 0.6),
                   ),
-                  Container(
-                    width: 1,
-                    height: 36,
-                    color: const Color(0xFF2A2A4A),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "This month",
-                            style: TextStyle(color: _kTextSub, fontSize: 12),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "₹${(staff.staffEarned ?? 0).toStringAsFixed(2)}",
-                            style: const TextStyle(
-                              color: _kAccent,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _onlineOption(
+                        label: 'Online',
+                        selected: isOnline,
+                        activeColor: DudeTheme.success,
                       ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: _onlineOption(
+                        label: 'Offline',
+                        selected: !isOnline,
+                        activeColor: DudeTheme.danger,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isOnline
+                  ? 'Users can reach you for calls'
+                  : 'Go online to start receiving calls',
+              style: TextStyle(
+                color: DudeTheme.textSubtle.withValues(alpha: 0.9),
+                fontSize: 12,
               ),
             ),
           ],
@@ -1454,64 +1367,44 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // ACTION BUTTONS
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _actionButtons(StaffSingleProfile staff) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+  Widget _onlineOption({
+    required String label,
+    required bool selected,
+    required Color activeColor,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: selected
+            ? activeColor.withValues(alpha: 0.15)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        border: selected
+            ? Border.all(color: activeColor.withValues(alpha: 0.45))
+            : null,
+      ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => bondNavigator.newPage(
-                context,
-                page: WithdrawalRequestScreen(
-                  withdrawAmount: staff.pendingBalance!.toStringAsFixed(2),
-                ),
-              ),
-              child: Container(
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _kAccent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  "Withdraw",
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: selected ? activeColor : Colors.transparent,
+              border: selected
+                  ? null
+                  : Border.all(color: DudeTheme.textSubtle, width: 1.2),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => bondNavigator.newPage(
-                context,
-                page: const WithdrawHistory(backPage: true),
-              ),
-              child: Container(
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _kAccent, width: 1.5),
-                ),
-                child: const Text(
-                  "View Transaction",
-                  style: TextStyle(
-                    color: _kAccent,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: selected ? activeColor : DudeTheme.textMuted,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ],
@@ -1519,107 +1412,340 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // CALL TYPE SELECTOR
-  // ─────────────────────────────────────────────────────────────────────────
+  Widget _onCallBanner() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: DudeTheme.warning.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: DudeTheme.warning.withValues(alpha: 0.45)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.call_rounded, color: DudeTheme.warning, size: 18),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'You are currently on a call',
+                style: TextStyle(
+                  color: DudeTheme.warning,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-  Widget _callTypeSelector() {
-    // Guard: don't render until state is loaded
-    if (_selectedCallType == null) return const SizedBox.shrink();
+  Widget _buildEarningsHero(StaffSingleProfile staff) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+        decoration: BoxDecoration(
+          gradient: DudeTheme.premiumAccentGradient,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: DudeTheme.accentGlowShadow(blur: 22, spread: -4),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Total earnings',
+              style: TextStyle(
+                color: DudeTheme.textOnAccent.withValues(alpha: 0.85),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '₹${staff.staffEarned?.toStringAsFixed(2) ?? '0.00'}',
+              style: TextStyle(
+                color: DudeTheme.textOnAccent,
+                fontSize: 34,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+                height: 1,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _earningsChip(
+                    label: 'Pending',
+                    value:
+                        '₹${staff.pendingBalance?.toStringAsFixed(2) ?? '0.00'}',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _earningsChip(
+                    label: 'This month',
+                    value: '₹${(staff.staffEarned ?? 0).toStringAsFixed(2)}',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _earningsChip({required String label, required String value}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: DudeTheme.textOnAccent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: DudeTheme.textOnAccent.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: DudeTheme.textOnAccent.withValues(alpha: 0.8),
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              color: DudeTheme.textOnAccent,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsGrid(StaffSingleProfile staff) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Text(
-                "Users Can\nCall Via:",
-                style: TextStyle(
-                  color: _kText,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  height: 1.4,
-                ),
-              ),
-            ],
+          Text(
+            'Quick actions',
+            style: TextStyle(
+              color: DudeTheme.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              _callTypePill(type: StaffCallType.audio, label: "Audio"),
-              const SizedBox(width: 10),
-              _callTypePill(type: StaffCallType.video, label: "Video"),
-              const SizedBox(width: 10),
-              _callTypePill(type: StaffCallType.both, label: "Both"),
-              if (_isUpdatingCallType) ...[
-                const SizedBox(width: 12),
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: _kAccent,
+              Expanded(
+                child: _quickActionTile(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Withdraw',
+                  color: DudeTheme.accent,
+                  onTap: () => bondNavigator.newPage(
+                    context,
+                    page: WithdrawalRequestScreen(
+                      withdrawAmount:
+                          staff.pendingBalance?.toStringAsFixed(2) ?? '0',
+                    ),
                   ),
                 ),
-              ],
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _quickActionTile(
+                  icon: Icons.receipt_long_outlined,
+                  label: 'History',
+                  color: DudeTheme.accentBright,
+                  onTap: () => bondNavigator.newPage(
+                    context,
+                    page: const WithdrawHistory(backPage: true),
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 14),
-          _communityGroupButton(),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _quickActionTile(
+                  icon: Icons.savings_outlined,
+                  label: 'Wallet',
+                  color: DudeTheme.success,
+                  onTap: () => bondNavigator.newPage(
+                    context,
+                    page: const StaffWalletScreen(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _quickActionTile(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  label: 'Messages',
+                  color: DudeTheme.warning,
+                  onTap: () => bondNavigator.newPage(
+                    context,
+                    page: const StaffChatListScreen(backPage: true),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _communityGroupButton() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: GestureDetector(
-        onTap: _openCommunityGroup,
-        child: Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(minHeight: 52),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F2A1D),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF25D366), width: 1.4),
-          ),
-          child: const Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: Color(0xFF25D366),
-                child: Icon(
-                  Icons.phone_in_talk_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
+  Widget _quickActionTile({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: PremiumGlassCard(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        radius: 18,
+        child: Column(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: color.withValues(alpha: 0.3)),
               ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  "Join our community group for more updates",
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    height: 1.25,
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              style: TextStyle(
+                color: DudeTheme.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCallTypeSection() {
+    if (_selectedCallType == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: PremiumGlassCard(
+        padding: const EdgeInsets.all(16),
+        radius: 20,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Call preferences',
+              style: TextStyle(
+                color: DudeTheme.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Users can call you via',
+              style: TextStyle(
+                color: DudeTheme.textMuted.withValues(alpha: 0.95),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _callTypePill(type: StaffCallType.audio, label: 'Audio'),
+                _callTypePill(type: StaffCallType.video, label: 'Video'),
+                _callTypePill(type: StaffCallType.both, label: 'Both'),
+                if (_isUpdatingCallType)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: DudeTheme.accent,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              SizedBox(width: 8),
-              Icon(
-                Icons.open_in_new_rounded,
-                color: Color(0xFF25D366),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _communityGroupButton(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _communityGroupButton() {
+    return GestureDetector(
+      onTap: _openCommunityGroup,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F2A1D),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF25D366), width: 1.2),
+        ),
+        child: const Row(
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: Color(0xFF25D366),
+              child: Icon(
+                Icons.phone_in_talk_rounded,
+                color: Colors.white,
                 size: 18,
               ),
-            ],
-          ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Join community group for updates',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+            ),
+            Icon(Icons.open_in_new_rounded, color: Color(0xFF25D366), size: 18),
+          ],
         ),
       ),
     );
@@ -1642,31 +1768,36 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
         if (mounted) {
           setState(() => _isUpdatingCallType = false);
           if (success) {
-            // Persist immediately so re-entry won't reset it
             await _saveCallType(type);
             setState(() => _selectedCallType = type);
-            Utils.snackBar("Call type updated to $label");
+            Utils.snackBar('Call type updated to $label');
           } else {
             Utils.snackBarErrorMessage(
-              staffVM.callTypeUpdateError ?? "Failed to update call type",
+              staffVM.callTypeUpdateError ?? 'Failed to update call type',
             );
           }
         }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
+          gradient: isSelected ? DudeTheme.premiumAccentGradient : null,
+          color: isSelected
+              ? null
+              : DudeTheme.background.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isSelected ? _kAccent : const Color(0xFF3A3A5A),
+            color: isSelected
+                ? DudeTheme.accent
+                : DudeTheme.border.withValues(alpha: 0.7),
             width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? _kAccent : _kTextSub,
+            color: isSelected ? DudeTheme.textOnAccent : DudeTheme.textMuted,
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
           ),
@@ -1675,149 +1806,159 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // CALLS INFO + BAR CHART
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _callsSection() {
+  Widget _buildCallsSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Consumer<StaffViewModel>(
-        builder: (context, vm, child) {
-          if (vm.isFetchingWeeklyGraph || vm.isFetchingCallStats) {
-            return const Center(
-              child: CircularProgressIndicator(color: _kAccent),
-            );
-          }
-          if (vm.weeklyGraphError != null || vm.callStatsError != null) {
-            return Column(
-              children: [
-                Text(
-                  vm.weeklyGraphError ?? vm.callStatsError ?? "",
-                  style: const TextStyle(color: Colors.redAccent),
+      child: PremiumGlassCard(
+        padding: const EdgeInsets.all(16),
+        radius: 20,
+        child: Consumer<StaffViewModel>(
+          builder: (context, vm, child) {
+            if (vm.isFetchingWeeklyGraph || vm.isFetchingCallStats) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: DudeTheme.accent,
+                    strokeWidth: 2,
+                  ),
                 ),
-                TextButton(
-                  onPressed: () {
-                    vm.fetchWeeklyCallGraph();
-                    vm.fetchStaffCallStats();
-                  },
-                  child: const Text("Retry", style: TextStyle(color: _kAccent)),
+              );
+            }
+            if (vm.weeklyGraphError != null || vm.callStatsError != null) {
+              return Column(
+                children: [
+                  Text(
+                    vm.weeklyGraphError ?? vm.callStatsError ?? '',
+                    style: TextStyle(color: DudeTheme.danger),
+                    textAlign: TextAlign.center,
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      vm.fetchWeeklyCallGraph();
+                      vm.fetchStaffCallStats();
+                    },
+                    child: Text(
+                      'Retry',
+                      style: TextStyle(color: DudeTheme.accent),
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            final dayOrder = ['Sun', 'Sat', 'Fri', 'Thu', 'Wed', 'Tue', 'Mon'];
+            final callMap = {for (var d in vm.weeklyCallGraph) d.day: d.calls};
+            final orderedCalls = dayOrder
+                .map((day) => callMap[day] ?? 0)
+                .toList();
+            final maxCalls = orderedCalls.isEmpty
+                ? 1
+                : orderedCalls.reduce((a, b) => a > b ? a : b);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Calls this week',
+                        style: TextStyle(
+                          color: DudeTheme.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => bondNavigator.newPage(
+                        context,
+                        page: const RecentCallsPage(backPage: true),
+                      ),
+                      child: Text(
+                        'View all',
+                        style: TextStyle(
+                          color: DudeTheme.accent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Text(
+                      'Total minutes: ',
+                      style: TextStyle(
+                        color: DudeTheme.textMuted.withValues(alpha: 0.95),
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      _formatMinutes(vm.totalMinutes),
+                      style: TextStyle(
+                        color: DudeTheme.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  height: 110,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(7, (i) {
+                      final calls = orderedCalls[i];
+                      final frac = maxCalls == 0
+                          ? 0.0
+                          : calls / maxCalls.toDouble();
+                      final h = (frac * 100).clamp(6.0, 100.0);
+                      return Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              height: h,
+                              decoration: BoxDecoration(
+                                gradient: DudeTheme.premiumAccentGradient,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: dayOrder
+                      .map(
+                        (d) => Expanded(
+                          child: Text(
+                            d,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: DudeTheme.textSubtle.withValues(
+                                alpha: 0.9,
+                              ),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
               ],
             );
-          }
-
-          final dayOrder = ["Sun", "Sat", "Fri", "Thu", "Wed", "Tue", "Mon"];
-          final callMap = {for (var d in vm.weeklyCallGraph) d.day: d.calls};
-          final orderedCalls = dayOrder
-              .map((day) => callMap[day] ?? 0)
-              .toList();
-          final maxCalls = orderedCalls.isEmpty
-              ? 1
-              : orderedCalls.reduce((a, b) => a > b ? a : b);
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  const Text(
-                    "Calls Info",
-                    style: TextStyle(
-                      color: _kText,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => bondNavigator.newPage(
-                      context,
-                      page: RecentCallsPage(backPage: true),
-                    ),
-                    child: const Text(
-                      "View history",
-                      style: TextStyle(
-                        color: _kAccent,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.underline,
-                        decorationColor: _kAccent,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Text(
-                    "Total Minutes: ",
-                    style: TextStyle(color: _kTextSub, fontSize: 14),
-                  ),
-                  Text(
-                    _formatMinutes(vm.totalMinutes),
-                    style: const TextStyle(
-                      color: _kText,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Bar chart
-              SizedBox(
-                height: 120,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List.generate(7, (i) {
-                    final calls = orderedCalls[i];
-                    final frac = maxCalls == 0
-                        ? 0.0
-                        : calls / maxCalls.toDouble();
-                    final h = (frac * 110).clamp(6.0, 110.0);
-                    return Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 5),
-                            height: h,
-                            decoration: BoxDecoration(
-                              color: _kAccent,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: dayOrder
-                    .map(
-                      (d) => Expanded(
-                        child: Text(
-                          d,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: _kTextSub,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-          );
-        },
+          },
+        ),
       ),
     );
   }
@@ -1832,134 +1973,5 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
       return m > 0 ? '$h hr $m min' : '$h hr';
     }
     return rem > 0 ? '$minutes min $rem sec' : '$minutes min';
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // QUICK LINKS
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _quickLinks() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _kCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _kCardBorder),
-        ),
-        child: Column(
-          children: [
-            _quickLinkTile(
-              icon: Icons.account_balance_wallet_outlined,
-              label: "Wallet",
-              onTap: () => bondNavigator.newPage(
-                context,
-                page: const StaffWalletScreen(),
-              ),
-            ),
-            const Divider(color: Color(0xFF2A2A4A), height: 1),
-            _quickLinkTile(
-              icon: Icons.help_outline_rounded,
-              label: "Help & Support",
-              onTap: () {},
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _quickLinkTile({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E1E38),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _kCardBorder),
-        ),
-        child: Icon(icon, color: _kAccent, size: 20),
-      ),
-      title: Text(
-        label,
-        style: const TextStyle(
-          color: _kText,
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      trailing: const Icon(Icons.arrow_forward, color: _kAccent, size: 18),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // QUICK CHAT ACCESS
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _quickChatAccess() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GestureDetector(
-        onTap: () => bondNavigator.newPage(
-          context,
-          page: const StaffChatListScreen(backPage: true),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _kCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _kCardBorder),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E38),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _kCardBorder),
-                ),
-                child: const Icon(
-                  Icons.chat_bubble_outline_rounded,
-                  color: _kAccent,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Open Messages",
-                      style: TextStyle(
-                        color: _kText,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      "Reply to users · See new messages",
-                      style: TextStyle(color: _kTextSub, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.arrow_forward, color: _kAccent, size: 18),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

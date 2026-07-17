@@ -201,20 +201,17 @@ class SocketService {
           event == "staff_list" ||
           event == "all_staff_data") {
         _notifyStaffListListeners(data);
-        _notifyStatusChangeListeners(data);
       }
 
-      if (event == "staffList" ||
-          event == "staff_list" ||
-          event == "all_staff_data") {
-        // debugPrint("📡 [SOCKET] Received staff list on event: $event");
-        _notifyStaffListListeners(data);
-      }
-
-      if (event == "staff_busy_status" ||
+      if (event == "staff_offline") {
+        final payload = _normalizePresencePayload(data, isOnline: false);
+        _notifyStatusChangeListeners(payload);
+      } else if (event == "staff_online") {
+        final payload = _normalizePresencePayload(data, isOnline: true);
+        _notifyStatusChangeListeners(payload);
+      } else if (event == "staff_busy_status" ||
           event == "busy_status" ||
           (data is Map && data['isBusy'] != null)) {
-        // debugPrint("🔥 [SOCKET] Busy status received");
         _notifyStatusChangeListeners(data);
       }
 
@@ -230,7 +227,6 @@ class SocketService {
           event == "user_status" ||
           event == "status_update" ||
           event == "staff_status") {
-        // debugPrint("📡 [SOCKET] Received status change on event: $event");
         _notifyStatusChangeListeners(data);
       }
 
@@ -288,6 +284,27 @@ class SocketService {
 
     // debugPrint("📤 [SOCKET] Requesting staff list...");
     emit("get_all_staff", requestData);
+  }
+
+  /// Normalize staff_online / staff_offline payloads so status handlers
+  /// always receive an explicit isOnline flag (server often sends only memberID).
+  Map<String, dynamic> _normalizePresencePayload(
+    dynamic data, {
+    required bool isOnline,
+  }) {
+    final Map<String, dynamic> payload;
+    if (data is Map) {
+      payload = Map<String, dynamic>.from(data);
+    } else if (data is String) {
+      payload = {"memberID": data};
+    } else {
+      payload = <String, dynamic>{};
+    }
+    payload['isOnline'] = isOnline;
+    if (!isOnline) {
+      payload['isBusy'] = false;
+    }
+    return payload;
   }
 
   void _handleConnectionError() {

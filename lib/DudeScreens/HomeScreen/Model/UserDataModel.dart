@@ -79,8 +79,8 @@ class UserProfile {
       isOAuth: json['isOAuth'] == true,
       isLogin: json['isLogin'] == true,
       ip: json['ip']?.toString(),
-      totalPurchaseAmount: json['totalPurchaseAmount'] ?? 0,
-      totalProductReferred: json['totalProductReferred'] ?? 0,
+      totalPurchaseAmount: _parseInt(json['totalPurchaseAmount']),
+      totalProductReferred: _parseInt(json['totalProductReferred']),
       role: json['role'] ?? '',
       affiliateStatus: json['affiliateStatus'] ?? '',
       createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
@@ -94,13 +94,27 @@ class UserProfile {
           ?.map((e) => InterestItem.fromJson(e))
           .toList(),
       language: json['Language']?.toString(),
-      coinBalance: json['coinBalance'] as int?,
+      coinBalance: _parseNullableInt(json['coinBalance']),
       isFirstLogin: _parseIntFlag(
         json['isFirstLogin'] ?? json['firstLogin'] ?? json['is_first_login'],
         defaultValue: 0,
       ),
       formStatus: json['formStatus']?.toString(),
     );
+  }
+
+  static int _parseInt(dynamic value, {int defaultValue = 0}) {
+    if (value == null) return defaultValue;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? defaultValue;
+  }
+
+  static int? _parseNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 
   static int _parseIntFlag(dynamic value, {int defaultValue = 0}) {

@@ -1,6 +1,9 @@
 // lib/DudeScreens/WalletScreen/StaffWalletScreen.dart
 
 import 'dart:ui';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+
 import 'package:dude/Dude_Utils/DateTimeFormatter/history_time_formatter.dart';
 import 'package:dude/DudeScreens/WalletScreen/razorPayFlow/ViewModel/PaymentVM.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
@@ -55,28 +58,13 @@ class _StaffWalletScreenState extends State<StaffWalletScreen> {
         }
 
         return Scaffold(
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
-            child: SafeArea(
+          backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
+        child: SafeArea(
               child: vm.isLoadingWithdraw
                   ? const Center(
                       child: CircularProgressIndicator(
-                        color: Color(0xFFaecc01),
+                        color: DudeTheme.accent,
                       ),
                     )
                   : vm.withdrawError != null
@@ -92,7 +80,7 @@ class _StaffWalletScreenState extends State<StaffWalletScreen> {
                           ElevatedButton(
                             onPressed: vm.fetchStaffWithdrawHistory,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFaecc01),
+                              backgroundColor: DudeTheme.accent,
                             ),
                             child: const Text("Retry"),
                           ),
@@ -101,7 +89,7 @@ class _StaffWalletScreenState extends State<StaffWalletScreen> {
                     )
                   : RefreshIndicator(
                       onRefresh: vm.fetchStaffWithdrawHistory,
-                      color: const Color(0xFFaecc01),
+                      color: DudeTheme.accent,
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         child: Column(
@@ -119,7 +107,7 @@ class _StaffWalletScreenState extends State<StaffWalletScreen> {
                                         bondNavigator.backPage(context),
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF2A1F38),
+                                        color: DudeTheme.surface,
                                         borderRadius: BorderRadius.circular(40),
                                         border: Border.all(
                                           color: Colors.white12,
@@ -155,22 +143,15 @@ class _StaffWalletScreenState extends State<StaffWalletScreen> {
                                 padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(24),
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF2A1F38),
-                                      Color(0xFF1C1426),
-                                    ],
-                                  ),
-                                  border: Border.all(
-                                    color: const Color(0xFF3A2A4A),
-                                  ),
+                                  gradient: DudeTheme.premiumAccentGradient,
+                                  boxShadow: DudeTheme.accentGlowShadow(blur: 18, spread: -4),
                                 ),
                                 child: Column(
                                   children: [
-                                    const Text(
+                                    Text(
                                       "Total Balance",
                                       style: TextStyle(
-                                        color: Color(0xFFB0A8C0),
+                                        color: DudeTheme.textOnAccent.withValues(alpha: 0.85),
                                         fontSize: 15,
                                       ),
                                     ),
@@ -178,7 +159,7 @@ class _StaffWalletScreenState extends State<StaffWalletScreen> {
                                     Text(
                                       "₹${totalBalance.toString()}",
                                       style: const TextStyle(
-                                        color: Colors.white,
+                                        color: DudeTheme.textOnAccent,
                                         fontSize: 38,
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -206,27 +187,14 @@ class _StaffWalletScreenState extends State<StaffWalletScreen> {
                                   height: 58,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(16),
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        Color(0xFFaecc01),
-                                        Color(0xFF9ab800),
-                                      ],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xFFaecc01,
-                                        ).withOpacity(0.5),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
+                                    gradient: DudeTheme.premiumAccentGradient,
+                                    boxShadow: DudeTheme.accentGlowShadow(blur: 20, spread: -2),
                                   ),
                                   child: const Center(
                                     child: Text(
                                       "Withdraw Now",
                                       style: TextStyle(
-                                        color: Colors.black,
+                                        color: DudeTheme.textOnAccent,
                                         fontSize: 18,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -253,8 +221,8 @@ class _StaffWalletScreenState extends State<StaffWalletScreen> {
                                     children: [
                                       Text(
                                         headerYear,
-                                        style: const TextStyle(
-                                          color: Color(0xFFB0A8C0),
+                                        style: TextStyle(
+                                          color: DudeTheme.textMid,
                                           fontSize: 14,
                                         ),
                                       ),
@@ -270,8 +238,8 @@ class _StaffWalletScreenState extends State<StaffWalletScreen> {
                                   ),
                                   Text(
                                     "₹${vm.withdrawHistory.fold<double>(0.0, (sum, txn) => sum + txn.amount).toStringAsFixed(0)}",
-                                    style: const TextStyle(
-                                      color: Color(0xFFaecc01),
+                                    style: TextStyle(
+                                      color: DudeTheme.accent,
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -329,18 +297,18 @@ class _TransactionItem extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF2A1F38),
+        color: DudeTheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF3A2A4A)),
+        border: Border.all(color: DudeTheme.border),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 26,
-            backgroundColor: const Color(0xFF1C1426),
+            backgroundColor: DudeTheme.surface,
             child: Icon(
               title.contains("UPI") ? Icons.qr_code : Icons.account_balance,
-              color: const Color(0xFFaecc01),
+              color: DudeTheme.accent,
               size: 26,
             ),
           ),
@@ -364,7 +332,7 @@ class _TransactionItem extends StatelessWidget {
                         ? Colors.orange
                         : isReject
                         ? Colors.red
-                        : const Color(0xFF7DFF63),
+                        : DudeTheme.online,
                     fontSize: 13.5,
                   ),
                 ),

@@ -1,4 +1,7 @@
 import 'package:dude/DudeScreens/LoginScreens/IdentityScreen/IdentityScreen.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+
 import 'package:dude/DudeScreens/Splash/SplashScreen.dart';
 import 'package:dude/DudeScreens/Splash/SplashScreen2.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
@@ -19,22 +22,8 @@ class _VerificationUnsuccessScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF140810),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: [
-              Color(0xFF5A1F3F),
-              Color(0xFF3A152A),
-              Color(0xFF140810),
-              Color(0xFF140810),
-            ],
-          ),
-        ),
+      backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -70,7 +59,7 @@ class _VerificationUnsuccessScreenState
                 Center(
                   child: AppText(
                     "Our verification request could not be approved due to policy or document issues. You may review the reason below and try again.",
-                    color: const Color(0XFFc7c7cc),
+                    color: DudeTheme.textSubtle,
                     fontSize: 16,
                     maxLines: 5,
                     textAlign: TextAlign.center,
@@ -98,7 +87,7 @@ class _VerificationUnsuccessScreenState
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFB86AF6), Color(0xFFFF6A6A)],
+                  colors: [DudeTheme.accent, Color(0xFFFF6A6A)],
                 ),
               ),
               child: const Center(

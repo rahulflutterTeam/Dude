@@ -1,15 +1,15 @@
 import 'dart:io';
-
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/DudeScreens/LoginScreens/ViewModel/LoginVM.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:dude/StaffScreenScreens/VerificationApprovedScreen/VerificationApprovedScreen.dart';
 import 'package:dude/StaffScreenScreens/VerificationInprogressScreen/VerificationInprogressScreen.dart';
 import 'package:dude/StaffScreenScreens/VerificationUnsuccessfulScreen/VerificationUnsuccessScreen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -89,198 +89,253 @@ class _LiveVerificationScreenState extends State<LiveVerificationScreen> {
         final isApproved = staff?.isApproved?.toString() ?? '0';
 
         return Scaffold(
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40), // top
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
+          backgroundColor: DudeTheme.background,
+          body: PremiumAmbientBackground(
             child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 12),
-                    SvgPicture.asset("assets/Images/dude.svg", height: 54),
-
-                    const SizedBox(height: 40),
-
+                    const Center(child: DudeLogo(height: 54)),
+                    const SizedBox(height: 28),
+                    _stepLabel(),
+                    const SizedBox(height: 14),
                     const Text(
-                      "Profile Verification",
+                      "Add a clear selfie",
                       style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
                         color: Colors.white,
+                        fontSize: 28,
+                        height: 1.15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.7,
                       ),
                     ),
-
-                    const SizedBox(height: 8),
-
+                    const SizedBox(height: 10),
                     const Text(
-                      "Complete verification to activate your account.",
+                      "This helps Dude match you with your ID and protects the community from fake profiles.",
                       style: TextStyle(
-                        color: Color(0xFFB0A8C0),
-                        fontSize: 15.5,
-                        height: 1.4,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const Spacer(),
-
-                    // Large Purple Camera Circle
-                    Center(
-                      child: GestureDetector(
-                        onTap: vm.isUploading ? null : _takeSelfie,
-                        child: Container(
-                          width: 260,
-                          height: 260,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFF9F6BFF),
-                              width: 4,
-                            ),
-                            color: const Color(0xFF1A0F2B),
-                            image: _selectedImage != null
-                                ? DecorationImage(
-                                    image: FileImage(_selectedImage!),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
-                          ),
-                          child: _selectedImage == null
-                              ? const Center(
-                                  child: Icon(
-                                    Icons.camera_alt_rounded,
-                                    size: 90,
-                                    color: Color(0xFF9F6BFF),
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 40),
-
-                    // Two Option Buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildOptionButton(
-                          icon: Icons.camera_alt,
-                          label: "Take Selfie",
-                          onTap: vm.isUploading ? null : _takeSelfie,
-                        ),
-                        const SizedBox(width: 50),
-                        _buildOptionButton(
-                          icon: Icons.photo_library_rounded,
-                          label: "From Gallery",
-                          onTap: vm.isUploading ? null : _pickFromGallery,
-                        ),
-                      ],
-                    ),
-
-                    const Spacer(),
-
-                    // Instruction Text
-                    Text(
-                      "Upload a clear live selfie or photo to confirm your identity.",
-                      style: TextStyle(
-                        color: Color(0xFFB0A8C0),
+                        color: DudeTheme.textSubtle,
                         fontSize: 15,
                         height: 1.5,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 26),
+                    GestureDetector(
+                      onTap: vm.isUploading ? null : _takeSelfie,
+                      child: Container(
+                        height: 270,
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          gradient: DudeTheme.premiumAccentGradient,
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: _selectedImage == null
+                              ? DudeTheme.accentGlowShadow(blur: 26)
+                              : DudeTheme.softShadow,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(26),
+                          child: _selectedImage != null
+                              ? Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Image.file(
+                                      _selectedImage!,
+                                      fit: BoxFit.cover,
+                                    ),
+                                    Positioned(
+                                      right: 12,
+                                      top: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 7,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.7,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: const Row(
+                                          children: [
+                                            Icon(
+                                              Icons.check_circle_rounded,
+                                              size: 16,
+                                              color: DudeTheme.accentBright,
+                                            ),
+                                            SizedBox(width: 5),
+                                            Text(
+                                              "Ready",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Container(
+                                  color: DudeTheme.surface,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        width: 84,
+                                        height: 84,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: DudeTheme.accentDim,
+                                          border: Border.all(
+                                            color: DudeTheme.accent.withValues(
+                                              alpha: 0.45,
+                                            ),
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.camera_alt_rounded,
+                                          size: 38,
+                                          color: DudeTheme.accentBright,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 18),
+                                      const Text(
+                                        "Tap to take a selfie",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      const Text(
+                                        "Face forward in good lighting",
+                                        style: TextStyle(
+                                          color: DudeTheme.textSubtle,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildOptionButton(
+                            icon: Icons.camera_alt_rounded,
+                            label: "Take selfie",
+                            onTap: vm.isUploading ? null : _takeSelfie,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildOptionButton(
+                            icon: Icons.photo_library_outlined,
+                            label: "Choose photo",
+                            onTap: vm.isUploading ? null : _pickFromGallery,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: DudeTheme.accentDim.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.verified_user_outlined,
+                            color: DudeTheme.accentBright,
+                            size: 20,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              "Use a recent, unfiltered photo with only your face visible.",
+                              style: TextStyle(
+                                color: DudeTheme.textMuted,
+                                fontSize: 13,
+                                height: 1.45,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
+          bottomNavigationBar: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              child: GestureDetector(
+                onTap: (vm.isUploading || _selectedImage == null)
+                    ? null
+                    : () async {
+                        final success = await vm.uploadSelfie(_selectedImage!);
+                        if (!context.mounted) return;
+                        if (success) {
+                          final nextScreen = isApproved == "1"
+                              ? const ApprovedScreen()
+                              : isApproved == "2"
+                              ? const VerificationUnsuccessScreen()
+                              : const VerificationInprogressScreen();
 
-          // Bottom Button
-          bottomNavigationBar: Container(
-            color: Color(0xFF2b1e4e),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: GestureDetector(
-                  onTap: (vm.isUploading || _selectedImage == null)
-                      ? null
-                      : () async {
-                          final success = await vm.uploadSelfie(
-                            _selectedImage!,
+                          bondNavigator.newPageRemoveUntil(
+                            context,
+                            page: nextScreen,
                           );
-                          if (success) {
-                            final nextScreen = isApproved == "1"
-                                ? const ApprovedScreen()
-                                : isApproved == "2"
-                                ? const VerificationUnsuccessScreen()
-                                : const VerificationInprogressScreen();
-
-                            bondNavigator.newPageRemoveUntil(
-                              context,
-                              page: nextScreen,
-                            );
-                          } else {
-                            Utils.snackBarErrorMessage(
-                              "Failed to upload photo",
-                            );
-                          }
-                        },
-                  child: Container(
-                    height: 58,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: (vm.isUploading || _selectedImage == null)
-                          ? LinearGradient(
-                              colors: [
-                                Color(0xFFaecc01).withOpacity(0.4),
-                                Color(0xFFaecc01).withOpacity(0.4),
-                              ],
-                            )
-                          : const LinearGradient(
-                              colors: [Color(0xFFaecc01), Color(0xFFaecc01)],
+                        } else {
+                          Utils.snackBarErrorMessage("Failed to upload photo");
+                        }
+                      },
+                child: Container(
+                  height: 58,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: (vm.isUploading || _selectedImage == null)
+                        ? const LinearGradient(
+                            colors: [Color(0xFF452331), Color(0xFF301923)],
+                          )
+                        : DudeTheme.premiumAccentGradient,
+                  ),
+                  child: Center(
+                    child: vm.isUploading
+                        ? const SizedBox(
+                            height: 28,
+                            width: 28,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 3,
                             ),
-                    ),
-                    child: Center(
-                      child: vm.isUploading
-                          ? const SizedBox(
-                              height: 28,
-                              width: 28,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 3,
-                              ),
-                            )
-                          : Text(
-                              _selectedImage == null
-                                  ? "Select Image First"
-                                  : "Upload & Verify",
-                              style: TextStyle(
-                                color: _selectedImage == null
-                                    ? Colors.white
-                                    : Colors.black,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          )
+                        : Text(
+                            _selectedImage == null
+                                ? "Add a photo to continue"
+                                : "Submit for verification  →",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
                             ),
-                    ),
+                          ),
                   ),
                 ),
               ),
@@ -298,28 +353,47 @@ class _LiveVerificationScreenState extends State<LiveVerificationScreen> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF2A1F38),
-              border: Border.all(color: const Color(0xFF9F6BFF), width: 1.5),
+      child: Container(
+        height: 54,
+        decoration: BoxDecoration(
+          color: DudeTheme.surfaceRaised,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: DudeTheme.borderSubtle),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: DudeTheme.accentBright, size: 21),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            child: Icon(icon, color: const Color(0xFF9F6BFF), size: 28),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFFB0A8C0),
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
+  Widget _stepLabel() => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(
+      color: DudeTheme.accentDim,
+      borderRadius: BorderRadius.circular(30),
+      border: Border.all(color: DudeTheme.accent.withValues(alpha: 0.35)),
+    ),
+    child: const Text(
+      "STEP 2 OF 2  •  SELFIE CHECK",
+      style: TextStyle(
+        color: DudeTheme.accentBright,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.7,
+      ),
+    ),
+  );
 }

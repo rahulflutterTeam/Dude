@@ -8,6 +8,7 @@ import 'package:dude/DudeScreens/ReportOverview/ReportOverviewScreen.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -34,24 +35,12 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0A14),
+      backgroundColor: DudeTheme.background,
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF241b40),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF2b1e4e),
-            ],
-          ),
+          gradient: DudeTheme.backgroundGradient,
         ),
         child: SafeArea(
           child: Column(
@@ -67,7 +56,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2c1e4f), // Updated color
+                          color: DudeTheme.surfaceRaised, // Updated color
                           borderRadius: BorderRadius.circular(40),
                         ),
                         child: const Padding(
@@ -176,14 +165,14 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           gradient: const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1c122d), Color(0xFF1c122e), Color(0xFF261247)],
+            colors: [DudeTheme.surface, DudeTheme.surfaceRaised, DudeTheme.surfaceRaised],
           ),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF2A1F38), width: 1),
+          border: Border.all(color: DudeTheme.surfaceRaised, width: 1),
         ),
         child: Row(
           children: [
-            Icon(icon, color: iconColor ?? const Color(0xFFB0A8C0), size: 28),
+            Icon(icon, color: iconColor ?? DudeTheme.textMid, size: 28),
             const SizedBox(width: 16),
             Expanded(
               child: Text(

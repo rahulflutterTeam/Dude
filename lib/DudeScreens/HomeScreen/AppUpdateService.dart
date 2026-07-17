@@ -1,5 +1,6 @@
 // lib/Services/AppUpdateService.dart
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -20,7 +21,7 @@ class AppUpdateService {
 
       final response = await http.get(
         Uri.parse(
-          "https://api.pair-ever.com/api/v1/auth/user/getAppUpdateConfig",
+          "https://api.dudee.online/api/v1/auth/user/getAppUpdateConfig",
         ),
         headers: {'Content-Type': 'application/json'},
       );
@@ -107,46 +108,93 @@ class AppUpdateService {
     bool force,
     String latestVersion,
   ) {
-    showDialog(
+    showModalBottomSheet<void>(
       context: context,
-      barrierDismissible: !force,
-      builder: (context) => WillPopScope(
-        onWillPop: () async => !force,
-        child: Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+      isDismissible: !force,
+      enableDrag: !force,
+      isScrollControlled: true,
+      useSafeArea: true,
+      barrierColor: Colors.black.withValues(alpha: 0.82),
+      backgroundColor: Colors.transparent,
+      builder: (context) => PopScope(
+        canPop: !force,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
           ),
-          backgroundColor: const Color(0xFF241b40),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+            decoration: BoxDecoration(
+              gradient: DudeTheme.dialogGradient,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
+              border: Border.all(
+                color: DudeTheme.accent.withValues(alpha: 0.32),
+              ),
+              boxShadow: [
+                ...DudeTheme.softShadow,
+                ...DudeTheme.accentGlowShadow(blur: 28, spread: -12),
+              ],
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.system_update,
-                  size: 60,
-                  color: Color(0xFFaecc01),
+                if (!force) ...[
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: DudeTheme.textSubtle.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ] else
+                  const SizedBox(height: 12),
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    gradient: DudeTheme.premiumAccentGradient,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: DudeTheme.accentGlowShadow(blur: 24),
+                  ),
+                  child: const Icon(
+                    Icons.system_update_alt_rounded,
+                    size: 32,
+                    color: DudeTheme.textOnAccent,
+                  ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
                 const Text(
-                  "Update Available!",
+                  "A fresh update is here",
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    fontSize: 23,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: DudeTheme.textPrimary,
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
-                const Text(
-                  "A new version is available.\nPlease update to continue using the Dude.",
+                Text(
+                  force
+                      ? "Update to version $latestVersion to keep enjoying Dude."
+                      : "Version $latestVersion is ready with the latest improvements.",
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70, height: 1.5),
+                  style: const TextStyle(
+                    color: DudeTheme.textMid,
+                    fontSize: 14,
+                    height: 1.55,
+                  ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
 
                 // Update Button
                 SizedBox(
@@ -160,19 +208,27 @@ class AppUpdateService {
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFaecc01),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: DudeTheme.accent,
+                      foregroundColor: DudeTheme.textOnAccent,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text(
-                      "Update Now",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.arrow_upward_rounded, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          "Update now",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -194,8 +250,12 @@ class AppUpdateService {
                       }
                     },
                     child: const Text(
-                      "Later",
-                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                      "Maybe later",
+                      style: TextStyle(
+                        color: DudeTheme.textMuted,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -204,20 +264,34 @@ class AppUpdateService {
                 if (force) ...[
                   const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 13,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.red.withOpacity(0.4)),
+                      color: DudeTheme.accentDim,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: DudeTheme.accent.withValues(alpha: 0.32),
+                      ),
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.red),
-                        SizedBox(width: 10),
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          color: DudeTheme.accentBright,
+                          size: 21,
+                        ),
+                        SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            "This is a mandatory update. You must update to continue.",
-                            style: TextStyle(color: Colors.red, fontSize: 13),
+                            "This update is required to continue using the app.",
+                            style: TextStyle(
+                              color: DudeTheme.textMuted,
+                              fontSize: 12.5,
+                              height: 1.4,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -242,7 +316,7 @@ class AppUpdateService {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          backgroundColor: const Color(0xFF241b40),
+          backgroundColor: DudeTheme.background,
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -251,7 +325,7 @@ class AppUpdateService {
                 const Icon(
                   Icons.construction_rounded,
                   size: 60,
-                  color: Color(0xFFaecc01),
+                  color: DudeTheme.accent,
                 ),
                 const SizedBox(height: 20),
                 const Text(

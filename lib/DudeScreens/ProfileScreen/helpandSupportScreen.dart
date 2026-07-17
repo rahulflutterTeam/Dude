@@ -2,6 +2,7 @@
 import 'package:dude/APIService/support_ticket_service.dart';
 import 'package:dude/DudeScreens/ProfileScreen/myTicketScreen.dart';
 import 'package:dude/DudeScreens/ProfileScreen/submitTicketScreen.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 
 class HelpAndSupportScreen extends StatefulWidget {
@@ -46,14 +47,14 @@ class _HelpAndSupportScreenState extends State<HelpAndSupportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF080612),
+      backgroundColor: DudeTheme.background,
       appBar: AppBar(
         leading: BackButton(color: Colors.white54),
         title: Text(
           'Help and Support',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: const Color(0xFF100E1E),
+        backgroundColor: DudeTheme.surface,
         elevation: 0,
       ),
       body: loading
@@ -75,7 +76,7 @@ class _HelpAndSupportScreenState extends State<HelpAndSupportScreen> {
                   ),
                   SizedBox(height: 8),
                   Card(
-                    color: const Color(0xFF100E1E),
+                    color: DudeTheme.surface,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -115,7 +116,7 @@ class _HelpAndSupportScreenState extends State<HelpAndSupportScreen> {
                   ),
                   SizedBox(height: 8),
                   Card(
-                    color: const Color(0xFF100E1E),
+                    color: DudeTheme.surface,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),

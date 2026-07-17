@@ -1,10 +1,9 @@
-import 'package:dude/DudeScreens/LoginScreens/IdentityScreen/IdentityScreen.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/StaffScreenScreens/StaffSelectInterestScreen/StaffSelectInterestScreen.dart';
-import 'package:dude/StaffScreenScreens/VerificationInprogressScreen/VerificationInprogressScreen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class ApprovedScreen extends StatefulWidget {
   const ApprovedScreen({super.key});
@@ -27,107 +26,91 @@ class _ApprovedScreenState extends State<ApprovedScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF140810),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF241b40), // top
-              Color(0xFF1C1426),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF2b1e4e),
-            ],
-          ),
-        ),
+      backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 10),
-
-                /// 🔹 Logo
-                SvgPicture.asset("assets/Images/dude.svg", height: 45),
-
-                const SizedBox(height: 20),
-
-                Center(
-                  child: Image.asset("assets/Images/success.png", height: 200),
-                ),
-
-                /// 🔹 Title
-                Center(
-                  child: AppText(
-                    "Congratulations Your\nProfile is Approved",
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                /// 🔹 Description
-                Center(
-                  child: AppText(
-                    "Your identity and documents have been successfully verified. You are now an approved partner and can start receiving calls and earning.",
-                    color: const Color(0XFFc7c7cc),
-                    fontSize: 16,
-                    maxLines: 5,
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                /// 🔹 Guidelines Title
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFbdd534).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFFbdd534).withOpacity(0.3),
+                const Center(child: DudeLogo(height: 54)),
+                const SizedBox(height: 34),
+                Center(child: _approvedMark()),
+                const SizedBox(height: 24),
+                const Center(
+                  child: Text(
+                    "You’re verified!",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      height: 1.15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.7,
                     ),
                   ),
-                  child: Row(
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  "Welcome to the Dude partner community. Before you start connecting and earning, please accept our safety guidelines.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: DudeTheme.textSubtle,
+                    fontSize: 15,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: DudeTheme.accentDim,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: DudeTheme.accent.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: const Row(
                     children: [
                       Icon(
-                        Icons.info_outline,
-                        color: const Color(0xFFbdd534),
-                        size: 22,
+                        Icons.shield_outlined,
+                        color: DudeTheme.accentBright,
+                        size: 24,
                       ),
-                      const SizedBox(width: 12),
-                      AppText(
-                        "Guidelines For Friend Zone",
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFbdd534),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Dude community guidelines",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(height: 3),
+                            Text(
+                              "Tap each item to confirm",
+                              style: TextStyle(
+                                color: DudeTheme.textSubtle,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 16),
-
-                /// 🔹 Checklist Items
+                const SizedBox(height: 14),
                 Column(
                   children: [
                     _buildChecklistItem(
                       index: 1,
                       text:
-                          "Do not share your bank details with anyone like G-Pay, Phonepe & Paytm",
+                          "Keep payments inside Dude. Never share bank, UPI or wallet details.",
                       value: _isChecked1,
                       onChanged: (val) {
                         setState(() {
@@ -139,7 +122,7 @@ class _ApprovedScreenState extends State<ApprovedScreen> {
                     _buildChecklistItem(
                       index: 2,
                       text:
-                          "Do not engage in adult conversations and report if any user does this",
+                          "Keep conversations appropriate. Report sexual or unsafe behaviour.",
                       value: _isChecked2,
                       onChanged: (val) {
                         setState(() {
@@ -151,7 +134,7 @@ class _ApprovedScreenState extends State<ApprovedScreen> {
                     _buildChecklistItem(
                       index: 3,
                       text:
-                          "Zero tolerance for abusive language, be polite and friendly",
+                          "Be respectful and friendly. Abuse, threats and harassment are not allowed.",
                       value: _isChecked3,
                       onChanged: (val) {
                         setState(() {
@@ -163,7 +146,7 @@ class _ApprovedScreenState extends State<ApprovedScreen> {
                     _buildChecklistItem(
                       index: 4,
                       text:
-                          "Do not share address, phone number and social media handle details like Instagram, Facebook, WhatsApp, Snapchat",
+                          "Protect your privacy. Don’t share phone numbers, addresses or social accounts.",
                       value: _isChecked4,
                       onChanged: (val) {
                         setState(() {
@@ -175,7 +158,7 @@ class _ApprovedScreenState extends State<ApprovedScreen> {
                     _buildChecklistItem(
                       index: 5,
                       text:
-                          "If any user or host violates the above guidelines, they will definitely be banned",
+                          "Report violations promptly. Serious or repeated misuse may result in a ban.",
                       value: _isChecked5,
                       onChanged: (val) {
                         setState(() {
@@ -192,41 +175,38 @@ class _ApprovedScreenState extends State<ApprovedScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: Container(
-        color: const Color(0xFF2b1e4e),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(10.0),
-            child: GestureDetector(
-              onTap: _isAllChecked
-                  ? () {
-                      bondNavigator.newPage(
-                        context,
-                        page: StaffInterestScreen(),
-                      );
-                    }
-                  : null,
-              child: Container(
-                height: 50,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  gradient: _isAllChecked
-                      ? const LinearGradient(
-                          colors: [Color(0xFFaecc01), Color(0xFFaecc01)],
-                        )
-                      : const LinearGradient(
-                          colors: [Color(0xFF5a5a5a), Color(0xFF3a3a3a)],
-                        ),
-                ),
-                child: Center(
-                  child: Text(
-                    "Continue  →",
-                    style: TextStyle(
-                      color: _isAllChecked ? Colors.black : Colors.grey[400],
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: GestureDetector(
+            onTap: _isAllChecked
+                ? () {
+                    bondNavigator.newPage(
+                      context,
+                      page: const StaffInterestScreen(),
+                    );
+                  }
+                : null,
+            child: Container(
+              height: 56,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: _isAllChecked
+                    ? DudeTheme.premiumAccentGradient
+                    : const LinearGradient(
+                        colors: [Color(0xFF452331), Color(0xFF301923)],
+                      ),
+              ),
+              child: Center(
+                child: Text(
+                  _isAllChecked
+                      ? "Continue setup  →"
+                      : "Accept all 5 guidelines",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -248,52 +228,46 @@ class _ApprovedScreenState extends State<ApprovedScreen> {
         onChanged(!value);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: const Color(0xFF241b40).withOpacity(0.5),
-          borderRadius: BorderRadius.circular(12),
+          color: value
+              ? DudeTheme.accentDim
+              : DudeTheme.surface.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: value ? const Color(0xFFbdd534) : Colors.transparent,
-            width: 1.5,
+            color: value ? DudeTheme.accent : DudeTheme.borderSubtle,
+            width: value ? 1.4 : 1,
           ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// 🔹 Custom Checkbox
-            GestureDetector(
-              onTap: () {
-                onChanged(!value);
-              },
-              child: Container(
-                width: 22,
-                height: 22,
-                margin: const EdgeInsets.only(top: 2),
-                decoration: BoxDecoration(
-                  color: value ? const Color(0xFFbdd534) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: value
-                        ? const Color(0xFFbdd534)
-                        : const Color(0xFFc7c7cc),
-                    width: 2,
-                  ),
+            Container(
+              width: 22,
+              height: 22,
+              margin: const EdgeInsets.only(top: 2),
+              decoration: BoxDecoration(
+                color: value ? DudeTheme.accent : Colors.transparent,
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(
+                  color: value ? DudeTheme.accent : DudeTheme.border,
+                  width: 2,
                 ),
-                child: value
-                    ? const Icon(Icons.check, size: 16, color: Colors.black)
-                    : null,
               ),
+              child: value
+                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  : null,
             ),
             const SizedBox(width: 12),
-
-            /// 🔹 Text
             Expanded(
-              child: AppText(
+              child: Text(
                 text,
-                fontSize: 13,
-                color: value
-                    ? const Color(0xFFbdd534)
-                    : const Color(0XFFc7c7cc),
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  fontWeight: value ? FontWeight.w600 : FontWeight.w500,
+                  color: value ? Colors.white : DudeTheme.textMuted,
+                ),
               ),
             ),
           ],
@@ -301,4 +275,20 @@ class _ApprovedScreenState extends State<ApprovedScreen> {
       ),
     );
   }
+
+  Widget _approvedMark() => Container(
+    width: 112,
+    height: 112,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: DudeTheme.accentDim,
+      border: Border.all(color: DudeTheme.accent, width: 2),
+      boxShadow: DudeTheme.accentGlowShadow(blur: 30),
+    ),
+    child: const Icon(
+      Icons.verified_rounded,
+      color: DudeTheme.accentBright,
+      size: 58,
+    ),
+  );
 }

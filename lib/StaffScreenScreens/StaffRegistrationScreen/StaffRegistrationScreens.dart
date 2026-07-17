@@ -1,11 +1,11 @@
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/login_auth_shell.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:dude/StaffScreenScreens/ProfileVerficationScreen/ProfileVerficationScreen.dart';
-import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/VerifyOtpStaffScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 class StaffRegisterScreen extends StatefulWidget {
@@ -148,18 +148,17 @@ class _StaffRegisterScreenState extends State<StaffRegisterScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFFbdd534),
-              onPrimary: Colors.white,
-              surface: Color(0xFF1C1426),
-              onSurface: Colors.white,
-              secondary: Color(0xFF7B4DFF),
+            colorScheme: ColorScheme.dark(
+              primary: DudeTheme.accent,
+              onPrimary: DudeTheme.textOnAccent,
+              surface: DudeTheme.surface,
+              onSurface: DudeTheme.textPrimary,
             ),
-            dialogBackgroundColor: const Color(0xFF241b40),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: DudeTheme.surface,
+            ),
             textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFbdd534),
-              ),
+              style: TextButton.styleFrom(foregroundColor: DudeTheme.accent),
             ),
           ),
           child: child!,
@@ -186,9 +185,10 @@ class _StaffRegisterScreenState extends State<StaffRegisterScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             return Dialog(
-              backgroundColor: const Color(0xFF241b40),
+              backgroundColor: DudeTheme.surface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: DudeTheme.border.withValues(alpha: 0.6)),
               ),
               child: Container(
                 height: MediaQuery.of(context).size.height * 0.7,
@@ -199,12 +199,15 @@ class _StaffRegisterScreenState extends State<StaffRegisterScreen> {
                     // Search Field
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFbdd534).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
+                        color: DudeTheme.accentDim,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: DudeTheme.accent.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: TextField(
                         controller: searchController,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: DudeTheme.textPrimary),
                         onChanged: (value) {
                           setState(() {
                             if (value.isEmpty) {
@@ -221,11 +224,13 @@ class _StaffRegisterScreenState extends State<StaffRegisterScreen> {
                           });
                         },
                         decoration: InputDecoration(
-                          hintText: "Search city...",
-                          hintStyle: const TextStyle(color: Color(0xFFc7c7cc)),
-                          prefixIcon: const Icon(
+                          hintText: 'Search city...',
+                          hintStyle: TextStyle(
+                            color: DudeTheme.textSubtle.withValues(alpha: 0.9),
+                          ),
+                          prefixIcon: Icon(
                             Icons.search,
-                            color: Color(0xFFbdd534),
+                            color: DudeTheme.accent,
                           ),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.all(16),
@@ -237,10 +242,12 @@ class _StaffRegisterScreenState extends State<StaffRegisterScreen> {
                     // Cities List
                     Expanded(
                       child: filteredCities.isEmpty
-                          ? const Center(
+                          ? Center(
                               child: Text(
-                                "No cities found",
-                                style: TextStyle(color: Colors.white70),
+                                'No cities found',
+                                style: TextStyle(
+                                  color: DudeTheme.textMuted.withValues(alpha: 0.9),
+                                ),
                               ),
                             )
                           : ListView.builder(
@@ -249,19 +256,15 @@ class _StaffRegisterScreenState extends State<StaffRegisterScreen> {
                                 return ListTile(
                                   title: Text(
                                     filteredCities[index],
-                                    style: const TextStyle(color: Colors.white),
+                                    style: TextStyle(
+                                      color: DudeTheme.textPrimary,
+                                    ),
                                   ),
                                   onTap: () {
                                     _selectedCity = filteredCities[index];
                                     cityController.text = filteredCities[index];
                                     Navigator.pop(context);
                                   },
-                                  hoverColor: const Color(
-                                    0xFFbdd534,
-                                  ).withOpacity(0.1),
-                                  splashColor: const Color(
-                                    0xFFbdd534,
-                                  ).withOpacity(0.2),
                                 );
                               },
                             ),
@@ -305,273 +308,95 @@ class _StaffRegisterScreenState extends State<StaffRegisterScreen> {
   Widget build(BuildContext context) {
     return Consumer<StaffViewModel>(
       builder: (context, vm, child) {
-        return Scaffold(
-          resizeToAvoidBottomInset: true,
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
+        return LoginAuthShell(
+          showBack: true,
+          title: 'Complete your profile',
+          subtitle:
+              'A few details to set up your staff account and start earning.',
+          form: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AuthInputField(
+                label: 'Full name',
+                hint: 'Enter your name',
+                icon: Icons.person_outline_rounded,
+                controller: nameController,
               ),
-            ),
-            child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 10),
-                    SvgPicture.asset("assets/Images/dude.svg", height: 50),
-                    const SizedBox(height: 30),
-
-                    Center(
-                      child: AppText(
-                        "Staff registration",
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    AppText(
-                      "Join as a verified female staff member and start earning through audio and video calls.",
-                      fontSize: 15,
-                      color: const Color(0xFFc7c7cc),
-                      maxLines: 2,
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ─── Name ──────────────────────────────────────────────────
-                    AppText(
-                      "Name:",
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: nameController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: "Enter your name",
-                        hintStyle: const TextStyle(color: Color(0xFFc7c7cc)),
-                        filled: true,
-                        fillColor: const Color(0xFFbdd534).withOpacity(0.06),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // ─── Date of Birth ────────────────────────────────────────
-                    AppText(
-                      "Date Of Birth:",
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      onTap: () => _selectDate(context),
-                      controller: dobController,
-                      readOnly: true,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: "DD/MM/YYYY",
-                        hintStyle: const TextStyle(color: Color(0xFFc7c7cc)),
-                        filled: true,
-                        fillColor: const Color(0xFFbdd534).withOpacity(0.06),
-                        suffixIcon: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: SvgPicture.asset(
-                            "assets/Images/calender.svg",
-                            width: 20,
-                            height: 20,
-                            colorFilter: const ColorFilter.mode(
-                              Color(0xFFbdd534),
-                              BlendMode.srcIn,
-                            ),
-                          ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // ─── Email ────────────────────────────────────────────────
-                    AppText(
-                      "Email Address:",
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: "xyz@gmail.com",
-                        hintStyle: const TextStyle(color: Color(0xFFc7c7cc)),
-                        filled: true,
-                        fillColor: const Color(0xFFbdd534).withOpacity(0.06),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // ─── City Dropdown with Search ─────────────────────────────────
-                    AppText(
-                      "City:",
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: _showCitySearchDialog,
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: cityController,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: "Select your city",
-                            hintStyle: const TextStyle(
-                              color: Color(0xFFc7c7cc),
-                            ),
-                            filled: true,
-                            fillColor: const Color(
-                              0xFFbdd534,
-                            ).withOpacity(0.06),
-                            suffixIcon: const Icon(
-                              Icons.arrow_drop_down,
-                              color: Color(0xFFbdd534),
-                              size: 30,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    if (vm.errorMessage != null) ...[
-                      const SizedBox(height: 16),
-                      Center(
-                        child: Text(
-                          vm.errorMessage!,
-                          style: const TextStyle(
-                            color: Colors.redAccent,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 30),
-
-                    // ─── Continue Button ──────────────────────────────────────
-                    GestureDetector(
-                      onTap: vm.isRegistering
-                          ? null
-                          : () async {
-                              if (!_isValidInput()) return;
-
-                              final success = await vm.registerStaff(
-                                name: nameController.text.trim(),
-                                email: emailController.text.trim(),
-                                city: cityController.text.trim(),
-                                dob: dobController.text.trim(),
-                              );
-
-                              if (success) {
-                                print("━━━━━━━━━━━━━━━━━━━━━");
-                                print("SUCCESS = true → should navigate now");
-                                print(
-                                  "Register response: ${vm.registerResponse}",
-                                );
-                                print("━━━━━━━━━━━━━━━━━━━━━");
-                                bondNavigator.newPage(
-                                  context,
-                                  page: ProfileVerficationScreen(),
-                                );
-                              } else {
-                                Utils.snackBarErrorMessage(
-                                  "Registration failed. Please try again.",
-                                );
-                              }
-                            },
-                      child: Container(
-                        height: 52,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          gradient: vm.isRegistering
-                              ? const LinearGradient(
-                                  colors: [Colors.grey, Colors.blueGrey],
-                                )
-                              : const LinearGradient(
-                                  colors: [
-                                    Color(0xFFbdd534),
-                                    Color(0xFFbdd534),
-                                  ],
-                                ),
-                        ),
-                        child: Center(
-                          child: vm.isRegistering
-                              ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : const Text(
-                                  "Continue to Verification  →",
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-                  ],
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => _selectDate(context),
+                child: AbsorbPointer(
+                  child: AuthInputField(
+                    label: 'Date of birth',
+                    hint: 'DD/MM/YYYY',
+                    icon: Icons.calendar_today_outlined,
+                    controller: dobController,
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 16),
+              AuthInputField(
+                label: 'Email address',
+                hint: 'xyz@gmail.com',
+                icon: Icons.email_outlined,
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: _showCitySearchDialog,
+                child: AbsorbPointer(
+                  child: AuthInputField(
+                    label: 'City',
+                    hint: 'Select your city',
+                    icon: Icons.location_city_outlined,
+                    controller: cityController,
+                  ),
+                ),
+              ),
+              if (vm.errorMessage != null) ...[
+                const SizedBox(height: 14),
+                Text(
+                  vm.errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFFF6B6B),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              PremiumPrimaryButton(
+                label: 'Continue →',
+                loading: vm.isRegistering,
+                height: 54,
+                onTap: vm.isRegistering
+                    ? null
+                    : () async {
+                        if (!_isValidInput()) return;
+
+                        final success = await vm.registerStaff(
+                          name: nameController.text.trim(),
+                          email: emailController.text.trim(),
+                          city: cityController.text.trim(),
+                          dob: dobController.text.trim(),
+                        );
+
+                        if (!mounted) return;
+
+                        if (success) {
+                          bondNavigator.newPage(
+                            context,
+                            page: const ProfileVerficationScreen(),
+                          );
+                        } else {
+                          Utils.snackBarErrorMessage(
+                            'Registration failed. Please try again.',
+                          );
+                        }
+                      },
+              ),
+            ],
           ),
         );
       },

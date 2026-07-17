@@ -1,10 +1,13 @@
-import 'package:dude/DudeScreens/BottomNavBar/BottomNavBar.dart';
 import 'package:dude/DudeScreens/LoginScreens/InterestLanguage/InterestedLanguage.dart';
 import 'package:dude/DudeScreens/LoginScreens/ViewModel/LoginVM.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
@@ -32,10 +35,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
 
   bool _isValidName(String name) =>
       name.trim().isNotEmpty && name.trim().length >= 2;
-  bool _isValidBio(String bio) =>
-      bio.trim().isNotEmpty && bio.trim().length >= 10;
 
-  // Enforce 18+ age validation
   bool _isValidDob(String dob) {
     if (dob.isEmpty) return false;
     try {
@@ -61,41 +61,23 @@ class _IdentityScreenState extends State<IdentityScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    DateTime? pickedDate = await showDatePicker(
+    final pickedDate = await showDatePicker(
       context: context,
       initialDate: DateTime(2000),
       firstDate: DateTime(1950),
-      lastDate: DateTime.now().subtract(
-        const Duration(days: 18 * 365),
-      ), // Minimum 18 years
+      lastDate: DateTime.now().subtract(const Duration(days: 18 * 365)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.dark(
-              primary: Color(0xFFaecc01),
+              primary: DudeTheme.accent,
               onPrimary: Colors.white,
-              surface: Color(0xFF1C1426),
+              surface: DudeTheme.surface,
               onSurface: Colors.white,
             ),
-            dialogBackgroundColor: const Color(0xFF241b40),
+            dialogTheme: const DialogThemeData(backgroundColor: DudeTheme.background),
             textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFaecc01),
-              ),
-            ),
-            inputDecorationTheme: const InputDecorationTheme(
-              labelStyle: TextStyle(color: Colors.white),
-              hintStyle: TextStyle(color: Colors.grey),
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.white),
-              ),
-              focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Color(0xFFaecc01)),
-              ),
-            ),
-            textTheme: const TextTheme(
-              bodyLarge: TextStyle(color: Colors.white), // typed text color
-              bodyMedium: TextStyle(color: Colors.white),
+              style: TextButton.styleFrom(foregroundColor: DudeTheme.accent),
             ),
           ),
           child: child!,
@@ -104,268 +86,154 @@ class _IdentityScreenState extends State<IdentityScreen> {
     );
 
     if (pickedDate != null && mounted) {
-      String formatted =
+      dobController.text =
           "${pickedDate.day.toString().padLeft(2, '0')}/"
           "${pickedDate.month.toString().padLeft(2, '0')}/"
           "${pickedDate.year}";
-      dobController.text = formatted;
+    }
+  }
+
+  Future<void> _continue(LoginViewModel vm) async {
+    final name = nameController.text.trim();
+    final bio = bioController.text.trim();
+    final dob = dobController.text.trim();
+    final gender = isMale ? "Male" : "Female";
+
+    if (!_isValidDob(dob)) {
+      Utils.snackBarErrorMessage("You must be at least 18 years old");
+      return;
+    }
+    if (!_isValidName(name)) {
+      Utils.snackBarErrorMessage("Please enter a valid name");
+      return;
+    }
+
+    final success = await vm.updateBioData(
+      name: name,
+      gender: gender,
+      dob: dob,
+      bio: bio,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      bondNavigator.newPage(context, page: const InterestLanguageScreen());
+    } else {
+      Utils.snackBarErrorMessage("Failed to update profile. Try again.");
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<LoginViewModel>(
-      builder: (context, vm, child) {
+      builder: (context, vm, _) {
         return Scaffold(
+          backgroundColor: DudeTheme.background,
           resizeToAvoidBottomInset: true,
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
+          body: PremiumAmbientBackground(
             child: SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 10),
-                    SvgPicture.asset("assets/Images/dude.svg", height: 40),
-                    const SizedBox(height: 40),
-
-                    Row(
-                      children: [
-                        // GestureDetector(
-                        //   onTap: () => bondNavigator.backPage(context),
-                        //   child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 26),
-                        // ),
-                        // const SizedBox(width: 16),
-                        const Text(
-                          "Identify Yourself",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-
                     const SizedBox(height: 8),
+                    const DudeLogo(height: 52),
+                    const SizedBox(height: 28),
                     const Text(
-                      "Introduce yourself so people know about you.",
-                      style: TextStyle(color: Color(0xFFB0A8C0), fontSize: 15),
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    const Text(
-                      "I am a:",
+                      "Tell us about you",
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
+                        color: DudeTheme.textPrimary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Pick your gender, birthday, and name to get started.",
+                      style: TextStyle(
+                        color: DudeTheme.textMuted.withValues(alpha: 0.9),
+                        fontSize: 15,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    const Text(
+                      "I am",
+                      style: TextStyle(
+                        color: DudeTheme.textPrimary,
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
                     Row(
                       children: [
-                        _genderButton(
-                          "Male",
-                          isMale,
-                          () => setState(() => isMale = true),
+                        Expanded(
+                          child: _GenderOptionCard(
+                            label: "Male",
+                            icon: Icons.male_rounded,
+                            selected: isMale,
+                            onTap: () => setState(() => isMale = true),
+                          ),
                         ),
-                        const SizedBox(width: 12),
-                        _genderButton(
-                          "Female",
-                          !isMale,
-                          () => setState(() => isMale = false),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _GenderOptionCard(
+                            label: "Female",
+                            icon: Icons.female_rounded,
+                            selected: !isMale,
+                            onTap: () => setState(() => isMale = false),
+                          ),
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 24),
-
-                    const Text(
-                      "Birthday (18+)",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    TextField(
-                      onTap: () => _selectDate(context),
-                      controller: dobController,
-                      readOnly: true,
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                      decoration: InputDecoration(
-                        hintText: "DD/MM/YYYY",
-                        hintStyle: const TextStyle(color: Color(0xFF6B5F7A)),
-                        filled: true,
-                        fillColor: const Color(0xFF1C1426),
-                        suffixIcon: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: SvgPicture.asset(
-                            "assets/Images/calender.svg",
-                            width: 22,
-                            height: 22,
-                            colorFilter: const ColorFilter.mode(
-                              Color(0xFFaecc01),
-                              BlendMode.srcIn,
+                    PremiumGlassCard(
+                      glow: true,
+                      padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+                      radius: 20,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _FieldLabel("Birthday (18+)"),
+                          const SizedBox(height: 8),
+                          _ProfileField(
+                            controller: dobController,
+                            hint: "DD / MM / YYYY",
+                            readOnly: true,
+                            onTap: () => _selectDate(context),
+                            suffix: SvgPicture.asset(
+                              "assets/Images/calender.svg",
+                              width: 20,
+                              height: 20,
+                              colorFilter: const ColorFilter.mode(
+                                DudeTheme.accent,
+                                BlendMode.srcIn,
+                              ),
                             ),
                           ),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF2E2040),
+                          const SizedBox(height: 18),
+                          const _FieldLabel("Full name"),
+                          const SizedBox(height: 8),
+                          _ProfileField(
+                            controller: nameController,
+                            hint: "What should we call you?",
+                            textInputAction: TextInputAction.done,
                           ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF2E2040),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFaecc01),
-                            width: 1.5,
-                          ),
-                        ),
+                        ],
                       ),
                     ),
-
-                    const SizedBox(height: 24),
-
-                    const Text(
-                      "Full Name",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    const SizedBox(height: 28),
+                    PremiumPrimaryButton(
+                      label: "Continue →",
+                      loading: vm.isUpdatingBio,
+                      height: 54,
+                      onTap: vm.isUpdatingBio ? null : () => _continue(vm),
                     ),
-                    const SizedBox(height: 8),
-                    _buildTextField(nameController, "Enter your full name"),
-
-                    const SizedBox(height: 24),
-
-                    // const Text("Bio", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                    // const SizedBox(height: 8),
-                    // _buildTextField(bioController, "Write a short bio about yourself...", maxLines: 4),
-                    const SizedBox(height: 40),
-
-                    // Continue Button
-                    GestureDetector(
-                      onTap: vm.isUpdatingBio
-                          ? null
-                          : () async {
-                              final name = nameController.text.trim();
-                              final bio = bioController.text.trim();
-                              final dob = dobController.text.trim();
-                              final gender = isMale ? "Male" : "Female";
-
-                              if (!_isValidDob(dob)) {
-                                Utils.snackBarErrorMessage(
-                                  "You must be at least 18 years old",
-                                );
-                                return;
-                              }
-                              if (!_isValidName(name)) {
-                                Utils.snackBarErrorMessage(
-                                  "Please enter a valid name",
-                                );
-                                return;
-                              }
-                              // if (!_isValidBio(bio)) {
-                              //   Utils.snackBarErrorMessage("Bio must be at least 10 characters");
-                              //   return;
-                              // }
-
-                              final success = await vm.updateBioData(
-                                name: name,
-                                gender: gender,
-                                dob: dob,
-                                bio: bio,
-                              );
-
-                              if (success) {
-                                bondNavigator.newPage(
-                                  context,
-                                  page: const InterestLanguageScreen(),
-                                );
-                              } else {
-                                Utils.snackBarErrorMessage(
-                                  "Failed to update profile. Try again.",
-                                );
-                              }
-                            },
-                      child: Container(
-                        height: 56,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: vm.isUpdatingBio
-                              ? const LinearGradient(
-                                  colors: [Colors.grey, Colors.blueGrey],
-                                )
-                              : const LinearGradient(
-                                  colors: [
-                                    Color(0xFFaecc01),
-                                    Color(0xFFaecc01),
-                                  ],
-                                ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFaecc01).withOpacity(0.4),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: vm.isUpdatingBio
-                              ? const SizedBox(
-                                  height: 26,
-                                  width: 26,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 3,
-                                  ),
-                                )
-                              : const Text(
-                                  "Continue →",
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -375,66 +243,143 @@ class _IdentityScreenState extends State<IdentityScreen> {
       },
     );
   }
+}
 
-  Widget _buildTextField(
-    TextEditingController controller,
-    String hint, {
-    int maxLines = 1,
-  }) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      style: const TextStyle(color: Colors.white, fontSize: 16),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF6B5F7A)),
-        filled: true,
-        fillColor: const Color(0xFF1C1426),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF2E2040)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF2E2040)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFaecc01), width: 1.5),
+class _FieldLabel extends StatelessWidget {
+  final String text;
+
+  const _FieldLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: DudeTheme.textPrimary,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+}
+
+class _ProfileField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final bool readOnly;
+  final VoidCallback? onTap;
+  final Widget? suffix;
+  final TextInputAction? textInputAction;
+
+  const _ProfileField({
+    required this.controller,
+    required this.hint,
+    this.readOnly = false,
+    this.onTap,
+    this.suffix,
+    this.textInputAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: DudeTheme.background.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: DudeTheme.border.withValues(alpha: 0.45)),
+      ),
+      child: TextField(
+        controller: controller,
+        readOnly: readOnly,
+        onTap: onTap,
+        textInputAction: textInputAction,
+        style: const TextStyle(color: DudeTheme.textPrimary, fontSize: 16),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(color: DudeTheme.textSubtle),
+          suffixIcon: suffix != null
+              ? Padding(padding: const EdgeInsets.all(14), child: suffix)
+              : null,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+          border: InputBorder.none,
         ),
       ),
     );
   }
+}
 
-  Widget _genderButton(String text, bool isActive, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 56,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: isActive
-                ? const LinearGradient(
-                    colors: [Color(0xFFaecc01), Color(0xFFaecc01)],
-                  )
-                : const LinearGradient(
-                    colors: [Color(0xFF2A1F38), Color(0xFF1C1426)],
-                  ),
-            border: isActive
-                ? null
-                : Border.all(color: const Color(0xFFaecc01), width: 0.5),
+class _GenderOptionCard extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _GenderOptionCard({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        height: 108,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: selected
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    DudeTheme.accent.withValues(alpha: 0.22),
+                    DudeTheme.accentDeep.withValues(alpha: 0.12),
+                  ],
+                )
+              : LinearGradient(
+                  colors: [
+                    DudeTheme.surface.withValues(alpha: 0.9),
+                    DudeTheme.surfaceRaised.withValues(alpha: 0.75),
+                  ],
+                ),
+          border: Border.all(
+            color: selected
+                ? DudeTheme.accent.withValues(alpha: 0.85)
+                : DudeTheme.border.withValues(alpha: 0.45),
+            width: selected ? 1.6 : 1,
           ),
-          child: Center(
-            child: Text(
-              text,
+          boxShadow: selected
+              ? DudeTheme.accentGlowShadow(blur: 18, spread: -4)
+              : DudeTheme.softShadow,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 34,
+              color: selected ? DudeTheme.accentBright : DudeTheme.textSubtle,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
               style: TextStyle(
-                color: isActive ? Colors.black : Colors.white,
+                color: selected ? DudeTheme.textPrimary : DudeTheme.textMuted,
                 fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
-          ),
+          ],
         ),
       ),
     );

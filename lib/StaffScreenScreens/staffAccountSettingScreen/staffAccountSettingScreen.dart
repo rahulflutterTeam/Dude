@@ -1,11 +1,15 @@
 import 'package:dude/DudeScreens/BlockedUsers/BlockUserScreen.dart';
 import 'package:dude/DudeScreens/DeleteAccountScreeen/DeleteAccountScreen.dart';
 import 'package:dude/DudeScreens/ReportOverview/ReportOverviewScreen.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:dude/StaffScreenScreens/staffDeleteAccountScreen/staffDeleteAccountScreen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class staffAccountSettingsScreen extends StatefulWidget {
@@ -33,27 +37,11 @@ class _staffAccountSettingsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF241b40),
-              Color(0xFF1C1426),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF12151c),
-              Color(0xFF2b1e4e),
-            ],
-          ),
-        ),
+      backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
         child: SafeArea(
           child: Column(
             children: [
-              // Top Bar
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -62,26 +50,30 @@ class _staffAccountSettingsScreenState
                 child: Row(
                   children: [
                     GestureDetector(
-                      onTap: () => bondNavigator.backPage(context),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        bondNavigator.backPage(context);
+                      },
                       child: Container(
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2A1F38),
-                          borderRadius: BorderRadius.circular(40),
-                          border: Border.all(color: Colors.white12),
+                          color: DudeTheme.surface.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: DudeTheme.border.withValues(alpha: 0.5),
+                          ),
                         ),
-                        padding: const EdgeInsets.all(10),
-                        child: const Icon(
-                          Icons.arrow_back,
-                          color: Colors.white,
-                          size: 26,
+                        child: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: DudeTheme.textPrimary,
+                          size: 18,
                         ),
                       ),
                     ),
                     const SizedBox(width: 16),
-                    const Text(
-                      "Account Settings",
-                      style: TextStyle(
-                        color: Colors.white,
+                    Text("Account Settings", style: TextStyle(
+                        color: DudeTheme.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                       ),
@@ -152,20 +144,14 @@ class _staffAccountSettingsScreenState
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: PremiumGlassCard(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2A1F38), Color(0xFF1C1426)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF3A2A4A)),
-        ),
+        radius: 16,
         child: Row(
           children: [
             Icon(
               icon,
-              color: isDestructive ? Colors.redAccent : const Color(0xFFB86AF6),
+              color: isDestructive ? DudeTheme.danger : DudeTheme.accent,
               size: 26,
             ),
             const SizedBox(width: 16),
@@ -173,7 +159,7 @@ class _staffAccountSettingsScreenState
               child: Text(
                 title,
                 style: TextStyle(
-                  color: isDestructive ? Colors.redAccent : Colors.white,
+                  color: isDestructive ? DudeTheme.danger : DudeTheme.textPrimary,
                   fontSize: 16.5,
                   fontWeight: FontWeight.w500,
                 ),
@@ -182,8 +168,8 @@ class _staffAccountSettingsScreenState
             Icon(
               Icons.arrow_forward_ios_rounded,
               color: isDestructive
-                  ? Colors.redAccent.withOpacity(0.7)
-                  : Colors.grey[400],
+                  ? DudeTheme.danger.withValues(alpha: 0.7)
+                  : DudeTheme.textSubtle,
               size: 20,
             ),
           ],

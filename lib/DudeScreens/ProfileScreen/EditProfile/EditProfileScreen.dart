@@ -7,6 +7,7 @@ import 'package:dude/DudeScreens/HomeScreen/Model/UserDataModel.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -182,15 +183,15 @@ class _EditProfileScreenState extends State<EditProfileScreen>
 
         if (userVM.isLoading || user == null) {
           return const Scaffold(
-            backgroundColor: Color(0xFF090712),
+            backgroundColor: DudeTheme.background,
             body: Center(
-              child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+              child: CircularProgressIndicator(color: DudeTheme.accent),
             ),
           );
         }
 
         return Scaffold(
-          backgroundColor: const Color(0xFF090712),
+          backgroundColor: DudeTheme.background,
           body: Stack(
             children: [
               // ── Ambient background glows ────────────────────────────────
@@ -204,7 +205,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFF6B21A8).withOpacity(0.35),
+                        DudeTheme.accentSoft.withOpacity(0.35),
                         Colors.transparent,
                       ],
                     ),
@@ -221,7 +222,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFFD4AF37).withOpacity(0.12),
+                        DudeTheme.accent.withOpacity(0.12),
                         Colors.transparent,
                       ],
                     ),
@@ -306,7 +307,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFD4AF37), Color(0xFFf5d76e)],
+                    colors: [DudeTheme.accent, DudeTheme.accent],
                   ),
                 ),
               ),
@@ -335,9 +336,9 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   shape: BoxShape.circle,
                   gradient: const SweepGradient(
                     colors: [
-                      Color(0xFFD4AF37),
-                      Color(0xFF6B21A8),
-                      Color(0xFFD4AF37),
+                      DudeTheme.accent,
+                      DudeTheme.accentSoft,
+                      DudeTheme.accent,
                     ],
                   ),
                 ),
@@ -348,7 +349,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                 height: 118,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0xFF090712),
+                  color: DudeTheme.background,
                 ),
               ),
               // Avatar image
@@ -383,13 +384,13 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFD4AF37), Color(0xFFf5d76e)],
+                      colors: [DudeTheme.accent, DudeTheme.accent],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFD4AF37).withOpacity(0.5),
+                        color: DudeTheme.accent.withOpacity(0.5),
                         blurRadius: 8,
                         spreadRadius: 1,
                       ),
@@ -397,7 +398,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   ),
                   child: const Icon(
                     Icons.camera_alt_rounded,
-                    color: Color(0xFF1a0f00),
+                    color: DudeTheme.textOnLightChip,
                     size: 16,
                   ),
                 ),
@@ -411,7 +412,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
           child: const Text(
             "Change Photo",
             style: TextStyle(
-              color: Color(0xFFD4AF37),
+              color: DudeTheme.accent,
               fontSize: 13,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
@@ -440,7 +441,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                 children: [
                   const Icon(
                     Icons.info_outline_rounded,
-                    color: Color(0xFF7C6F8F),
+                    color: DudeTheme.textSubtle,
                     size: 13,
                   ),
                   const SizedBox(width: 6),
@@ -498,7 +499,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                         ),
                         child: const Icon(
                           Icons.wc_rounded,
-                          color: Color(0xFFD4AF37),
+                          color: DudeTheme.accent,
                           size: 16,
                         ),
                       ),
@@ -526,7 +527,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                     child: Text(
                       user.gender ?? "Not specified",
                       style: const TextStyle(
-                        color: Color(0xFFB0A8C0),
+                        color: DudeTheme.textMid,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -566,7 +567,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
             color: Colors.white.withOpacity(0.06),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: const Color(0xFFD4AF37), size: 16),
+          child: Icon(icon, color: DudeTheme.accent, size: 16),
         ),
         const SizedBox(width: 10),
         Text(
@@ -615,7 +616,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFD4AF37), width: 1.5),
+          borderSide: const BorderSide(color: DudeTheme.accent, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -641,10 +642,10 @@ class _EditProfileScreenState extends State<EditProfileScreen>
         value: _selectedLanguage ?? user.language ?? "English",
         isExpanded: true,
         underline: const SizedBox(),
-        dropdownColor: const Color(0xFF1A1228),
+        dropdownColor: DudeTheme.surface,
         icon: const Icon(
           Icons.keyboard_arrow_down_rounded,
-          color: Color(0xFFD4AF37),
+          color: DudeTheme.accent,
         ),
         style: const TextStyle(
           color: Colors.white,
@@ -675,15 +676,15 @@ class _EditProfileScreenState extends State<EditProfileScreen>
               gradient: (userVM.isLoading || _isUpdating)
                   ? LinearGradient(
                       colors: [
-                        const Color(0xFFD4AF37).withOpacity(0.4),
-                        const Color(0xFFf5d76e).withOpacity(0.4),
+                        DudeTheme.accent.withOpacity(0.4),
+                        DudeTheme.accent.withOpacity(0.4),
                       ],
                     )
                   : const LinearGradient(
                       colors: [
-                        Color(0xFFD4AF37),
-                        Color(0xFFf5d76e),
-                        Color(0xFFD4AF37),
+                        DudeTheme.accent,
+                        DudeTheme.accent,
+                        DudeTheme.accent,
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -692,7 +693,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   ? []
                   : [
                       BoxShadow(
-                        color: const Color(0xFFD4AF37).withOpacity(0.4),
+                        color: DudeTheme.accent.withOpacity(0.4),
                         blurRadius: 20,
                         offset: const Offset(0, 6),
                       ),
@@ -704,14 +705,14 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                     height: 22,
                     width: 22,
                     child: CircularProgressIndicator(
-                      color: Color(0xFF1a0f00),
+                      color: DudeTheme.textOnLightChip,
                       strokeWidth: 2.5,
                     ),
                   )
                 : const Text(
                     "Save Changes",
                     style: TextStyle(
-                      color: Color(0xFF1a0f00),
+                      color: DudeTheme.textOnLightChip,
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.6,

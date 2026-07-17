@@ -1,8 +1,8 @@
 class ApiEndPoints {
   // bitbab
-  final String baseUrl = "https://api.pair-ever.com/api/v1/";
+  final String baseUrl = "https://api.dudee.online/api/v1/";
   // final String baseUrl = "http://192.168.1.43:7000/api/v1/";
-  final String webSocketUrl = "https://api.pair-ever.com";
+  final String webSocketUrl = "https://api.dudee.online";
   // final String webSocketUrl = "http://192.168.1.43:7000";
   // final String profileBaseUrl = "https://predictapi.unitythink.com";
 

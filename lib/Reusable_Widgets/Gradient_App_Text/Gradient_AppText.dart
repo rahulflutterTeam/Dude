@@ -1,3 +1,4 @@
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 
 class GradientAppText extends StatelessWidget {
@@ -16,7 +17,7 @@ class GradientAppText extends StatelessWidget {
   Widget build(BuildContext context) {
     return ShaderMask(
       shaderCallback: (Rect bounds) {
-        return LinearGradient(
+        return const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           stops: [0.0, 0.2174, 0.5403, 0.8528],
@@ -33,8 +34,8 @@ class GradientAppText extends StatelessWidget {
         style: TextStyle(
           fontSize: fontSize,
           color: Colors.white,
-          fontFamily: 'BricolageGrotesque',
-          fontWeight: fontWeight ?? FontWeight.w300,
+          fontFamily: DudeTheme.fontFamily,
+          fontWeight: fontWeight ?? FontWeight.w600,
         ),
       ),
     );

@@ -16,6 +16,7 @@ import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/Reusable_Widgets/shimmer_loader.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -245,24 +246,12 @@ class _HistoryScreenState extends State<HistoryScreen>
         final currentUser = userVM.currentUser;
 
         return Scaffold(
-          backgroundColor: const Color(0xFF0E0A14),
+          backgroundColor: DudeTheme.background,
           body: Container(
             width: double.infinity,
             height: double.infinity,
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
+              gradient: DudeTheme.backgroundGradient,
             ),
             child: SafeArea(
               child: Column(
@@ -309,7 +298,7 @@ class _HistoryScreenState extends State<HistoryScreen>
               decoration: BoxDecoration(
                 color: const Color(0xFF2c1e4f),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFe4f773), width: 1),
+                border: Border.all(color: DudeTheme.accent, width: 1),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -372,24 +361,24 @@ class _HistoryScreenState extends State<HistoryScreen>
         decoration: BoxDecoration(
           color: const Color(0xFF1C1426),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF2E2040), width: 1),
+          border: Border.all(color: DudeTheme.border, width: 1),
         ),
         child: TextField(
           controller: _searchController,
           style: const TextStyle(color: Colors.white, fontSize: 14),
           decoration: InputDecoration(
             hintText: 'Search by name, call topics...',
-            hintStyle: const TextStyle(color: Color(0xFF6B5F7A), fontSize: 14),
+            hintStyle: const TextStyle(color: DudeTheme.textSubtle, fontSize: 14),
             prefixIcon: const Icon(
               Icons.search,
-              color: Color(0xFF6B5F7A),
+              color: DudeTheme.textSubtle,
               size: 20,
             ),
             suffixIcon: _searchController.text.isNotEmpty
                 ? IconButton(
                     icon: const Icon(
                       Icons.clear,
-                      color: Color(0xFF6B5F7A),
+                      color: DudeTheme.textSubtle,
                       size: 18,
                     ),
                     onPressed: () {
@@ -498,7 +487,7 @@ class _HistoryScreenState extends State<HistoryScreen>
           colors: [Color(0XFF1c122d), Color(0XFF1c122e), Color(0XFF261247)],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF2A1F38), width: 1),
+        border: Border.all(color: DudeTheme.surfaceRaised, width: 1),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -554,7 +543,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFF2A1F38),
+        color: DudeTheme.surfaceRaised,
         borderRadius: borderRadius ?? BorderRadius.circular(radius),
       ),
     );
@@ -591,7 +580,7 @@ class _HistoryScreenState extends State<HistoryScreen>
           ],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF2A1F38), width: 1),
+        border: Border.all(color: DudeTheme.surfaceRaised, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -715,7 +704,7 @@ class _HistoryScreenState extends State<HistoryScreen>
 
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: const Color(0xFFd2ea46),
+                        color: DudeTheme.accent,
 
                         width: 1,
                       ),
@@ -803,7 +792,7 @@ class _HistoryScreenState extends State<HistoryScreen>
               ),
               color: const Color(0xFF373031),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF2A1F38), width: 1),
+              border: Border.all(color: DudeTheme.surfaceRaised, width: 1),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,

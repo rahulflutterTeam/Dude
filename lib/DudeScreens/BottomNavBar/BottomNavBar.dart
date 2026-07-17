@@ -1,15 +1,22 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
+import 'dart:ui';
 
 import 'package:dude/DudeScreens/Chat/ChatListScreen.dart';
 import 'package:dude/DudeScreens/HomeScreen/HomeScreen.dart';
+import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
+import 'package:dude/DudeScreens/IncomingCall/FakeIncomingCallScreen.dart';
 import 'package:dude/DudeScreens/ProfileScreen/ProfileScreen.dart';
 import 'package:dude/DudeScreens/Transactions/TransactionScreen.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_animations.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_nav_icon.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 class MainBottomBar extends StatefulWidget {
@@ -21,18 +28,99 @@ class MainBottomBar extends StatefulWidget {
   State<MainBottomBar> createState() => _MainBottomBarState();
 }
 
-class _MainBottomBarState extends State<MainBottomBar> {
+class _MainBottomBarState extends State<MainBottomBar>
+    with TickerProviderStateMixin {
   int _selectedIndex = 0;
   DateTime? _lastBackPressed;
 
   bool _isOffline = false;
+  int _homeEntryId = 0;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+
+  late final AnimationController _tabFadeCtrl;
+  late final Animation<double> _tabFadeAnim;
+
+  static const _tabs = [
+    PremiumNavTab.home,
+    PremiumNavTab.chat,
+    PremiumNavTab.transactions,
+    PremiumNavTab.profile,
+  ];
+
+  static const _pillWidth = 54.0;
+  static const _pillHeight = 48.0;
+
+  final List<Widget> _screens = const [
+    HomeScreen(),
+    ChatListScreen(backPage: false),
+    TransactionsScreen(backPage: false),
+    ProfileScreen(backPage: false),
+  ];
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.index ?? 0;
+    _tabFadeCtrl = AnimationController(
+      vsync: this,
+      duration: PremiumAnimations.normal,
+    )..value = 1;
+    _tabFadeAnim = CurvedAnimation(
+      parent: _tabFadeCtrl,
+      curve: PremiumAnimations.enter,
+    );
     _startConnectivityListener();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showLowBalanceCallIfNeeded();
+    });
+  }
+
+  Future<void> _showLowBalanceCallIfNeeded() async {
+    if (!mounted || _selectedIndex != 0) return;
+    final entryId = ++_homeEntryId;
+    await Future.delayed(const Duration(seconds: 10));
+    if (!mounted || _selectedIndex != 0 || entryId != _homeEntryId) return;
+
+    final userVM = context.read<UserViewModel>();
+    await userVM.fetchUserDetails();
+    if (!mounted || _selectedIndex != 0 || entryId != _homeEntryId) return;
+    final balance = userVM.currentUser?.coinBalance;
+    if (balance == null || balance >= 20) return;
+
+    final callableStaff = context
+        .read<StaffViewModel>()
+        .allStaffList
+        .where(
+          (staff) =>
+              staff.name.trim().isNotEmpty &&
+              staff.image?.trim().isNotEmpty == true,
+        )
+        .toList();
+    if (callableStaff.isEmpty) return;
+    final caller = callableStaff[Random().nextInt(callableStaff.length)];
+    if (!mounted || _selectedIndex != 0 || entryId != _homeEntryId) return;
+    await Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        opaque: false,
+        barrierColor: Colors.black.withValues(alpha: 0.72),
+        transitionDuration: const Duration(milliseconds: 280),
+        reverseTransitionDuration: const Duration(milliseconds: 220),
+        pageBuilder: (_, animation, __) => FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: FakeIncomingCallScreen(
+            callerName: caller.name.trim(),
+            callerImage: caller.image,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    _tabFadeCtrl.dispose();
+    super.dispose();
   }
 
   void _startConnectivityListener() {
@@ -44,12 +132,8 @@ class _MainBottomBarState extends State<MainBottomBar> {
         if (mounted) setState(() => _isOffline = true);
         return;
       }
-
-      // Verify real internet
       final hasInternet = await _hasInternetConnection();
-      if (mounted) {
-        setState(() => _isOffline = !hasInternet);
-      }
+      if (mounted) setState(() => _isOffline = !hasInternet);
     });
   }
 
@@ -62,18 +146,8 @@ class _MainBottomBarState extends State<MainBottomBar> {
     }
   }
 
-  /// 🔹 Screens
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    // HistoryScreen(),
-    ChatListScreen(backPage: false),
-    TransactionsScreen(backPage: false),
-    ProfileScreen(backPage: false),
-  ];
-
-  /// 🔹 Back press handler
   Future<bool> _onWillPop() async {
-    DateTime now = DateTime.now();
+    final now = DateTime.now();
     if (_lastBackPressed == null ||
         now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
       _lastBackPressed = now;
@@ -83,15 +157,33 @@ class _MainBottomBarState extends State<MainBottomBar> {
     return true;
   }
 
+  void _onTabSelected(int index) {
+    if (_selectedIndex == index) return;
+    final isEnteringHome = _selectedIndex != 0 && index == 0;
+    HapticFeedback.selectionClick();
+    if (_selectedIndex == 0 && index != 0) {
+      _homeEntryId++;
+      context.read<StaffViewModel>().updateSearchQuery('');
+    }
+    _tabFadeCtrl.forward(from: 0).then((_) {
+      if (mounted) _tabFadeCtrl.value = 1;
+    });
+    setState(() => _selectedIndex = index);
+    if (isEnteringHome) _showLowBalanceCallIfNeeded();
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: DudeTheme.background,
         body: Stack(
           children: [
-            _screens[_selectedIndex],
+            FadeTransition(
+              opacity: _tabFadeAnim,
+              child: IndexedStack(index: _selectedIndex, children: _screens),
+            ),
             if (_isOffline)
               Positioned(
                 bottom: 0,
@@ -104,15 +196,9 @@ class _MainBottomBarState extends State<MainBottomBar> {
                       vertical: 10,
                       horizontal: 16,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFd9534f),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
+                    decoration: BoxDecoration(
+                      color: DudeTheme.danger.withValues(alpha: 0.92),
+                      boxShadow: DudeTheme.softShadow,
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -134,59 +220,30 @@ class _MainBottomBarState extends State<MainBottomBar> {
               ),
           ],
         ),
-
-        /// 🔹 Custom Floating Bottom Bar
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
-          child: Container(
-            height: 70,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF0E0A14),
-                  Color(0xFF1c122e),
-                  Color(0xFF261247),
-                ],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+              child: Container(
+                height: 68,
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  color: DudeTheme.surface.withValues(alpha: 0.72),
+                  border: Border.all(
+                    color: DudeTheme.accent.withValues(alpha: 0.35),
+                  ),
+                  boxShadow: DudeTheme.accentGlowShadow(blur: 32, spread: -8),
+                ),
+                child: Row(
+                  children: List.generate(
+                    _tabs.length,
+                    (index) => _navSlot(_tabs[index], index),
+                  ),
+                ),
               ),
-              border: Border.all(color: Colors.white24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.6),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _navItem(
-                  "assets/Images/dis.svg",
-                  "assets/Images/disunactive.svg",
-                  0,
-                ),
-                _navItem(
-                  "assets/Images/chatactive.svg",
-                  "assets/Images/chatinactive.svg",
-                  1,
-                ),
-                // _navItem(
-                //   "assets/Images/transaction.svg",
-                //   "assets/Images/tranunactive.svg",
-                //   2,
-                // ),
-                _navItem(
-                  "assets/Images/transaction.svg",
-                  "assets/Images/tranunactive.svg",
-                  2,
-                ),
-                _navItem(
-                  "assets/Images/pro.svg",
-                  "assets/Images/prounactive.svg",
-                  3,
-                ),
-              ],
             ),
           ),
         ),
@@ -194,26 +251,44 @@ class _MainBottomBarState extends State<MainBottomBar> {
     );
   }
 
-  /// 🔹 Bottom Nav Item
-  Widget _navItem(String activeIcon, String inactiveIcon, int index) {
-    final bool isActive = _selectedIndex == index;
+  /// Each tab owns its pill + icon so alignment stays pixel-perfect.
+  Widget _navSlot(PremiumNavTab tab, int index) {
+    final isActive = _selectedIndex == index;
 
-    return GestureDetector(
-      onTap: () {
-        if (_selectedIndex == 0 && index != 0) {
-          context.read<StaffViewModel>().updateSearchQuery('');
-        }
-        setState(() {
-          _selectedIndex = index;
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: 55,
-        height: 55,
-        child: Center(
-          child: SvgPicture.asset(
-            isActive ? activeIcon : inactiveIcon, //
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onTabSelected(index),
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          height: 56,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              AnimatedScale(
+                scale: isActive ? 1 : 0.92,
+                duration: PremiumAnimations.normal,
+                curve: PremiumAnimations.smooth,
+                child: AnimatedOpacity(
+                  duration: PremiumAnimations.fast,
+                  opacity: isActive ? 1 : 0,
+                  child: Container(
+                    width: _pillWidth,
+                    height: _pillHeight,
+                    decoration: BoxDecoration(
+                      gradient: DudeTheme.premiumAccentGradient,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: DudeTheme.accentGlowShadow(blur: 14),
+                    ),
+                  ),
+                ),
+              ),
+              AnimatedScale(
+                scale: isActive ? 1.05 : 1,
+                duration: PremiumAnimations.fast,
+                curve: PremiumAnimations.bounce,
+                child: PremiumNavIcon(tab: tab, isActive: isActive),
+              ),
+            ],
           ),
         ),
       ),

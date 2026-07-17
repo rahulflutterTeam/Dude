@@ -16,9 +16,12 @@ import 'package:dude/Dude_Utils/push/local_notifications.dart';
 import 'package:dude/Dude_Utils/push/push_service.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/Repo/StaffRegisterRepo.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
+import 'package:dude/StaffScreenScreens/StaffBottomNavBar/StaffBottomNavBar.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:facebook_app_events/facebook_app_events.dart';
+import 'package:dude/firebase_options.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -67,7 +70,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 
   if (callId.isEmpty) return;
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final n = message.notification;
 
@@ -190,7 +193,7 @@ void main() async {
     ),
   );
 
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await PushService.instance.captureInitialMessage();
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -198,10 +201,16 @@ void main() async {
   // CRITICAL: Set navigator key BEFORE runApp
   ZegoUIKitPrebuiltCallInvitationService().setNavigatorKey(navigatorKey);
 
+  // CRITICAL (killed-state calls): ZEGO requires the offline-call handler to be
+  // registered via useSystemCallingUI() in main() and AWAITED *before* runApp().
+  // Let Zego native signaling finish on the platform thread before the first
+  // frame builds a heavy theme (google_fonts) on iOS.
+  await ZegoLifecycle.ensureSystemCallingUIConfigured();
+  await Future<void>.delayed(const Duration(milliseconds: 50));
+
   runApp(const MyApp());
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(ZegoLifecycle.ensureSystemCallingUIConfigured());
     unawaited(FacebookAppEvents().activateApp());
     unawaited(_resetScreenBrightnessAfterFirstFrame());
   });
@@ -234,14 +243,62 @@ class MyApp extends StatelessWidget {
           navigatorKey: navigatorKey,
           title: 'Dude',
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          ),
-          home: const Splashscreen(),
+          theme: DudeTheme.appTheme,
+          builder: (context, child) {
+            final base =
+                Theme.of(context).textTheme.bodyMedium ??
+                const TextStyle(fontSize: 14);
+            return DefaultTextStyle(
+              style: base.copyWith(
+                fontFamily: DudeTheme.fontFamily,
+                color: DudeTheme.textPrimary,
+              ),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
+          home: const _InitialLaunchGate(),
         ),
       ),
     );
   }
+}
+
+class _InitialLaunchGate extends StatefulWidget {
+  const _InitialLaunchGate();
+
+  @override
+  State<_InitialLaunchGate> createState() => _InitialLaunchGateState();
+}
+
+class _InitialLaunchGateState extends State<_InitialLaunchGate> {
+  static const _channel = MethodChannel('com.dude.dudeapp/window');
+  Widget? _destination;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  Future<void> _resolve() async {
+    var accepted = false;
+    try {
+      accepted =
+          await _channel.invokeMethod<bool>('hasAcceptedCallData') ?? false;
+    } catch (e) {
+      debugPrint('Accepted-call startup check failed: $e');
+    }
+    if (!mounted) return;
+    setState(() {
+      _destination = accepted
+          ? const StaffBottomBar(index: 0, launchingAcceptedCall: true)
+          : const Splashscreen();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _destination ?? const Scaffold(backgroundColor: Colors.black);
 }
 
 List getAllProviders() {

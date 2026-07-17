@@ -1,22 +1,12 @@
-import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
-import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Dude_Utils/DateTimeFormatter/history_time_formatter.dart';
+import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/StaffScreenScreens/StaffProfileScreen/RewardDetailScreen.dart';
+import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-
-// ── Design tokens ─────────────────────────────────────────────────────────
-const _kBg = Color(0xFF080612);
-const _kCard = Color(0xFF100E1E);
-const _kCardBorder = Color(0xFF1E1A30);
-const _kAccent = Color(0xFFD4F53C);
-const _kAccentDim = Color(0xFF2A3010);
-const _kText = Color(0xFFFFFFFF);
-const _kTextSub = Color(0xFF6B6585);
-const _kPink = Color(0xFFFF5FA2);
-const _kPinkDim = Color(0xFF250B1B);
-// ──────────────────────────────────────────────────────────────────────────
 
 class StaffRewardsScreen extends StatefulWidget {
   const StaffRewardsScreen({super.key});
@@ -41,24 +31,11 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
         final rewardsList = vm.gifts; // parses response.data list
 
         return Scaffold(
-          backgroundColor: _kBg,
-          body: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0E0A1E),
-                  Color(0xFF080612),
-                  Color(0xFF080612),
-                  Color(0xFF0D0A1C),
-                ],
-              ),
-            ),
+          backgroundColor: DudeTheme.background,
+          body: PremiumAmbientBackground(
             child: SafeArea(
               child: Column(
                 children: [
-                  // ── Top Bar ───────────────────────────────────────────
                   _buildTopBar(context),
                   const SizedBox(height: 16),
 
@@ -66,7 +43,7 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
                     const Expanded(
                       child: Center(
                         child: CircularProgressIndicator(
-                          color: _kPink,
+                          color: DudeTheme.accent,
                           strokeWidth: 2,
                         ),
                       ),
@@ -74,11 +51,10 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
                   else if (vm.giftsError != null && rewardsList.isEmpty)
                     Expanded(child: _buildErrorState(vm))
                   else ...[
-                    // ── Rewards List ──────────────────────────────────────
                     Expanded(
                       child: RefreshIndicator(
-                        color: _kPink,
-                        backgroundColor: _kCard,
+                        color: DudeTheme.accent,
+                        backgroundColor: DudeTheme.surface,
                         onRefresh: () => vm.fetchStaffGifts(),
                         child: rewardsList.isEmpty
                             ? _buildEmptyState()
@@ -112,13 +88,13 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: _kCard,
+                color: DudeTheme.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _kCardBorder),
+                border: Border.all(color: DudeTheme.border),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.arrow_back_ios_new_rounded,
-                color: _kText,
+                color: DudeTheme.textPrimary,
                 size: 16,
               ),
             ),
@@ -128,7 +104,7 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
               'My Rewards',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: _kText,
+                color: DudeTheme.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.2,
@@ -163,9 +139,9 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: _kCard,
+              color: DudeTheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _kCardBorder),
+              border: Border.all(color: DudeTheme.border),
             ),
             child: Row(
               children: [
@@ -174,9 +150,9 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: _kPinkDim,
+                    color: DudeTheme.accentDim,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _kPink.withOpacity(0.15)),
+                    border: Border.all(color: DudeTheme.accent.withOpacity(0.15)),
                   ),
                   child: item.giftImage.isNotEmpty
                       ? ClipRRect(
@@ -184,16 +160,16 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
                           child: Image.network(
                             item.giftImage,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(
+                            errorBuilder: (_, __, ___) => Icon(
                               Icons.card_giftcard_rounded,
-                              color: _kPink,
+                              color: DudeTheme.accent,
                               size: 24,
                             ),
                           ),
                         )
-                      : const Icon(
+                      : Icon(
                           Icons.card_giftcard_rounded,
-                          color: _kPink,
+                          color: DudeTheme.accent,
                           size: 24,
                         ),
                 ),
@@ -206,8 +182,8 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
                     children: [
                       Text(
                         item.giftName,
-                        style: const TextStyle(
-                          color: _kText,
+                        style: TextStyle(
+                          color: DudeTheme.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
@@ -215,7 +191,7 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
                       const SizedBox(height: 6),
                       Text(
                         HistoryTimeFormatter.list(item.createdAt),
-                        style: const TextStyle(color: _kTextSub, fontSize: 12),
+                        style: TextStyle(color: DudeTheme.textSubtle, fontSize: 12),
                       ),
                     ],
                   ),
@@ -228,14 +204,14 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: _kAccentDim,
+                    color: DudeTheme.accentDim,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kAccent.withOpacity(0.25)),
+                    border: Border.all(color: DudeTheme.accent.withOpacity(0.25)),
                   ),
                   child: Text(
                     '₹${item.coins}',
-                    style: const TextStyle(
-                      color: _kAccent,
+                    style: TextStyle(
+                      color: DudeTheme.accent,
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                     ),
@@ -265,21 +241,19 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
                 width: 76,
                 height: 76,
                 decoration: BoxDecoration(
-                  color: _kPinkDim,
+                  color: DudeTheme.accentDim,
                   shape: BoxShape.circle,
-                  border: Border.all(color: _kPink.withOpacity(0.2)),
+                  border: Border.all(color: DudeTheme.accent.withOpacity(0.2)),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.card_giftcard_rounded,
-                  color: _kPink,
+                  color: DudeTheme.accent,
                   size: 32,
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'No Rewards Yet',
-                style: TextStyle(
-                  color: _kText,
+              Text('No Rewards Yet', style: TextStyle(
+                  color: DudeTheme.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.2,
@@ -291,7 +265,7 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
                 child: Text(
                   'Rewards earned from calls or activities will appear here.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: _kTextSub, fontSize: 14, height: 1.4),
+                  style: TextStyle(color: DudeTheme.textSubtle, fontSize: 14, height: 1.4),
                 ),
               ),
             ],
@@ -326,8 +300,8 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
           const SizedBox(height: 16),
           Text(
             vm.giftsError ?? 'Failed to load rewards',
-            style: const TextStyle(
-              color: _kText,
+            style: TextStyle(
+              color: DudeTheme.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
@@ -339,11 +313,11 @@ class _StaffRewardsScreenState extends State<StaffRewardsScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: BoxDecoration(
-                color: _kPink,
+                color: DudeTheme.accent,
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: _kPink.withOpacity(0.3),
+                    color: DudeTheme.accent.withOpacity(0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),

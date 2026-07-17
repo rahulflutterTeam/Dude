@@ -1,11 +1,10 @@
 import 'package:dude/AccountSelectScreen/AccountSelectScreen.dart';
-import 'package:dude/DudeScreens/BottomNavBar/BottomNavBar.dart';
-import 'package:dude/DudeScreens/LoginScreens/LoginScreen.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
-import 'package:dude/DudeScreens/HomeScreen/HomeScreen.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class SplashScreen2 extends StatefulWidget {
   const SplashScreen2({super.key});
@@ -18,106 +17,100 @@ class _SplashScreen2State extends State<SplashScreen2> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          /// 🔹 Background Image
-          Positioned.fill(
-            child: Image.asset("assets/Images/get1.png", fit: BoxFit.cover),
-          ),
-
-          SafeArea(
+      backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
             child: Column(
               children: [
-                // /// 🔹 App Logo (Top)
-                // Padding(
-                //   padding: const EdgeInsets.only(left: 8, top: 8),
-                //   child: Row(
-                //     children: [
-                //       Image.asset(
-                //         "assets/Images/voicey.png",
-                //         height: 30,
-                //
-                //       ),
-                //     ],
-                //   ),
-                // ),
-                //
-                // /// 🔹 Push content to center
                 const Spacer(),
-
-                /// 🔹 Center Content
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SvgPicture.asset("assets/Images/dude.svg", height: 80),
-                    SizedBox(height: 20),
-
-                    /// Title
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        children: [
-                          const TextSpan(
-                            text: "Find Your Person\nFor Ever",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    /// Subtitle
-                    AppText(
-                      "Discover meaningful matches, deep conversations, and relationships\nthat are built to last.",
+                const DudeLogo(height: 110),
+                const SizedBox(height: 36),
+                ShaderMask(
+                  blendMode: BlendMode.srcIn,
+                  shaderCallback: (bounds) =>
+                      DudeTheme.premiumAccentGradient.createShader(bounds),
+                  child: const Text(
+                    'Vibes that hit different',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
-                      textAlign: TextAlign.center,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                      height: 1.15,
+                      letterSpacing: -0.5,
                     ),
-
-                    const SizedBox(height: 10),
-
-                    /// Get Started Button
-                    GestureDetector(
-                      onTap: () {
-                        bondNavigator.newPage(
-                          context,
-                          page: AccountSelectScreen(),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Container(
-                          height: 45,
-
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFbcd719), Color(0xFFbcd719)],
-                            ),
-                          ),
-                          alignment: Alignment.center,
-                          child: const Text(
-                            "Get started",
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Match with real people, spark deep chats, and make every call feel personal.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: DudeTheme.textMuted.withValues(alpha: 0.92),
+                    fontSize: 15.5,
+                    height: 1.55,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: const [
+                    _VibeChip(icon: Icons.favorite_rounded, label: 'Real matches'),
+                    _VibeChip(icon: Icons.chat_bubble_rounded, label: 'Live chats'),
+                    _VibeChip(icon: Icons.videocam_rounded, label: 'Video calls'),
                   ],
                 ),
-
-                /// 🔹 Bottom spacing
-                const Spacer(),
+                const SizedBox(height: 36),
+                PremiumPrimaryButton(
+                  label: 'Let\'s go →',
+                  height: 56,
+                  onTap: () {
+                    bondNavigator.newPage(
+                      context,
+                      page: const AccountSelectScreen(),
+                    );
+                  },
+                ),
+                const Spacer(flex: 2),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VibeChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _VibeChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: DudeTheme.surface.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: DudeTheme.border.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: DudeTheme.accent),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: DudeTheme.textMuted,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

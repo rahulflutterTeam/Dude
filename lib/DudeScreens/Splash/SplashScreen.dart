@@ -18,8 +18,10 @@ import 'package:dude/StaffScreenScreens/VerificationInprogressScreen/Verificatio
 import 'package:dude/StaffScreenScreens/VerificationUnsuccessfulScreen/VerificationUnsuccessScreen.dart';
 import 'package:dude/Dude_Utils/push/push_service.dart';
 import 'package:dude/main.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo_spin.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -30,28 +32,13 @@ class Splashscreen extends StatefulWidget {
   State<Splashscreen> createState() => _SplashscreenState();
 }
 
-class _SplashscreenState extends State<Splashscreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
+class _SplashscreenState extends State<Splashscreen> {
   bool _isOffline = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   @override
   void initState() {
     super.initState();
-
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _scaleAnimation = Tween<double>(
-      begin: 0.95,
-      end: 1.05,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-
     _checkLoginAndStatus();
     _startConnectivityListener();
   }
@@ -73,7 +60,6 @@ class _SplashscreenState extends State<Splashscreen>
 
   @override
   void dispose() {
-    _controller.dispose();
     _connectivitySubscription?.cancel();
     super.dispose();
   }
@@ -88,8 +74,8 @@ class _SplashscreenState extends State<Splashscreen>
   }
 
   Future<void> _checkLoginAndStatus() async {
-    // Show splash for branding
-    await Future.delayed(const Duration(seconds: 2));
+    // Let the one-time logo spin finish before navigating.
+    await Future.delayed(const Duration(milliseconds: 2200));
 
     if (!mounted) return;
 
@@ -253,93 +239,51 @@ class _SplashscreenState extends State<Splashscreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0A14),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF3a1873),
-              Color(0xFF0c001d),
-              Color(0xFF0c001d),
-              Color(0xFF3a1873),
-            ],
-          ),
-        ),
+      backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ScaleTransition(
-                scale: _scaleAnimation,
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFe4f773).withOpacity(0.4),
-                        blurRadius: 30,
-                        spreadRadius: 8,
-                      ),
-                    ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const DudeLogoSpin(height: 140),
+                const SizedBox(height: 48),
+                if (_isOffline) ...[
+                  const Icon(Icons.wifi_off, size: 52, color: Colors.white70),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No Internet Connection',
+                    style: TextStyle(
+                      color: DudeTheme.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  child: SvgPicture.asset(
-                    "assets/Images/splashlogo.svg",
-                    height: 150,
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Please turn on WiFi or Mobile Data\nto continue',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: DudeTheme.textMuted, fontSize: 14),
                   ),
-                ),
-              ),
-
-              const SizedBox(height: 50),
-
-              if (_isOffline)
-                Column(
-                  children: [
-                    const Icon(Icons.wifi_off, size: 60, color: Colors.white70),
-                    const SizedBox(height: 20),
-                    const Text(
-                      "No Internet Connection",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      "Please turn on WiFi or Mobile Data\nto continue",
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                        height: 1.4,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 30),
-                    ElevatedButton.icon(
-                      onPressed: _retryConnection,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text("Retry"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFe4f773),
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 14,
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              else
-                const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFd2ea46)),
-                  strokeWidth: 5,
-                ),
-            ],
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _retryConnection,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Retry'),
+                    style: DudeTheme.primaryButtonStyle(),
+                  ),
+                ] else
+                  const SizedBox(
+                    // width: 36,
+                    // height: 36,
+                    // child: CircularProgressIndicator(
+                    //   color: DudeTheme.accent,
+                    //   strokeWidth: 3,
+                    // ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

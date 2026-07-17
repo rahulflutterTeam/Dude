@@ -4,6 +4,7 @@ import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
 import 'package:dude/DudeScreens/HomeScreen/callService.dart';
 import 'package:dude/DudeScreens/WalletScreen/razorPayFlow/Model/amountAdminCoinModel.dart';
 import 'package:dude/DudeScreens/WalletScreen/razorPayFlow/Model/confirmPaymentModel.dart';
+import 'package:dude/DudeScreens/WalletScreen/coin_checkout_session.dart';
 import 'package:dude/DudeScreens/WalletScreen/razorPayFlow/ViewModel/PaymentVM.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:flutter/material.dart';
@@ -31,22 +32,25 @@ class _InCallAddCoinSheetBody extends StatefulWidget {
   const _InCallAddCoinSheetBody();
 
   @override
-  State<_InCallAddCoinSheetBody> createState() =>
-      _InCallAddCoinSheetBodyState();
+  State<_InCallAddCoinSheetBody> createState() => _InCallAddCoinSheetBodyState();
 }
 
-class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
-    with WidgetsBindingObserver {
+class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody> {
   late Razorpay _razorpay;
   final CFPaymentGatewayService _cashfree = CFPaymentGatewayService();
-  bool _isStartingCheckout = false;
-  Timer? _checkoutLoaderFallbackTimer;
+  final CoinCheckoutSession _checkoutSession = CoinCheckoutSession();
   int _pendingPackageCoins = 0;
+
+  bool get _isCheckoutBusy => _checkoutSession.isActive;
+
+  void _endCheckoutSession() {
+    _checkoutSession.end();
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
@@ -60,19 +64,8 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _checkoutLoaderFallbackTimer?.cancel();
     _razorpay.clear();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_isStartingCheckout) return;
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
-      _stopCheckoutLoader();
-    }
   }
 
   Future<void> _buyPackage(PaymentPackage package) async {
@@ -100,14 +93,13 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
     required int coins,
     required String description,
   }) async {
-    if (_isStartingCheckout) return;
-
-    setState(() => _isStartingCheckout = true);
+    if (!_checkoutSession.tryStart()) return;
+    setState(() {});
 
     final vm = context.read<WalletViewModel>();
     final userVM = context.read<UserViewModel>();
     final phoneNumber = userVM.currentUser?.phone ?? '';
-    var checkoutLaunched = false;
+    var gatewayOpened = false;
 
     try {
       final gatewayKey = await vm.fetchPaymentGatewayKey();
@@ -145,13 +137,14 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
           return;
         }
 
-        checkoutLaunched = _openCashfreeCheckout(
+        gatewayOpened = _openCashfreeCheckout(
           orderId: orderId,
           paymentSessionId: paymentSessionId,
           mode: gatewayKey.mode,
         );
-        if (checkoutLaunched) {
-          _waitForCheckoutNavigation();
+        if (gatewayOpened) {
+          _checkoutSession.markGatewayLaunched();
+          if (mounted) setState(() {});
         }
         return;
       }
@@ -174,7 +167,7 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
       _razorpay.open({
         'key': keyId,
         'amount': amountInRupees * 100,
-        'name': 'Dude',
+        'name': 'PairEver',
         'description': description,
         'order_id': orderId,
         'prefill': {'contact': phoneNumber, 'email': 'user@example.com'},
@@ -183,13 +176,14 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
         },
         'theme': {'color': '#1e0f39'},
       });
-      checkoutLaunched = true;
-      _waitForCheckoutNavigation();
+      gatewayOpened = true;
+      _checkoutSession.markGatewayLaunched();
+      if (mounted) setState(() {});
     } catch (e) {
       Utils.snackBarErrorMessage('Failed to start payment: $e');
     } finally {
-      if (!checkoutLaunched) {
-        _stopCheckoutLoader();
+      if (!gatewayOpened) {
+        _endCheckoutSession();
       }
     }
   }
@@ -216,21 +210,6 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
       Utils.snackBarErrorMessage('Failed to open Cashfree payment: $e');
       return false;
     }
-  }
-
-  void _waitForCheckoutNavigation() {
-    _checkoutLoaderFallbackTimer?.cancel();
-    _checkoutLoaderFallbackTimer = Timer(
-      const Duration(seconds: 6),
-      _stopCheckoutLoader,
-    );
-  }
-
-  void _stopCheckoutLoader() {
-    _checkoutLoaderFallbackTimer?.cancel();
-    _checkoutLoaderFallbackTimer = null;
-    if (!mounted || !_isStartingCheckout) return;
-    setState(() => _isStartingCheckout = false);
   }
 
   CFEnvironment _cashfreeEnvironment(String mode) {
@@ -260,7 +239,7 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    _stopCheckoutLoader();
+    _endCheckoutSession();
     final vm = context.read<WalletViewModel>();
 
     try {
@@ -277,14 +256,14 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    _stopCheckoutLoader();
+    _endCheckoutSession();
     Utils.snackBarErrorMessage(
       'Payment failed: ${response.message ?? 'Unknown'}',
     );
   }
 
   void _handleCashfreeVerify(String orderId) async {
-    _stopCheckoutLoader();
+    _endCheckoutSession();
     final vm = context.read<WalletViewModel>();
 
     try {
@@ -299,7 +278,7 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
   }
 
   void _handleCashfreeError(CFErrorResponse errorResponse, String orderId) {
-    _stopCheckoutLoader();
+    _endCheckoutSession();
     Utils.snackBarErrorMessage(
       'Payment failed: ${errorResponse.getMessage() ?? 'Unknown'}',
     );
@@ -317,9 +296,7 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
       userVM.updateLocalCoinBalance(newBalance);
     }
 
-    final coinsToApply = creditedCoins > 0
-        ? creditedCoins
-        : _pendingPackageCoins;
+    final coinsToApply = creditedCoins > 0 ? creditedCoins : _pendingPackageCoins;
     if (coinsToApply > 0) {
       CallService().extendCallWithAddedCoins(coinsToApply);
     }
@@ -382,14 +359,18 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
+      child: Stack(
+        children: [
+          Container(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.72,
         ),
         decoration: const BoxDecoration(
           color: Color(0xFF1C1426),
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border(top: BorderSide(color: Color(0xFFD2EA46), width: 1)),
+          border: Border(
+            top: BorderSide(color: Color(0xFFD2EA46), width: 1),
+          ),
         ),
         child: SafeArea(
           top: false,
@@ -433,11 +414,10 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
                       ),
                     ),
                     IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: Colors.white70,
-                      ),
+                      onPressed: _isCheckoutBusy
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded, color: Colors.white70),
                     ),
                   ],
                 ),
@@ -498,7 +478,7 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
                           borderRadius: BorderRadius.circular(12),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(12),
-                            onTap: _isStartingCheckout
+                            onTap: _isCheckoutBusy
                                 ? null
                                 : () => _buyPackage(package),
                             child: Padding(
@@ -551,7 +531,7 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                  if (_isStartingCheckout) ...[
+                                  if (_isCheckoutBusy) ...[
                                     const SizedBox(width: 10),
                                     const SizedBox(
                                       width: 18,
@@ -575,6 +555,50 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody>
             ],
           ),
         ),
+      ),
+          if (_checkoutSession.blockInteraction)
+            Positioned.fill(
+              child: AbsorbPointer(
+                child: AnimatedOpacity(
+                  opacity: _checkoutSession.showBlockingLoader ? 1 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.55),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: Color(0xFFD2EA46),
+                          ),
+                        ),
+                        if (_checkoutSession.showBlockingLoader) ...[
+                          const SizedBox(height: 14),
+                          const Text(
+                            'Opening secure payment...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

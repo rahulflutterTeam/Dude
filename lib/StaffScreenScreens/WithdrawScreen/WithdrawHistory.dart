@@ -1,40 +1,19 @@
 // lib/DudeScreens/WalletScreen/WithdrawHistory.dart
 
 import 'dart:ui';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Dude_Utils/DateTimeFormatter/history_time_formatter.dart';
-import 'package:dude/DudeScreens/Transactions/TransactionDetailScreen.dart';
 import 'package:dude/DudeScreens/WalletScreen/razorPayFlow/ViewModel/PaymentVM.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_animations.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
 import 'package:dude/StaffScreenScreens/StaffBottomNavBar/StaffBottomNavBar.dart';
-import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:dude/StaffScreenScreens/WithdrawScreen/Model/WithdrawHistoryModel.dart';
 import 'package:dude/StaffScreenScreens/WithdrawScreen/WithdrawDetailPage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
-
-// ── Design tokens ─────────────────────────────────────────────────────────
-const _kBg = Color(0xFF080612);
-const _kCard = Color(0xFF100E1E);
-const _kCardBorder = Color(0xFF1E1A30);
-const _kAccent = Color(0xFFB86AF6);
-const _kAccentDim = Color(0xFF2A1F38);
-const _kPurple = Color(0xFF7B5CF5);
-const _kPurpleDim = Color(0xFF1C1535);
-const _kText = Color(0xFFFFFFFF);
-const _kTextSub = Color(0xFF6B6585);
-const _kTextMid = Color(0xFFADA8C0);
-const _kSuccess = Color(0xFF22C55E);
-const _kSuccessDim = Color(0xFF052010);
-const _kWarning = Color(0xFFF59E0B);
-const _kWarningDim = Color(0xFF211500);
-const _kDanger = Color(0xFFEF4444);
-const _kDangerDim = Color(0xFF1E0404);
-const _kInfo = Color(0xFF3B82F6);
-const _kInfoDim = Color(0xFF0A1A3A);
-// ──────────────────────────────────────────────────────────────────────────
 
 // ── Helper class to handle status mapping ─────────────────────────────────
 class WithdrawalStatus {
@@ -43,7 +22,7 @@ class WithdrawalStatus {
   final Color bgColor;
   final IconData icon;
 
-  const WithdrawalStatus({
+  WithdrawalStatus({
     required this.displayText,
     required this.color,
     required this.bgColor,
@@ -55,55 +34,55 @@ class WithdrawalStatus {
     // statusCode: 0 = Pending/Processing, 1 = Approved/Success, 2 = Rejected/Failed
     switch (statusCode) {
       case 1:
-        return const WithdrawalStatus(
+        return WithdrawalStatus(
           displayText: 'APPROVED',
-          color: _kSuccess,
-          bgColor: _kSuccessDim,
+          color: DudeTheme.success,
+          bgColor: DudeTheme.success.withValues(alpha: 0.12),
           icon: Icons.check_circle_rounded,
         );
       case 0:
-        return const WithdrawalStatus(
+        return WithdrawalStatus(
           displayText: 'PROCESSING',
-          color: _kWarning,
-          bgColor: _kWarningDim,
+          color: DudeTheme.warning,
+          bgColor: DudeTheme.warningDim,
           icon: Icons.hourglass_bottom_rounded,
         );
       case 2:
-        return const WithdrawalStatus(
+        return WithdrawalStatus(
           displayText: 'REJECTED',
-          color: _kDanger,
-          bgColor: _kDangerDim,
+          color: DudeTheme.danger,
+          bgColor: DudeTheme.dangerDim,
           icon: Icons.cancel_rounded,
         );
       default:
         // Fallback using statusLabel
         final label = statusLabel.toLowerCase();
         if (label.contains('approve') || label.contains('success')) {
-          return const WithdrawalStatus(
+          return WithdrawalStatus(
             displayText: 'APPROVED',
-            color: _kSuccess,
-            bgColor: _kSuccessDim,
+            color: DudeTheme.success,
+            bgColor: DudeTheme.success.withValues(alpha: 0.12),
             icon: Icons.check_circle_rounded,
           );
         } else if (label.contains('pending') || label.contains('process')) {
-          return const WithdrawalStatus(
+          return WithdrawalStatus(
             displayText: 'PROCESSING',
-            color: _kWarning,
-            bgColor: _kWarningDim,
+            color: DudeTheme.warning,
+            bgColor: DudeTheme.warningDim,
             icon: Icons.hourglass_bottom_rounded,
           );
         } else if (label.contains('reject') || label.contains('fail')) {
-          return const WithdrawalStatus(
+          return WithdrawalStatus(
             displayText: 'REJECTED',
-            color: _kDanger,
-            bgColor: _kDangerDim,
+            color: DudeTheme.danger,
+            bgColor: DudeTheme.dangerDim,
             icon: Icons.cancel_rounded,
           );
         }
         return WithdrawalStatus(
           displayText: statusLabel.toUpperCase(),
-          color: _kInfo,
-          bgColor: _kInfoDim,
+          color: DudeTheme.accent,
+          bgColor: DudeTheme.accentDim,
           icon: Icons.info_outline_rounded,
         );
     }
@@ -327,24 +306,8 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
         final summary = _calcSummary(filtered);
 
         return Scaffold(
-          backgroundColor: _kBg,
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
+          backgroundColor: DudeTheme.background,
+          body: PremiumAmbientBackground(
             child: SafeArea(
               child: vm.isLoadingWithdraw
                   ? _buildLoader()
@@ -365,7 +328,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                                 ? _buildEmpty()
                                 : RefreshIndicator(
                                     onRefresh: vm.refreshWithdrawHistory,
-                                    color: _kAccent,
+                                    color: DudeTheme.accent,
                                     child: _buildList(filtered),
                                   ),
                           ),
@@ -384,7 +347,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
   // ─────────────────────────────────────────────────────────────────────
 
   Widget _buildLoader() => const Center(
-    child: CircularProgressIndicator(color: _kAccent, strokeWidth: 2),
+    child: CircularProgressIndicator(color: DudeTheme.accent, strokeWidth: 2),
   );
 
   Widget _buildError(WalletViewModel vm) => Center(
@@ -395,17 +358,15 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
           width: 64,
           height: 64,
           decoration: BoxDecoration(
-            color: _kDangerDim,
+            color: DudeTheme.dangerDim,
             shape: BoxShape.circle,
-            border: Border.all(color: _kDanger.withOpacity(0.3)),
+            border: Border.all(color: DudeTheme.danger.withOpacity(0.3)),
           ),
-          child: const Icon(Icons.wifi_off_rounded, color: _kDanger, size: 28),
+          child: Icon(Icons.wifi_off_rounded, color: DudeTheme.danger, size: 28),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Connection failed',
-          style: TextStyle(
-            color: _kText,
+        Text('Connection failed', style: TextStyle(
+            color: DudeTheme.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
@@ -413,7 +374,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
         const SizedBox(height: 8),
         Text(
           vm.withdrawError!,
-          style: const TextStyle(color: _kTextSub, fontSize: 13),
+          style: TextStyle(color: DudeTheme.textSubtle, fontSize: 13),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
@@ -422,7 +383,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
             decoration: BoxDecoration(
-              color: _kAccent,
+              color: DudeTheme.accent,
               borderRadius: BorderRadius.circular(30),
             ),
             child: const Text(
@@ -447,29 +408,25 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: _kPurpleDim,
+            color: DudeTheme.accentDim,
             shape: BoxShape.circle,
-            border: Border.all(color: _kPurple.withOpacity(0.3)),
+            border: Border.all(color: DudeTheme.accent.withOpacity(0.3)),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.account_balance_wallet_outlined,
-            color: _kPurple,
+            color: DudeTheme.accent,
             size: 36,
           ),
         ),
         const SizedBox(height: 20),
-        const Text(
-          'No withdrawal requests',
-          style: TextStyle(
-            color: _kText,
+        Text('No withdrawal requests', style: TextStyle(
+            color: DudeTheme.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Try adjusting your filters',
-          style: TextStyle(color: _kTextSub, fontSize: 13),
+        Text('Try adjusting your filters', style: TextStyle(color: DudeTheme.textSubtle, fontSize: 13),
         ),
         const SizedBox(height: 20),
         GestureDetector(
@@ -477,13 +434,11 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
-              border: Border.all(color: _kAccent.withOpacity(0.5)),
+              border: Border.all(color: DudeTheme.accent.withOpacity(0.5)),
               borderRadius: BorderRadius.circular(30),
             ),
-            child: const Text(
-              'Clear Filters',
-              style: TextStyle(
-                color: _kAccent,
+            child: Text('Clear Filters', style: TextStyle(
+                color: DudeTheme.accent,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -528,13 +483,13 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: _kCard,
+                color: DudeTheme.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _kCardBorder),
+                border: Border.all(color: DudeTheme.border),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.arrow_back_ios_new_rounded,
-                color: _kText,
+                color: DudeTheme.textPrimary,
                 size: 16,
               ),
             ),
@@ -549,7 +504,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                 Text(
                   'Withdrawal History',
                   style: TextStyle(
-                    color: _kText,
+                    color: DudeTheme.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.3,
@@ -557,7 +512,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                 ),
                 Text(
                   'Your withdrawal requests',
-                  style: TextStyle(color: _kTextSub, fontSize: 12),
+                  style: TextStyle(color: DudeTheme.textSubtle, fontSize: 12),
                 ),
               ],
             ),
@@ -580,17 +535,17 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: _searchVisible ? _kAccentDim : _kCard,
+                color: _searchVisible ? DudeTheme.accentDim : DudeTheme.surface,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: _searchVisible
-                      ? _kAccent.withOpacity(0.4)
-                      : _kCardBorder,
+                      ? DudeTheme.accent.withOpacity(0.4)
+                      : DudeTheme.border,
                 ),
               ),
               child: Icon(
                 _searchVisible ? Icons.close_rounded : Icons.search_rounded,
-                color: _searchVisible ? _kAccent : _kTextMid,
+                color: _searchVisible ? DudeTheme.accent : DudeTheme.textMid,
                 size: 18,
               ),
             ),
@@ -612,24 +567,24 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
         child: Container(
           height: 46,
           decoration: BoxDecoration(
-            color: _kCard,
+            color: DudeTheme.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: _searchQuery.isNotEmpty
-                  ? _kAccent.withOpacity(0.4)
-                  : _kCardBorder,
+                  ? DudeTheme.accent.withOpacity(0.4)
+                  : DudeTheme.border,
             ),
           ),
           child: TextField(
             controller: _searchCtrl,
             autofocus: true,
-            style: const TextStyle(color: _kText, fontSize: 14),
+            style: TextStyle(color: DudeTheme.textPrimary, fontSize: 14),
             decoration: InputDecoration(
               hintText: 'Search by name...',
-              hintStyle: const TextStyle(color: _kTextSub, fontSize: 13),
-              prefixIcon: const Icon(
+              hintStyle: TextStyle(color: DudeTheme.textSubtle, fontSize: 13),
+              prefixIcon: Icon(
                 Icons.search_rounded,
-                color: _kTextSub,
+                color: DudeTheme.textSubtle,
                 size: 18,
               ),
               suffixIcon: _searchQuery.isNotEmpty
@@ -638,9 +593,9 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                         _searchCtrl.clear();
                         setState(() => _searchQuery = '');
                       },
-                      child: const Icon(
+                      child: Icon(
                         Icons.clear_rounded,
-                        color: _kTextSub,
+                        color: DudeTheme.textSubtle,
                         size: 16,
                       ),
                     )
@@ -699,13 +654,13 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: _kDangerDim,
+                  color: DudeTheme.dangerDim,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _kDanger.withOpacity(0.3)),
+                  border: Border.all(color: DudeTheme.danger.withOpacity(0.3)),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.filter_alt_off_rounded,
-                  color: _kDanger,
+                  color: DudeTheme.danger,
                   size: 16,
                 ),
               ),
@@ -732,23 +687,23 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
         height: 36,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color: isActive ? _kAccentDim : _kCard,
+          color: isActive ? DudeTheme.accentDim : DudeTheme.surface,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isActive ? _kAccent.withOpacity(0.5) : _kCardBorder,
+            color: isActive ? DudeTheme.accent.withOpacity(0.5) : DudeTheme.border,
             width: isActive ? 1.5 : 1,
           ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isActive ? _kAccent : _kTextSub, size: 13),
+            Icon(icon, color: isActive ? DudeTheme.accent : DudeTheme.textSubtle, size: 13),
             const SizedBox(width: 5),
             Flexible(
               child: Text(
                 label,
                 style: TextStyle(
-                  color: isActive ? _kAccent : _kTextMid,
+                  color: isActive ? DudeTheme.accent : DudeTheme.textMid,
                   fontSize: 11,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 ),
@@ -758,7 +713,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
             const SizedBox(width: 3),
             Icon(
               Icons.keyboard_arrow_down_rounded,
-              color: isActive ? _kAccent : _kTextSub,
+              color: isActive ? DudeTheme.accent : DudeTheme.textSubtle,
               size: 13,
             ),
           ],
@@ -803,9 +758,9 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF100E1E),
+          color: DudeTheme.surface.withValues(alpha: 0.96),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border.all(color: _kCardBorder),
+          border: Border.all(color: DudeTheme.border.withValues(alpha: 0.6)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         child: Column(
@@ -817,14 +772,14 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
               height: 4,
               margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
-                color: _kCardBorder,
+                color: DudeTheme.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             Text(
               title,
-              style: const TextStyle(
-                color: _kText,
+              style: TextStyle(
+                color: DudeTheme.textPrimary,
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
               ),
@@ -846,12 +801,12 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                     vertical: 14,
                   ),
                   decoration: BoxDecoration(
-                    color: isSelected ? _kAccentDim : _kCard,
+                    color: isSelected ? DudeTheme.accentDim : DudeTheme.surface,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isSelected
-                          ? _kAccent.withOpacity(0.5)
-                          : _kCardBorder,
+                          ? DudeTheme.accent.withOpacity(0.5)
+                          : DudeTheme.border,
                       width: isSelected ? 1.5 : 1,
                     ),
                   ),
@@ -861,7 +816,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                         child: Text(
                           labelOf(opt),
                           style: TextStyle(
-                            color: isSelected ? _kAccent : _kTextMid,
+                            color: isSelected ? DudeTheme.accent : DudeTheme.textMid,
                             fontSize: 14,
                             fontWeight: isSelected
                                 ? FontWeight.w700
@@ -874,7 +829,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                           width: 20,
                           height: 20,
                           decoration: const BoxDecoration(
-                            color: _kAccent,
+                            color: DudeTheme.accent,
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -901,44 +856,55 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
   Widget _buildSummaryStrip(Map<String, dynamic> summary) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF130F24), Color(0xFF1A1232)],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  DudeTheme.surface.withValues(alpha: 0.92),
+                  DudeTheme.surfaceRaised.withValues(alpha: 0.78),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: DudeTheme.border),
+            ),
+            child: Row(
+              children: [
+                _summaryTile(
+                  label: 'Total',
+                  value: '₹${(summary['total'] as double).toStringAsFixed(0)}',
+                  color: DudeTheme.accent,
+                ),
+                _vDivider(),
+                _summaryTile(
+                  label: 'Approved',
+                  value: '${summary['approved']}',
+                  color: DudeTheme.success,
+                  icon: Icons.check_circle_outline_rounded,
+                ),
+                _vDivider(),
+                _summaryTile(
+                  label: 'Processing',
+                  value: '${summary['processing']}',
+                  color: DudeTheme.warning,
+                  icon: Icons.hourglass_bottom_rounded,
+                ),
+                _vDivider(),
+                _summaryTile(
+                  label: 'Rejected',
+                  value: '${summary['rejected']}',
+                  color: DudeTheme.danger,
+                  icon: Icons.cancel_outlined,
+                ),
+              ],
+            ),
           ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _kCardBorder),
-        ),
-        child: Row(
-          children: [
-            _summaryTile(
-              label: 'Total',
-              value: '₹${(summary['total'] as double).toStringAsFixed(0)}',
-              color: _kAccent,
-            ),
-            _vDivider(),
-            _summaryTile(
-              label: 'Approved',
-              value: '${summary['approved']}',
-              color: _kSuccess,
-              icon: Icons.check_circle_outline_rounded,
-            ),
-            _vDivider(),
-            _summaryTile(
-              label: 'Processing',
-              value: '${summary['processing']}',
-              color: _kWarning,
-              icon: Icons.hourglass_bottom_rounded,
-            ),
-            _vDivider(),
-            _summaryTile(
-              label: 'Rejected',
-              value: '${summary['rejected']}',
-              color: _kDanger,
-              icon: Icons.cancel_outlined,
-            ),
-          ],
         ),
       ),
     );
@@ -948,7 +914,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
     width: 1,
     height: 36,
     margin: const EdgeInsets.symmetric(horizontal: 12),
-    color: _kCardBorder,
+    color: DudeTheme.border,
   );
 
   Widget _summaryTile({
@@ -973,7 +939,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
             ),
           ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: _kTextSub, fontSize: 10)),
+          Text(label, style: TextStyle(color: DudeTheme.textSubtle, fontSize: 10)),
         ],
       ),
     );
@@ -990,8 +956,8 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
         children: [
           Text(
             '$count withdrawal request${count == 1 ? '' : 's'}',
-            style: const TextStyle(
-              color: _kTextSub,
+            style: TextStyle(
+              color: DudeTheme.textSubtle,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -999,7 +965,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
           const Spacer(),
           Text(
             HistoryTimeFormatter.shortMonthYear(DateTime.now()),
-            style: const TextStyle(color: _kTextSub, fontSize: 12),
+            style: TextStyle(color: DudeTheme.textSubtle, fontSize: 12),
           ),
         ],
       ),
@@ -1013,10 +979,14 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
   Widget _buildList(List<StaffWithdrawHistoryItem> filtered) {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      physics: PremiumAnimations.scrollPhysics,
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final txn = filtered[index];
-        return _withdrawalCard(txn, index);
+        return PremiumStaggerItem(
+          index: index.clamp(0, 12),
+          child: _withdrawalCard(txn, index),
+        );
       },
     );
   }
@@ -1039,44 +1009,49 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: _kCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _kCardBorder),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: status.color.withValues(alpha: 0.32)),
+          boxShadow: [
+            BoxShadow(
+              color: status.color.withValues(alpha: 0.1),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            children: [
-              // Left accent bar
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                child: Container(
-                  width: 3,
-                  decoration: BoxDecoration(
-                    color: status.color,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(16),
-                      bottomLeft: Radius.circular(16),
-                    ),
-                  ),
+          borderRadius: BorderRadius.circular(18),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    DudeTheme.surface.withValues(alpha: 0.9),
+                    status.color.withValues(alpha: 0.05),
+                    DudeTheme.surfaceRaised.withValues(alpha: 0.78),
+                  ],
                 ),
               ),
-
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
                 child: Row(
                   children: [
-                    // Avatar
                     Container(
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
+                        gradient: LinearGradient(
+                          colors: [
+                            status.color.withValues(alpha: 0.2),
+                            DudeTheme.accentDim.withValues(alpha: 0.35),
+                          ],
+                        ),
                         border: Border.all(
-                          color: status.color.withOpacity(0.25),
-                          width: 1.5,
+                          color: status.color.withValues(alpha: 0.35),
                         ),
                       ),
                       child: ClipRRect(
@@ -1092,26 +1067,26 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                       ),
                     ),
                     const SizedBox(width: 14),
-
-                    // Middle info
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              const Text(
+                              Text(
                                 'Name: ',
                                 style: TextStyle(
-                                  color: _kTextSub,
+                                  color: DudeTheme.textSubtle.withValues(
+                                    alpha: 0.9,
+                                  ),
                                   fontSize: 11,
                                 ),
                               ),
                               Expanded(
                                 child: Text(
                                   txn.name,
-                                  style: const TextStyle(
-                                    color: _kText,
+                                  style: TextStyle(
+                                    color: DudeTheme.textPrimary,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 0.2,
@@ -1124,23 +1099,26 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                           const SizedBox(height: 5),
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.access_time_rounded,
-                                color: _kTextSub,
+                                color: DudeTheme.textSubtle.withValues(
+                                  alpha: 0.85,
+                                ),
                                 size: 11,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 HistoryTimeFormatter.list(txn.createdAt),
-                                style: const TextStyle(
-                                  color: _kTextSub,
+                                style: TextStyle(
+                                  color: DudeTheme.textSubtle.withValues(
+                                    alpha: 0.85,
+                                  ),
                                   fontSize: 11,
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 6),
-                          // Status badge
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -1148,9 +1126,9 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                             ),
                             decoration: BoxDecoration(
                               color: status.bgColor,
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: status.color.withOpacity(0.3),
+                                color: status.color.withValues(alpha: 0.35),
                               ),
                             ),
                             child: Row(
@@ -1176,18 +1154,30 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                         ],
                       ),
                     ),
-
-                    // Amount + arrow
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          '₹${txn.amountText}',
-                          style: const TextStyle(
-                            color: _kText,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
+                        ShaderMask(
+                          blendMode: BlendMode.srcIn,
+                          shaderCallback: (bounds) {
+                            return txn.statusCode == 1
+                                ? DudeTheme.premiumAccentGradient
+                                      .createShader(bounds)
+                                : LinearGradient(
+                                    colors: [
+                                      DudeTheme.textPrimary,
+                                      DudeTheme.textPrimary,
+                                    ],
+                                  ).createShader(bounds);
+                          },
+                          child: Text(
+                            '₹${txn.amountText}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -1195,12 +1185,16 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
-                            color: _kCardBorder,
+                            gradient: DudeTheme.premiumAccentGradient,
                             borderRadius: BorderRadius.circular(8),
+                            boxShadow: DudeTheme.accentGlowShadow(
+                              blur: 10,
+                              spread: -4,
+                            ),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.arrow_forward_ios_rounded,
-                            color: _kTextMid,
+                            color: DudeTheme.textOnAccent,
                             size: 12,
                           ),
                         ),
@@ -1209,7 +1203,7 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1218,7 +1212,14 @@ class _WithdrawHistoryState extends State<WithdrawHistory>
 
   Widget _defaultAvatar(Color accentColor) {
     return Container(
-      color: _kPurpleDim,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            DudeTheme.accentDim.withValues(alpha: 0.8),
+            DudeTheme.surfaceRaised.withValues(alpha: 0.9),
+          ],
+        ),
+      ),
       child: Icon(Icons.person_outline, color: accentColor, size: 22),
     );
   }

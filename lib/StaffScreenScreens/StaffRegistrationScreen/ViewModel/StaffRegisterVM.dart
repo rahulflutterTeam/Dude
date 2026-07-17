@@ -283,7 +283,13 @@ class StaffViewModel extends ChangeNotifier {
       }
 
       if (staffDataList.isEmpty) {
-        debugPrint("⚠️ [StaffVM] Empty staff list received");
+        // Socket online-snapshots are empty when nobody is online — clear list.
+        debugPrint(
+          "⚠️ [StaffVM] Empty staff list received — clearing online staff",
+        );
+        for (final staff in _staffList) {
+          onlineStatus[staff.memberID] = false;
+        }
         _staffList = [];
         _filteredStaffList = [];
         _staffFetchError = null;
@@ -297,9 +303,16 @@ class StaffViewModel extends ChangeNotifier {
 
       for (var item in staffDataList) {
         try {
-          if (item is Map<String, dynamic>) {
-            final staff = StaffDataProfile.fromJson(item);
-            updatedStaffList.add(staff);
+          if (item is Map) {
+            final staff = StaffDataProfile.fromJson(
+              Map<String, dynamic>.from(item),
+            );
+            // Discovery list should only keep currently online staff.
+            if (staff.isOnline) {
+              updatedStaffList.add(staff);
+            } else {
+              onlineStatus[staff.memberID] = false;
+            }
           } else {
             debugPrint("⚠️ [StaffVM] Item is not a Map: ${item.runtimeType}");
           }
@@ -309,39 +322,23 @@ class StaffViewModel extends ChangeNotifier {
         }
       }
 
-      if (updatedStaffList.isNotEmpty) {
-        // debugPrint(
-        //   "✅ [StaffVM] Successfully parsed ${updatedStaffList.length} staff members",
-        // );
-
-        // Update the main staff list
-        _staffList = updatedStaffList;
-
-        // Update online status map
-        for (var staff in _staffList) {
-          onlineStatus[staff.memberID] = staff.isOnline;
+      // Replace with the online snapshot (offline staff are excluded).
+      for (final staff in _staffList) {
+        if (!updatedStaffList.any((s) => s.memberID == staff.memberID)) {
+          onlineStatus[staff.memberID] = false;
         }
-
-        // Sort the list
-        _sortStaffList();
-
-        _applyFilter();
-        // Clear any error
-        _staffFetchError = null;
-        _isFetchingStaff = false;
-
-        // Notify listeners
-        notifyListeners();
-
-        // debugPrint(
-        //   "📢 [StaffVM] Notified listeners with ${_filteredStaffList.length} staff members",
-        // );
-      } else {
-        debugPrint("⚠️ [StaffVM] No valid staff members parsed");
-        _staffFetchError = "Failed to parse staff data";
-        _isFetchingStaff = false;
-        notifyListeners();
       }
+
+      _staffList = updatedStaffList;
+      for (var staff in _staffList) {
+        onlineStatus[staff.memberID] = true;
+      }
+
+      _sortStaffList();
+      _applyFilter();
+      _staffFetchError = null;
+      _isFetchingStaff = false;
+      notifyListeners();
     } catch (e, stackTrace) {
       debugPrint("❌ [StaffVM] Error processing staff list update: $e");
       debugPrint("❌ [StaffVM] Stack trace: $stackTrace");
@@ -364,45 +361,57 @@ class StaffViewModel extends ChangeNotifier {
       Map<String, dynamic>? fullStaffData;
 
       // Extract staff ID and status from different formats
-      if (data is Map<String, dynamic>) {
-        // debugPrint("📊 [StaffVM] Status data keys: ${data.keys}");
+      if (data is Map) {
+        final map = Map<String, dynamic>.from(data);
 
         // Try different field names for staff ID
         staffId =
-            data['memberID']?.toString() ??
-            data['memberId']?.toString() ??
-            data['userId']?.toString() ??
-            data['user_id']?.toString() ??
-            data['id']?.toString() ??
-            data['staffId']?.toString() ??
-            data['staff_id']?.toString();
+            map['memberID']?.toString() ??
+            map['memberId']?.toString() ??
+            map['userId']?.toString() ??
+            map['user_id']?.toString() ??
+            map['id']?.toString() ??
+            map['staffId']?.toString() ??
+            map['staff_id']?.toString();
 
         // Try different field names for online status
-        if (data.containsKey('isOnline')) {
-          isOnline = data['isOnline'] as bool?;
-        } else if (data.containsKey('status')) {
-          status = data['status'] as String?;
+        if (map.containsKey('isOnline')) {
+          final raw = map['isOnline'];
+          if (raw is bool) {
+            isOnline = raw;
+          } else if (raw is num) {
+            isOnline = raw != 0;
+          } else if (raw is String) {
+            isOnline = raw.toLowerCase() == 'true' || raw == '1';
+          }
+        } else if (map.containsKey('status')) {
+          status = map['status'] as String?;
           isOnline =
               status?.toLowerCase() == 'online' ||
               status?.toLowerCase() == 'available' ||
               status?.toLowerCase() == 'active';
-        } else if (data.containsKey('online')) {
-          isOnline = data['online'] as bool?;
-        } else if (data.containsKey('presence')) {
-          final presence = data['presence'] as String?;
+        } else if (map.containsKey('online')) {
+          isOnline = map['online'] == true;
+        } else if (map.containsKey('presence')) {
+          final presence = map['presence'] as String?;
           isOnline = presence?.toLowerCase() == 'online';
         }
 
         // Check for busy status
-        if (data.containsKey('isBusy')) {
-          isBusy = data['isBusy'] as bool?;
+        if (map.containsKey('isBusy')) {
+          final raw = map['isBusy'];
+          if (raw is bool) {
+            isBusy = raw;
+          } else if (raw is num) {
+            isBusy = raw != 0;
+          }
         }
 
         // Check if this is a full staff data object
-        if (data.containsKey('name') &&
-            data.containsKey('memberID') &&
-            data.containsKey('areaOfInterest')) {
-          fullStaffData = data;
+        if (map.containsKey('name') &&
+            map.containsKey('memberID') &&
+            map.containsKey('areaOfInterest')) {
+          fullStaffData = map;
         }
       }
 
@@ -413,11 +422,15 @@ class StaffViewModel extends ChangeNotifier {
         );
 
         if (existingIndex != -1) {
-          // ✅ FIX: DO NOT remove staff when offline
-          // Just update their status
-          // debugPrint(
-          //   "🔄 Updating existing staff: $staffId, isOnline: $isOnline, isBusy: $isBusy",
-          // );
+          // Logged out / offline staff should leave the discovery list.
+          if (isOnline == false) {
+            onlineStatus[staffId] = false;
+            _staffList.removeAt(existingIndex);
+            _sortStaffList();
+            _applyFilter();
+            notifyListeners();
+            return;
+          }
 
           var updatedStaff = _staffList[existingIndex];
 
@@ -431,7 +444,6 @@ class StaffViewModel extends ChangeNotifier {
 
           _staffList[existingIndex] = updatedStaff;
 
-          // Update online status map
           if (isOnline != null) {
             onlineStatus[staffId] = isOnline;
           }
@@ -439,37 +451,25 @@ class StaffViewModel extends ChangeNotifier {
           _sortStaffList();
           _applyFilter();
           notifyListeners();
-
-          // debugPrint(
-          //   "✅ Staff updated: ${updatedStaff.name} - Online: ${updatedStaff.isOnline}, Busy: ${updatedStaff.isBusy}",
-          // );
-        } else if (fullStaffData != null && isOnline == true) {
-          // Only add new staff if they are online
-          // debugPrint(
-          //   "🆕 [StaffVM] New staff detected! Adding to list: $staffId",
-          // );
-          try {
-            final newStaff = StaffDataProfile.fromJson(fullStaffData);
-            _staffList.add(newStaff);
-            onlineStatus[staffId] = newStaff.isOnline;
-
-            _sortStaffList();
-            _applyFilter();
-            notifyListeners();
-
-            // debugPrint("✅ [StaffVM] Added new staff: ${newStaff.name}");
-          } catch (e) {
-            // debugPrint("❌ [StaffVM] Error creating new staff from data: $e");
+        } else if (isOnline == true) {
+          // Staff came online but isn't in the list yet — refresh or add.
+          if (fullStaffData != null) {
+            try {
+              final newStaff = StaffDataProfile.fromJson(fullStaffData);
+              _staffList.add(newStaff);
+              onlineStatus[staffId] = true;
+              _sortStaffList();
+              _applyFilter();
+              notifyListeners();
+            } catch (e) {
+              _requestFullListRefresh();
+            }
+          } else {
             _requestFullListRefresh();
           }
-        } else {
-          // debugPrint(
-          //   "⚠️ [StaffVM] Staff $staffId not found - requesting refresh",
-          // );
-          _requestFullListRefresh();
+        } else if (isOnline == false) {
+          onlineStatus[staffId] = false;
         }
-      } else {
-        // debugPrint("⚠️ [StaffVM] Could not extract staff ID from data");
       }
     } catch (e, stackTrace) {
       // debugPrint("❌ [StaffVM] Error processing status update: $e");
@@ -933,35 +933,25 @@ class StaffViewModel extends ChangeNotifier {
       final response = await _staffRepo.getStaffDetails();
 
       if (response.status == true) {
-        _staffList = response.data ?? [];
+        // Only surface currently online staff on the user discovery list.
+        // Logged-out / offline staff stay hidden until they come online again.
+        final allStaff = response.data ?? [];
+        _staffList = allStaff.where((s) => s.isOnline).toList();
 
-        // Update online status map
-        for (var staff in _staffList) {
+        for (var staff in allStaff) {
           onlineStatus[staff.memberID] = staff.isOnline;
         }
 
-        // Sort the list
         _sortStaffList();
 
-        // debugPrint(
-        //   "✅ [StaffVM] API: Fetched ${_staffList.length} staff members",
-        // );
-
-        // Reset filtered list with the fresh data
         _filteredStaffList = List.from(_staffList);
 
-        // Re-apply current search
         _applyFilter();
 
-        // Setup socket listeners if not already set
         _setupSocketListeners();
 
-        // Request fresh staff list via socket after API fetch
         Future.delayed(const Duration(seconds: 1), () {
           if (_socketService.isConnected) {
-            // debugPrint(
-            //   "📤 [StaffVM] Requesting staff list via socket after API fetch",
-            // );
             _socketService.requestStaffList();
           }
         });

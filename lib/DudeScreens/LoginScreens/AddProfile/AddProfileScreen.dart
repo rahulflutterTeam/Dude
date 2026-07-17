@@ -4,8 +4,10 @@ import 'package:dude/DudeScreens/LoginScreens/IdentityScreen/IdentityScreen.dart
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -32,10 +34,10 @@ class _AddProfileState extends State<AddProfile> {
                 begin: Alignment.topRight,
                 end: Alignment.bottomLeft,
                 colors: [
-                  Color(0xFF5A1F3F),
-                  Color(0xFF3A152A),
-                  Color(0xFF140810),
-                  Color(0xFF140810),
+                  DudeTheme.background,
+                  DudeTheme.background,
+                  DudeTheme.background,
+                  DudeTheme.background,
                 ],
               ),
             ),
@@ -46,7 +48,7 @@ class _AddProfileState extends State<AddProfile> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 10),
-                    SvgPicture.asset("assets/Images/dude.svg", height: 40),
+                    DudeLogo(height: 40),
                     const SizedBox(height: 40),
 
                     // Profile Photo
@@ -70,7 +72,7 @@ class _AddProfileState extends State<AddProfile> {
                               color: Colors.white24,
                               width: 1.2,
                             ),
-                            color: const Color(0xFF5b2749),
+                            color: DudeTheme.surfaceRaised,
                             image: vm.selectedProfileImage != null
                                 ? DecorationImage(
                                     image: FileImage(vm.selectedProfileImage!),
@@ -107,7 +109,7 @@ class _AddProfileState extends State<AddProfile> {
                       padding: const EdgeInsets.only(left: 12.0),
                       child: AppText(
                         "Bonding is building real dating between real people. At least add one photo of yourself",
-                        color: const Color(0xFFc7c7cc),
+                        color: DudeTheme.textMuted,
                         fontSize: 16,
                         maxLines: 3,
                       ),
@@ -161,8 +163,8 @@ class _AddProfileState extends State<AddProfile> {
                                 )
                               : const LinearGradient(
                                   colors: [
-                                    Color(0xFFB86AF6),
-                                    Color(0xFFFF6A6A),
+                                    DudeTheme.accent,
+                                    DudeTheme.accent,
                                   ],
                                 ),
                         ),
@@ -204,7 +206,7 @@ class _AddProfileState extends State<AddProfile> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF251528), Color(0xFF341818)],
+                            colors: [DudeTheme.surface, DudeTheme.surfaceRaised],
                           ),
                         ),
                         child: Center(
@@ -212,8 +214,8 @@ class _AddProfileState extends State<AddProfile> {
                             shaderCallback: (bounds) =>
                                 const LinearGradient(
                                   colors: [
-                                    Color(0xFFB86AF6),
-                                    Color(0xFFFF6A6A),
+                                    DudeTheme.accent,
+                                    DudeTheme.accent,
                                   ],
                                 ).createShader(
                                   Rect.fromLTWH(

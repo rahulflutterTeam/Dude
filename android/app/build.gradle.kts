@@ -17,7 +17,10 @@ if (keystorePropertiesFile.exists()) {
 }
 
 val releaseKeystoreFile = file("upload-keystore.jks")
-val hasReleaseSigning = keystorePropertiesFile.exists() && releaseKeystoreFile.exists()
+val requiredSigningProperties = listOf("keyAlias", "keyPassword", "storePassword")
+val hasReleaseSigning =
+    releaseKeystoreFile.exists() &&
+        requiredSigningProperties.all { keystoreProperties.getProperty(it)?.isNotBlank() == true }
 
 android {
     namespace = "com.dude.dudeapp"
@@ -55,9 +58,11 @@ android {
 
     buildTypes {
         getByName("release") {
-            if (hasReleaseSigning) {
-                signingConfig = signingConfigs.getByName("release")
+            check(hasReleaseSigning) {
+                "Release APK signing is not configured. Add android/key.properties and " +
+                    "android/app/upload-keystore.jks before running a release build."
             }
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
         }
@@ -66,6 +71,15 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// Fix Zego iOS ringtone audio session before every Android build.
+val applyZegoPatch by tasks.registering(Exec::class) {
+    workingDir = rootProject.projectDir.parentFile
+    commandLine("dart", "run", "tool/apply_zego_patch.dart")
+}
+tasks.named("preBuild").configure {
+    dependsOn(applyZegoPatch)
 }
 
 dependencies {

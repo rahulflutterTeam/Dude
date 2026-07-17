@@ -1,4 +1,5 @@
 // my_tickets_screen.dart
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
 import 'package:dude/APIService/support_ticket_service.dart';
 
@@ -10,8 +11,8 @@ class MyTicketsScreen extends StatefulWidget {
 class _MyTicketsScreenState extends State<MyTicketsScreen>
     with SingleTickerProviderStateMixin {
   final Color primary = const Color(0xFFcee640); // Updated app main color
-  final Color cardBg = const Color(0xFF100E1E);
-  final Color bg = const Color(0xFF080612);
+  final Color cardBg = DudeTheme.surface;
+  final Color bg = DudeTheme.background;
   final Color resolvedGreen = Color(0xFF3DC16B);
   late TabController _tabController;
   late SupportTicketService _service;

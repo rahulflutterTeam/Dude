@@ -1,10 +1,11 @@
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/StaffScreenScreens/LiveSeflieVerificationScreen/LiveVerificationScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 class ProfileVerficationScreen extends StatefulWidget {
@@ -22,13 +23,13 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
   String? _selectedIdType;
   String? _idNumberError;
 
-  final List<String> idTypes = ["Aadhar Card", "Pan Card"];
+  final List<String> idTypes = ["Aadhaar Card", "PAN Card"];
 
   @override
   void initState() {
     super.initState();
-    idTypeController.text = "Aadhar Card"; // Default selection
-    _selectedIdType = "Aadhar Card";
+    idTypeController.text = "Aadhaar Card";
+    _selectedIdType = "Aadhaar Card";
     idNumberController.addListener(_validateIdNumber);
   }
 
@@ -44,16 +45,18 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
     final value = idNumberController.text.trim();
     String? error;
 
-    if (_selectedIdType == "Aadhar Card") {
+    if (_selectedIdType == "Aadhaar Card") {
       if (value.isEmpty) {
         error = "Please enter Aadhaar number";
       } else if (value.length != 12 || !RegExp(r'^\d{12}$').hasMatch(value)) {
         error = "Aadhaar must be exactly 12 digits";
       }
-    } else if (_selectedIdType == "Pan Card") {
+    } else if (_selectedIdType == "PAN Card") {
       if (value.isEmpty) {
         error = "Please enter PAN number";
-      } else if (value.length != 10) {
+      } else if (!RegExp(
+        r'^[A-Z]{5}[0-9]{4}[A-Z]$',
+      ).hasMatch(value.toUpperCase())) {
         error = "Invalid PAN format (e.g., ABCDE1234F)";
       }
     }
@@ -70,9 +73,9 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
     if (idType.isEmpty) return false;
     if (idNumber.isEmpty) return false;
 
-    if (idType == "Aadhar Card") {
+    if (idType == "Aadhaar Card") {
       return idNumber.length == 12 && RegExp(r'^\d{12}$').hasMatch(idNumber);
-    } else if (idType == "Pan Card") {
+    } else if (idType == "PAN Card") {
       return idNumber.length == 10 &&
           RegExp(
             r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$',
@@ -88,8 +91,9 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: const BoxDecoration(
-          color: Color(0xFF12151c),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          color: DudeTheme.surfaceRaised,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: DudeTheme.borderSubtle)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -110,7 +114,7 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
                   _selectedIdType = type;
                   idTypeController.text = type;
                 });
-                _validateIdNumber(); // Re-validate number format after type change
+                _validateIdNumber();
                 Navigator.pop(context);
               }),
             ),
@@ -129,8 +133,10 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         child: Text(
           title,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: title == _selectedIdType
+                ? DudeTheme.accentBright
+                : Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.w500,
           ),
@@ -144,133 +150,102 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
     return Consumer<StaffViewModel>(
       builder: (context, vm, child) {
         return Scaffold(
-          backgroundColor: const Color(0xFF140810),
+          backgroundColor: DudeTheme.background,
           resizeToAvoidBottomInset: true,
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40), // top
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
+          body: PremiumAmbientBackground(
             child: SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 10),
-                    SvgPicture.asset("assets/Images/dude.svg", height: 50),
-                    const SizedBox(height: 30),
-
-                    Center(
-                      child: AppText(
-                        "Profile Verification Screen",
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
+                    const Center(child: DudeLogo(height: 54)),
+                    const SizedBox(height: 28),
+                    _stepLabel("STEP 1 OF 2  •  GOVERNMENT ID"),
+                    const SizedBox(height: 14),
+                    const Text(
+                      "Let’s verify it’s really you",
+                      style: TextStyle(
                         color: Colors.white,
+                        fontSize: 28,
+                        height: 1.15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.7,
                       ),
                     ),
-
-                    const SizedBox(height: 8),
-
-                    Center(
-                      child: AppText(
-                        "Complete verification to activate your account.",
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Add one government-issued ID. Dude uses it only to keep the community safe and authentic.",
+                      style: TextStyle(
+                        color: DudeTheme.textSubtle,
                         fontSize: 15,
-                        color: const Color(0xFFc7c7cc),
-                        maxLines: 2,
-                        textAlign: TextAlign.center,
+                        height: 1.5,
                       ),
                     ),
-
-                    const SizedBox(height: 32),
-
-                    // ─── ID Type Dropdown ──────────────────────────────────────
-                    AppText(
-                      "ID Type:",
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () => _showIDTypeDropdown(context),
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: idTypeController,
-                          readOnly: true,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: "Select ID Type",
-                            hintStyle: const TextStyle(
-                              color: Color(0xFFc7c7cc),
-                            ),
-                            filled: true,
-                            fillColor: const Color(
-                              0xFFbdd534,
-                            ).withOpacity(0.06),
-                            suffixIcon: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: SvgPicture.asset(
-                                "assets/Images/drop.svg",
-                                width: 20,
-                                height: 20,
-                                color: Color(0xFFbdd534),
+                    const SizedBox(height: 28),
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: DudeTheme.surface.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: DudeTheme.borderSubtle),
+                        boxShadow: DudeTheme.softShadow,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _fieldLabel("ID type"),
+                          const SizedBox(height: 9),
+                          GestureDetector(
+                            onTap: () => _showIDTypeDropdown(context),
+                            child: AbsorbPointer(
+                              child: TextField(
+                                controller: idTypeController,
+                                readOnly: true,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                decoration: _inputDecoration("Select an ID")
+                                    .copyWith(
+                                      suffixIcon: const Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: DudeTheme.accentBright,
+                                      ),
+                                    ),
                               ),
                             ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
-                            ),
                           ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ─── ID Number with Real-time Validation ──────────────────
-                    AppText(
-                      "ID Number:",
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: idNumberController,
-                      keyboardType: _selectedIdType == "Aadhar Card"
-                          ? TextInputType.text
-                          : TextInputType.text,
-                      textCapitalization: _selectedIdType == "Pan Card"
-                          ? TextCapitalization.characters
-                          : TextCapitalization.none,
-                      maxLength: _selectedIdType == "Aadhar Card" ? 12 : 10,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: _selectedIdType == "Aadhar Card"
-                            ? "Enter 12-digit Aadhaar"
-                            : "Enter PAN (e.g., ABCDE1234F)",
-                        hintStyle: const TextStyle(color: Color(0xFFc7c7cc)),
-                        filled: true,
-                        fillColor: const Color(0xFFbdd534).withOpacity(0.06),
-                        errorText: _idNumberError,
-                        errorStyle: const TextStyle(color: Colors.redAccent),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
+                          const SizedBox(height: 22),
+                          _fieldLabel("ID number"),
+                          const SizedBox(height: 9),
+                          TextField(
+                            controller: idNumberController,
+                            keyboardType: _selectedIdType == "Aadhaar Card"
+                                ? TextInputType.number
+                                : TextInputType.text,
+                            textCapitalization: _selectedIdType == "PAN Card"
+                                ? TextCapitalization.characters
+                                : TextCapitalization.none,
+                            maxLength: _selectedIdType == "Aadhaar Card"
+                                ? 12
+                                : 10,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1,
+                            ),
+                            decoration:
+                                _inputDecoration(
+                                  _selectedIdType == "Aadhaar Card"
+                                      ? "Enter your 12-digit Aadhaar"
+                                      : "Example: ABCDE1234F",
+                                ).copyWith(
+                                  errorText: _idNumberError,
+                                  counterText: "",
+                                ),
+                          ),
+                        ],
                       ),
                     ),
 
@@ -288,31 +263,8 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
                       ),
                     ],
 
-                    const SizedBox(height: 24),
-
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AppText(
-                          "Note:",
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: AppText(
-                            "Your documents are secure and used only for verification purposes.",
-                            fontWeight: FontWeight.w400,
-                            fontSize: 13,
-                            color: Color(0xFFc7c7cc),
-                            maxLines: 3,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 20),
+                    _privacyNote(),
                   ],
                 ),
               ),
@@ -322,16 +274,21 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
           // ─── Bottom Continue Button (disabled until valid) ────────────────
           bottomNavigationBar: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(10.0),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: GestureDetector(
                 onTap: vm.isVerifyingId || !_isFormValid
                     ? null
                     : () async {
                         final success = await vm.verifyStaffId(
-                          idType: idTypeController.text.trim(),
+                          // Keep the API's existing values while showing the
+                          // correctly styled names in the UI.
+                          idType: _selectedIdType == "Aadhaar Card"
+                              ? "Aadhar Card"
+                              : "Pan Card",
                           idNumber: idNumberController.text.trim(),
                         );
 
+                        if (!context.mounted) return;
                         if (success) {
                           bondNavigator.newPage(
                             context,
@@ -344,17 +301,15 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
                         }
                       },
                 child: Container(
-                  height: 52,
+                  height: 56,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(16),
                     gradient: (vm.isVerifyingId || !_isFormValid)
                         ? const LinearGradient(
-                            colors: [Colors.grey, Colors.blueGrey],
+                            colors: [Color(0xFF452331), Color(0xFF301923)],
                           )
-                        : const LinearGradient(
-                            colors: [Color(0xFFaecc01), Color(0xFFaecc01)],
-                          ),
+                        : DudeTheme.premiumAccentGradient,
                   ),
                   child: Center(
                     child: vm.isVerifyingId
@@ -367,9 +322,9 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
                             ),
                           )
                         : const Text(
-                            "Continue  →",
+                            "Continue to selfie  →",
                             style: TextStyle(
-                              color: Colors.black,
+                              color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
@@ -383,4 +338,84 @@ class _ProfileVerficationScreenState extends State<ProfileVerficationScreen> {
       },
     );
   }
+
+  Widget _stepLabel(String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(
+      color: DudeTheme.accentDim,
+      borderRadius: BorderRadius.circular(30),
+      border: Border.all(color: DudeTheme.accent.withValues(alpha: 0.35)),
+    ),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: DudeTheme.accentBright,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.7,
+      ),
+    ),
+  );
+
+  Widget _fieldLabel(String text) => Text(
+    text,
+    style: const TextStyle(
+      color: Colors.white,
+      fontSize: 14,
+      fontWeight: FontWeight.w700,
+    ),
+  );
+
+  InputDecoration _inputDecoration(String hint) => InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(color: DudeTheme.textSubtle, letterSpacing: 0),
+    filled: true,
+    fillColor: DudeTheme.surfaceRaised,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: DudeTheme.borderSubtle),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: DudeTheme.accent, width: 1.4),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: DudeTheme.danger),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: DudeTheme.danger, width: 1.4),
+    ),
+  );
+
+  Widget _privacyNote() => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: DudeTheme.accentDim.withValues(alpha: 0.7),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: const Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.lock_outline_rounded,
+          color: DudeTheme.accentBright,
+          size: 20,
+        ),
+        SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            "Your ID details are encrypted and used only for identity verification.",
+            style: TextStyle(
+              color: DudeTheme.textMuted,
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }

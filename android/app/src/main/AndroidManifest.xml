@@ -28,6 +28,10 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
+    <!-- Allows asking the user to exempt the app from battery optimization so
+         FCM / Zego offline call pushes are reliably delivered in killed state -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <!-- CRITICAL for Android 14+ — allows app to manage its own full-screen intent -->
     <uses-permission android:name="android.permission.MANAGE_APP_USE_FULL_SCREEN_INTENTS"
         tools:ignore="ProtectedPermissions" />
@@ -40,6 +44,13 @@
         android:allowBackup="false"
         android:showOnLockScreen="true"
         android:requestLegacyExternalStorage="true">
+
+        <!-- For killed-state call reliability, route MESSAGING_EVENT to ZEGO ZPNs
+             service. FlutterFire's default FirebaseMessagingService competes for
+             the same intent and can steal offline call pushes on some devices. -->
+        <service
+            android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingService"
+            tools:node="remove" />
 
         <!-- MAIN ACTIVITY -->
         <activity
@@ -116,33 +127,11 @@
             android:exported="false"
             android:stopWithTask="true" />
 
-        <!-- FIREBASE MESSAGING — custom handler runs first (priority 200) -->
-        <service
-            android:name=".MyFirebaseMessagingService"
-            android:exported="false">
-            <intent-filter android:priority="200">
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
-        <!-- Zego FCM handler — runs after ours (priority 100) -->
-        <service
-            android:name="com.zegocloud.uikit.prebuilt.call.ZegoFirebaseMessagingService"
-            android:exported="false">
-            <intent-filter android:priority="100">
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
-        <!-- ZEGO -->
-        <receiver
-            android:name="com.zegocloud.uikit.prebuilt.call.ZegoCallReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.zegocloud.uikit.ACTION_CALL_INVITATION" />
-            </intent-filter>
-        </receiver>
-
+        <!-- ════════════════════════════════════════════════════════════════
+             FIREBASE MESSAGING / ZEGO OFFLINE CALLS
+             DO NOT declare bogus ZEGO FCM classes here — ZPNs auto-registers
+             im.zego.zpns_android_plugin_fcm.FCMMessageService from the AAR.
+        ═════════════════════════════════════════════════════════════════════ -->
         <service
             android:name="im.zego.zim.internal.ZIMAndroidNotificationService"
             android:exported="false"
