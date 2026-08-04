@@ -41,7 +41,7 @@ class NotificationService {
     if (_isInitialized) return;
 
     const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('ic_stat_notify');
 
     const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings(
@@ -89,6 +89,9 @@ class NotificationService {
           priority: Priority.high,
           playSound: true,
           enableVibration: true,
+          icon: 'ic_stat_notify',
+          largeIcon: DrawableResourceAndroidBitmap('ic_promo_notify'),
+          color: Color(0xFFF2608C),
         );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
@@ -137,26 +140,47 @@ class NotificationService {
 
   static Future<void> navigateToChatData(Map<String, dynamic> data) async {
     try {
-      final String id = _stringValue(data, [
-        'id',
+      final String conversationId = _stringValue(data, [
         'conversationID',
         'conversationId',
         'conversation_id',
-        'senderUserID',
-        'senderId',
-        'sender_id',
-        'fromUserID',
-        'from',
       ]);
-      if (id.isEmpty) return;
 
       final bool isStaff =
           data['isStaff'] == true ||
           _stringValue(data, ['role', 'receiverRole']).toLowerCase() == 'staff';
+      final String peerMemberId = _stringValue(
+        data,
+        isStaff
+            ? [
+                'userMemberID',
+                'senderMemberID',
+                'senderUserID',
+                'senderId',
+                'sender_id',
+                'fromUserID',
+                'from',
+                'id',
+              ]
+            : [
+                'staffMemberID',
+                'senderMemberID',
+                'senderId',
+                'sender_id',
+                'fromUserID',
+                'from',
+                'id',
+              ],
+      );
+      if (conversationId.isEmpty && peerMemberId.isEmpty) return;
+
+      final routeConversationId = conversationId.isNotEmpty
+          ? conversationId
+          : peerMemberId;
       final String name =
           _stringValue(data, ['name', 'senderName', 'title']).isNotEmpty
           ? _stringValue(data, ['name', 'senderName', 'title'])
-          : id;
+          : peerMemberId;
       await _waitForNavigator();
       final navigator = navigatorKey.currentState;
       final context = navigatorKey.currentContext;
@@ -170,10 +194,10 @@ class NotificationService {
           if (staffVM.staffList.isEmpty) {
             await staffVM.fetchStaffDetails();
           }
-          staffId = staffVM.getStaffIdByMemberId(id) ?? id;
+          staffId = staffVM.getStaffIdByMemberId(peerMemberId) ?? peerMemberId;
         } catch (e) {
           debugPrint('⚠️ Could not resolve staff id for notification: $e');
-          staffId = id;
+          staffId = peerMemberId;
         }
       }
 
@@ -181,13 +205,13 @@ class NotificationService {
         MaterialPageRoute(
           builder: (context) => isStaff
               ? staffChatDetailScreen(
-                  conversationID: id,
-                  peerMemberID: id,
+                  conversationID: routeConversationId,
+                  peerMemberID: peerMemberId,
                   name: name,
                 )
               : ChatDetailScreen(
-                  conversationID: id,
-                  peerMemberID: id,
+                  conversationID: routeConversationId,
+                  peerMemberID: peerMemberId,
                   name: name,
                   staffId: staffId,
                 ),

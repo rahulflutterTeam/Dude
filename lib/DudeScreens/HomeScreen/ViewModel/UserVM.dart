@@ -47,10 +47,12 @@ class UserViewModel extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   bool _isRetryingPendingBalanceUpdates = false;
+  bool _lastBalanceUpdateQueued = false;
 
   UserProfile? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  bool get lastBalanceUpdateQueued => _lastBalanceUpdateQueued;
 
   // ─── Fetch user details ─────────────────────────────────────────────────
 
@@ -82,6 +84,7 @@ class UserViewModel extends ChangeNotifier {
     String callType, [
     String? callID,
   ]) async {
+    _lastBalanceUpdateQueued = false;
     try {
       _isLoading = true;
       notifyListeners();
@@ -117,6 +120,7 @@ class UserViewModel extends ChangeNotifier {
           callType: callType,
           callID: callID,
         );
+        _lastBalanceUpdateQueued = true;
         debugPrint("📌 Queued balance update for retry when internet returns");
       } else {
         Utils.snackBarErrorMessage("Failed to update balance: $e");
@@ -220,14 +224,22 @@ class UserViewModel extends ChangeNotifier {
       prefs.getString(_pendingBalanceUpdatesKey),
     );
 
-    pending.add({
+    final update = <String, dynamic>{
       'staffId': staffId,
       'staffAmount': staffAmount.toString(),
       'callDuration': callDuration,
       'callType': callType,
       if (callID != null && callID.isNotEmpty) 'callID': callID,
       'queuedAt': DateTime.now().toIso8601String(),
-    });
+    };
+    final existingIndex = callID == null || callID.isEmpty
+        ? -1
+        : pending.indexWhere((item) => item['callID']?.toString() == callID);
+    if (existingIndex == -1) {
+      pending.add(update);
+    } else {
+      pending[existingIndex] = update;
+    }
 
     await _savePendingBalanceUpdates(prefs, pending);
   }
@@ -316,7 +328,7 @@ class UserViewModel extends ChangeNotifier {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${await AuthService.getToken()}',
-        },
+},
         body: jsonEncode(body),
       );
 

@@ -305,7 +305,7 @@ class CommunityGuidelinesScreen extends StatelessWidget {
                       const Text(
                         "Users may report violations through:\n"
                         "• In-App Reporting\n"
-                        "• dudeofficial@gmail.com",
+                        "• dudeappofficial@gmail.com",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 15.5,
@@ -337,7 +337,7 @@ class CommunityGuidelinesScreen extends StatelessWidget {
                           "Plot No. 1, Velan Nagar, Lakshmi Complex,\n"
                           "Sengunram Nagar, Madurai – 625004,\n"
                           "Tamil Nadu, India.\n\n"
-                          "Email: dudeofficial@gmail.com",
+                          "Email: dudeappofficial@gmail.com",
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white70,

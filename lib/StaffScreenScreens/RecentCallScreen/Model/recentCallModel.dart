@@ -34,6 +34,7 @@ class CallHistoryItem {
   final String staffName;
   final String staffMemberID;
   final String? staffImage; // ← NEW FIELD (nullable URL string)
+  final bool missedCall;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int v;
@@ -54,6 +55,7 @@ class CallHistoryItem {
     required this.staffName,
     required this.staffMemberID,
     this.staffImage, // ← added here (nullable)
+    required this.missedCall,
     required this.createdAt,
     required this.updatedAt,
     required this.v,
@@ -76,6 +78,7 @@ class CallHistoryItem {
       staffName: json['staffName'] as String? ?? 'Unknown',
       staffMemberID: json['staffMemberID'] as String? ?? '',
       staffImage: json['staffImage'] as String?, // ← added parsing
+      missedCall: _boolValue(json['missedCall']),
       createdAt: HistoryTimeFormatter.parseLocal(json['createdAt']),
       updatedAt: HistoryTimeFormatter.parseLocal(json['updatedAt']),
       v: json['__v'] as int? ?? 0,
@@ -93,8 +96,14 @@ class CallHistoryItem {
     return 0;
   }
 
+  static bool _boolValue(dynamic value) {
+    if (value is bool) return value;
+    return value?.toString().toLowerCase().trim() == 'true';
+  }
+
   // Helper to determine status (for UI)
   CallStatus get status {
+    if (missedCall) return CallStatus.missed;
     if (callDuration == "-1") return CallStatus.missed;
     return CallStatus.completed; // or outgoing/incoming based on logic
   }

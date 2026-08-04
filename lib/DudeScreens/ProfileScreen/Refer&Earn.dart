@@ -108,7 +108,9 @@ class _ReferEarnScreenState extends State<ReferEarnScreen>
                 opacity: _fadeAnim,
                 child: vm.isLoading
                     ? const Center(
-                        child: CircularProgressIndicator(color: DudeTheme.accent),
+                        child: CircularProgressIndicator(
+                          color: DudeTheme.accent,
+                        ),
                       )
                     : vm.errorMessage != null
                     ? _buildErrorState(vm)
@@ -138,7 +140,7 @@ class _ReferEarnScreenState extends State<ReferEarnScreen>
             onPressed: () => vm.fetchReferralDashboard(),
             style: ElevatedButton.styleFrom(
               backgroundColor: DudeTheme.accent,
-              foregroundColor: Colors.black,
+              foregroundColor: Colors.white,
             ),
             child: const Text('Retry Now'),
           ),
@@ -227,7 +229,11 @@ class _ReferEarnScreenState extends State<ReferEarnScreen>
           const SizedBox(height: 8),
           const Text(
             'Invite your best friends to Dude and unlock exclusive rewards together.',
-            style: TextStyle(color: DudeTheme.textSubtle, fontSize: 14, height: 1.5),
+            style: TextStyle(
+              color: DudeTheme.textSubtle,
+              fontSize: 14,
+              height: 1.5,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -279,7 +285,10 @@ class _ReferEarnScreenState extends State<ReferEarnScreen>
                 fontWeight: FontWeight.bold,
               ),
             ),
-            Text(label, style: const TextStyle(color: DudeTheme.textSubtle, fontSize: 12)),
+            Text(
+              label,
+              style: const TextStyle(color: DudeTheme.textSubtle, fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -292,7 +301,9 @@ class _ReferEarnScreenState extends State<ReferEarnScreen>
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [DudeTheme.accentDim, DudeTheme.surface]),
+          gradient: const LinearGradient(
+            colors: [DudeTheme.accentDim, DudeTheme.surface],
+          ),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: DudeTheme.accent.withValues(alpha: 0.4),
@@ -357,12 +368,12 @@ class _ReferEarnScreenState extends State<ReferEarnScreen>
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: DudeTheme.accent,
+                        gradient: DudeTheme.premiumAccentGradient,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
                         Icons.copy_all_rounded,
-                        color: Colors.black,
+                        color: Colors.white,
                         size: 20,
                       ),
                     ),
@@ -386,7 +397,15 @@ class _ReferEarnScreenState extends State<ReferEarnScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.asset("assets/Images/paircoin.png"),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset(
+                          'assets/Images/dudecoin.jpg',
+                          height: 28,
+                          width: 28,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         '${data?.totalCoinsEarned ?? 0}',
@@ -425,31 +444,23 @@ class _ReferEarnScreenState extends State<ReferEarnScreen>
             child: Container(
               height: 56,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [DudeTheme.accent, Color(0xFF9CC21C)],
-                ),
+                gradient: DudeTheme.premiumAccentGradient,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: DudeTheme.accent.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+                boxShadow: DudeTheme.accentGlowShadow(blur: 14, spread: -4),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.ios_share_rounded,
-                    color: Colors.black,
+                    color: Colors.white,
                     size: 20,
                   ),
-                  const SizedBox(width: 12),
-                  const Text(
+                  SizedBox(width: 12),
+                  Text(
                     'Share Invite',
                     style: TextStyle(
-                      color: Colors.black,
+                      color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -569,7 +580,7 @@ class _ReferEarnScreenState extends State<ReferEarnScreen>
                   child: Text(
                     num,
                     style: const TextStyle(
-                      color: Colors.black,
+                      color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -600,7 +611,10 @@ class _ReferEarnScreenState extends State<ReferEarnScreen>
                 ),
                 Text(
                   desc,
-                  style: const TextStyle(color: DudeTheme.textSubtle, fontSize: 13),
+                  style: const TextStyle(
+                    color: DudeTheme.textSubtle,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 20),
               ],
@@ -641,7 +655,11 @@ class _ReferEarnScreenState extends State<ReferEarnScreen>
             const SizedBox(height: 10),
             const Text(
               '• Bonus coins credited after friend completes the minimum required purchase\n• Minimum wallet deposit required for reward eligibility\n• Bonus credited within 24 hours\n• Bonus coins are non-withdrawable',
-              style: TextStyle(color: DudeTheme.textSubtle, fontSize: 11, height: 1.6),
+              style: TextStyle(
+                color: DudeTheme.textSubtle,
+                fontSize: 11,
+                height: 1.6,
+              ),
             ),
           ],
         ),

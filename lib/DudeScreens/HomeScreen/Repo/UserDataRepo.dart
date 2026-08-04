@@ -159,6 +159,35 @@ class UserRepository {
     }
   }
 
+  Future<bool> reportMissedCall({
+    required String staffId,
+    required String callType,
+  }) async {
+    try {
+      final body = {"staffId": staffId, "callType": callType};
+
+      final response = await _apiService.postResponseV3(
+        ApiEndPoints().reportMissedCall,
+        body: body,
+      );
+
+      if (kDebugMode) {
+        print("Report Missed Call Response: $response");
+      }
+
+      if (response is Map<String, dynamic>) {
+        if (response['status'] == true) return true;
+        throw Exception(
+          response['message']?.toString() ?? "Failed to report missed call",
+        );
+      }
+
+      throw Exception("Unexpected response format");
+    } catch (e) {
+      throw Exception("UserRepository reportMissedCall error: $e");
+    }
+  }
+
   Future<DeleteAccountResponse> deleteAccount() async {
     try {
       final response = await _apiService.getResponseV2(

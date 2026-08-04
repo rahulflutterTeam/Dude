@@ -1,5 +1,8 @@
 // lib/Services/ZegoCallService.dart
 
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/DudeScreens/HomeScreen/call_balance_overlay.dart';
 import 'package:dude/DudeScreens/HomeScreen/callService.dart';
@@ -20,6 +23,41 @@ class ZegoCallService {
 
   bool get isInitialized => _isInitialized;
   String? get currentUserId => _currentUserId;
+
+  Map<String, dynamic> _decodeCustomData(String customData) {
+    if (customData.isEmpty) return {};
+
+    try {
+      final decoded = jsonDecode(customData);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (e) {
+      debugPrint("Failed to decode call customData: $e");
+    }
+
+    return {};
+  }
+
+  void _reportMissedCall({
+    required String callID,
+    String customData = '',
+    bool? isVideoCall,
+  }) {
+    final data = _decodeCustomData(customData);
+    final staffId = data['staff_id']?.toString();
+    final callType =
+        data['call_type']?.toString() ??
+        (isVideoCall == true ? "video" : "audio");
+
+    unawaited(
+      CallService().reportMissedCall(
+        staffId: staffId,
+        callType: callType,
+        callID: callID,
+      ),
+    );
+  }
 
   Future<void> ensureInitializedForCaller({
     required String userId,
@@ -67,9 +105,9 @@ class ZegoCallService {
     // debugPrint("🔌 Initializing Zego for user: $userId");
 
     await ZegoUIKitPrebuiltCallInvitationService().init(
-      appID: 1545531832,
+      appID: 474972896,
       appSign:
-          "9c91e452ef3e7c19b88c8a332ca0b6caf18bfd2f2232e7b37239bd98a81ebf0d",
+          "e950eba53072e23f8cdd3f0e2341f60cb240300059d8e613c53aafdd5d844ad3",
       userID: userId,
       userName: userName,
       plugins: [ZegoUIKitSignalingPlugin()],
@@ -86,11 +124,13 @@ class ZegoCallService {
             },
         onOutgoingCallDeclined:
             (String callID, ZegoCallUser callee, String customData) {
+              _reportMissedCall(callID: callID, customData: customData);
               CallService().resetCall();
               Utils.snackBarErrorMessage("Call was declined");
             },
         onOutgoingCallTimeout:
             (String callID, List<ZegoCallUser> callees, bool isVideoCall) {
+              _reportMissedCall(callID: callID, isVideoCall: isVideoCall);
               CallService().resetCall();
               Utils.snackBarErrorMessage("No response from user");
             },
@@ -100,7 +140,7 @@ class ZegoCallService {
         androidNotificationConfig: ZegoAndroidNotificationConfig(
           channelID: "zego_call_channel",
           channelName: "Incoming Calls",
-          sound: "zego_incoming",
+          sound: "duderingtone",
           icon: "ic_stat_notify",
           vibrate: true,
           callIDVisibility: true,
@@ -110,7 +150,7 @@ class ZegoCallService {
             channelID: "zego_call_channel",
             channelName: "Incoming Calls",
             icon: "ic_stat_notify",
-            sound: "zego_incoming",
+            sound: "duderingtone",
             vibrate: true,
           ),
           missedCallChannel: ZegoCallAndroidNotificationChannelConfig(
@@ -124,6 +164,10 @@ class ZegoCallService {
         iOSNotificationConfig: ZegoIOSNotificationConfig(
           isSandboxEnvironment: false,
         ),
+      ),
+      ringtoneConfig: ZegoCallRingtoneConfig(
+        incomingCallPath: 'assets/audio/duderingtone.mp3',
+        outgoingCallPath: 'assets/audio/duderingtone.mp3',
       ),
       events: events,
       uiConfig: ZegoCallInvitationUIConfig(
@@ -171,7 +215,8 @@ class ZegoCallService {
         config
           ..turnOnCameraWhenJoining = false
           ..turnOnMicrophoneWhenJoining = false
-          ..useSpeakerWhenJoining = true;
+          ..useSpeakerWhenJoining = true
+          ..rootNavigator = true;
         return config;
       },
     );

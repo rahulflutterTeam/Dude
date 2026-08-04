@@ -211,7 +211,7 @@ class _CallBalanceOverlayState extends State<CallBalanceOverlay> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _InfoPill(
-                    icon: 'assets/Images/paircoin.png',
+                    icon: 'assets/Images/dudecoin.jpg',
                     label: '${remainingBalance.clamp(0, initialBalance)}',
                   ),
                   const SizedBox(width: 8),

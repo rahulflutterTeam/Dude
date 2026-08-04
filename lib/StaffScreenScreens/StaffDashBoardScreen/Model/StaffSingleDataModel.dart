@@ -50,6 +50,7 @@ class StaffSingleProfile {
   final double? staffEarned;
   final String? isApproved;
   final String? callType; // ✅ NEW FIELD
+  final bool? isOnline;
 
   StaffSingleProfile({
     required this.id,
@@ -78,9 +79,27 @@ class StaffSingleProfile {
     this.staffEarned,
     this.isApproved,
     this.callType, // ✅ NEW FIELD
+    this.isOnline,
   });
 
   factory StaffSingleProfile.fromJson(Map<String, dynamic> json) {
+    bool? boolFromJson(dynamic value) {
+      if (value is bool) return value;
+      final normalized = value?.toString().toLowerCase();
+      if (normalized == 'true' ||
+          normalized == 'online' ||
+          normalized == 'available' ||
+          normalized == 'active') {
+        return true;
+      }
+      if (normalized == 'false' ||
+          normalized == 'offline' ||
+          normalized == 'inactive') {
+        return false;
+      }
+      return null;
+    }
+
     return StaffSingleProfile(
       id: json['_id']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
@@ -116,6 +135,9 @@ class StaffSingleProfile {
       staffEarned: (json['staffEarned'] as num?)?.toDouble() ?? 0.0,
       isApproved: json['isApproved']?.toString(),
       callType: json['callType']?.toString(), // ✅ NEW FIELD
+      isOnline: boolFromJson(
+        json['isOnline'] ?? json['online'] ?? json['status'],
+      ),
     );
   }
 }
@@ -132,12 +154,30 @@ class StaffSingleDataResponse {
   });
 
   factory StaffSingleDataResponse.fromJson(Map<String, dynamic> json) {
+    Map<String, dynamic>? staffDataFromJson(dynamic value) {
+      if (value is Map<String, dynamic>) return value;
+      if (value is Map) return Map<String, dynamic>.from(value);
+      if (value is List && value.isNotEmpty) {
+        final first = value.first;
+        if (first is Map<String, dynamic>) return first;
+        if (first is Map) return Map<String, dynamic>.from(first);
+      }
+      return null;
+    }
+
+    final rawData = json['data'];
+    final data =
+        staffDataFromJson(rawData) ??
+        staffDataFromJson(json['staff']) ??
+        staffDataFromJson(json['staffData']) ??
+        staffDataFromJson(
+          rawData is Map ? (rawData['staff'] ?? rawData['staffData']) : null,
+        );
+
     return StaffSingleDataResponse(
       status: json['status'] == true,
       message: json['message']?.toString() ?? 'Failed to fetch staff details',
-      data: json['data'] != null
-          ? StaffSingleProfile.fromJson(json['data'])
-          : null,
+      data: data != null ? StaffSingleProfile.fromJson(data) : null,
     );
   }
 }

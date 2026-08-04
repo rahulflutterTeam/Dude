@@ -21,8 +21,7 @@ class AccountSettingsScreen extends StatefulWidget {
 
 class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   Future<void> _openPrivacyPolicy() async {
-    const String privacyUrl =
-        "https://www.pair-ever.com/privacy-policy"; // Change this to your actual URL
+    const String privacyUrl = "https://dudee.online/privacy";
 
     final Uri url = Uri.parse(privacyUrl);
     if (await canLaunchUrl(url)) {
@@ -39,9 +38,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: DudeTheme.backgroundGradient,
-        ),
+        decoration: const BoxDecoration(gradient: DudeTheme.backgroundGradient),
         child: SafeArea(
           child: Column(
             children: [
@@ -165,7 +162,11 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           gradient: const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [DudeTheme.surface, DudeTheme.surfaceRaised, DudeTheme.surfaceRaised],
+            colors: [
+              DudeTheme.surface,
+              DudeTheme.surfaceRaised,
+              DudeTheme.surfaceRaised,
+            ],
           ),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: DudeTheme.surfaceRaised, width: 1),

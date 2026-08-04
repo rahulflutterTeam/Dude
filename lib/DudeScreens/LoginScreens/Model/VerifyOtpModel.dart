@@ -4,12 +4,14 @@ class VerifyOtpResponse {
   final String? token;
   final String message;
   final UserData? user;
+  final bool newUser;
 
   VerifyOtpResponse({
     required this.status,
     this.token,
     required this.message,
     this.user,
+    required this.newUser,
   });
 
   factory VerifyOtpResponse.fromJson(Map<String, dynamic> json) {
@@ -18,7 +20,14 @@ class VerifyOtpResponse {
       token: json['token']?.toString(),
       message: json['message']?.toString() ?? 'Verification failed',
       user: json['user'] != null ? UserData.fromJson(json['user']) : null,
+      newUser: _parseBool(json['newUser']),
     );
+  }
+
+  static bool _parseBool(dynamic value) {
+    if (value is bool) return value;
+    return value?.toString().toLowerCase() == 'true' ||
+        value?.toString() == '1';
   }
 
   bool get isSuccess => status && token != null && token!.isNotEmpty;
@@ -31,6 +40,7 @@ class UserData {
   final String memberID;
   final String role;
   final String affiliateStatus;
+  final String appName;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -43,6 +53,7 @@ class UserData {
     required this.memberID,
     required this.role,
     required this.affiliateStatus,
+    required this.appName,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -55,6 +66,7 @@ class UserData {
       memberID: json['memberID']?.toString() ?? '',
       role: json['role']?.toString() ?? '',
       affiliateStatus: json['affiliateStatus']?.toString() ?? '',
+      appName: json['appName']?.toString() ?? '0',
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),

@@ -270,7 +270,7 @@ class BackendChatService {
     if (!emitted) throw Exception('Socket is not connected');
   }
 
-  Future<void> sendMessageSocket(
+  Future<BackendChatMessage?> sendMessageSocket(
     String conversationId,
     String message, {
     Map<String, dynamic>? notificationData,
@@ -283,8 +283,21 @@ class BackendChatService {
       'messageType': 'text',
       if (notificationData != null) ...notificationData,
     };
-    final emitted = _socketService.emit('chat_send_message', payload);
-    if (!emitted) throw Exception('Socket is not connected');
+    final acknowledgement = await _socketService.emitWithAck(
+      'chat_send_message',
+      payload,
+    );
+    final ackMap = _asMap(acknowledgement);
+    if (ackMap != null && ackMap['status'] == false) {
+      throw Exception(
+        _string(ackMap['message']).ifEmpty('Message delivery failed'),
+      );
+    }
+
+    final messageMap = _extractMessageMap(acknowledgement);
+    if (messageMap.isEmpty) return null;
+    final saved = BackendChatMessage.fromJson(messageMap);
+    return saved.message.isEmpty ? null : saved;
   }
 
   BackendChatUnsubscribe onNewMessage(BackendChatMessageListener listener) {
@@ -362,13 +375,13 @@ class BackendChatService {
 
     late http.Response response;
     if (method == 'GET') {
-      response = await http.get(uri, headers: headers);
+      response = await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 20));
     } else {
-      response = await http.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(body ?? {}),
-      );
+      response = await http
+          .post(uri, headers: headers, body: jsonEncode(body ?? {}))
+          .timeout(const Duration(seconds: 20));
     }
 
     final decoded = response.body.isEmpty

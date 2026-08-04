@@ -27,6 +27,7 @@ class FeeManagementData {
   static const String audioCallAmount = 'audio_call_amount';
   static const String videoCallAmount = 'video_call_amount';
   static const String messageAmount = 'message_amount';
+  static const String minimumWithdrawalAmount = 'minimum_withdrawal_amount';
 
   final List<FeeManagementItem> fees;
   final List<FeeManagementItem> list;

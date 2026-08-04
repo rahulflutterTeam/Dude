@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:dude/APIService/Remote/AppException.dart';
+import 'package:dude/APIService/Remote/network/ApiEndPoints.dart';
 import 'package:dude/APIService/Remote/network/BaseApiService.dart'
     show BaseApiService;
 import 'package:dude/DudeScreens/AuthService.dart';
@@ -13,7 +14,9 @@ class NetworkApiService extends BaseApiService {
     print("efcdececdecc");
     // final String? token = await AuthService.getToken();
     dynamic responseJson;
-    Map<String, String> headers = {"Authorization": "Bearer "}; // add token
+    Map<String, String> headers = {
+      "Authorization": "Bearer ",
+    }; // add token
     try {
       print("evceadcc");
       final response = await http.get(
@@ -59,7 +62,10 @@ class NetworkApiService extends BaseApiService {
 
     final response = await http.get(
       uri,
-      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
     );
 
     if (response.statusCode == 200) {
@@ -195,7 +201,10 @@ class NetworkApiService extends BaseApiService {
 
     final response = await http.get(
       uri,
-      headers: {'Authorization': 'Bearer ', 'Accept': 'application/json'},
+      headers: {
+        'Authorization': 'Bearer ',
+        'Accept': 'application/json',
+      },
     );
 
     if (response.statusCode == 200) {
@@ -554,7 +563,10 @@ class NetworkApiService extends BaseApiService {
     // final token = await AuthService.getToken();
     final response = await http.put(
       Uri.parse(baseUrl + url),
-      headers: {"Content-Type": "application/json", "Authorization": "Bearer "},
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer ",
+},
       body: json.encode(body),
     );
     print("${response.body}");

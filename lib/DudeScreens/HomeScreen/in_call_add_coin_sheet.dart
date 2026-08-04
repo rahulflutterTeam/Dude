@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dude/Analytics/meta_app_events.dart';
 import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
 import 'package:dude/DudeScreens/HomeScreen/callService.dart';
 import 'package:dude/DudeScreens/WalletScreen/razorPayFlow/Model/amountAdminCoinModel.dart';
@@ -32,7 +33,8 @@ class _InCallAddCoinSheetBody extends StatefulWidget {
   const _InCallAddCoinSheetBody();
 
   @override
-  State<_InCallAddCoinSheetBody> createState() => _InCallAddCoinSheetBodyState();
+  State<_InCallAddCoinSheetBody> createState() =>
+      _InCallAddCoinSheetBodyState();
 }
 
 class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody> {
@@ -40,6 +42,8 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody> {
   final CFPaymentGatewayService _cashfree = CFPaymentGatewayService();
   final CoinCheckoutSession _checkoutSession = CoinCheckoutSession();
   int _pendingPackageCoins = 0;
+  int _pendingPurchaseAmount = 0;
+  bool _purchaseEventLogged = false;
 
   bool get _isCheckoutBusy => _checkoutSession.isActive;
 
@@ -113,6 +117,14 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody> {
       );
       if (!mounted || response?.data == null) return;
 
+      _pendingPurchaseAmount = amountInRupees;
+      _purchaseEventLogged = false;
+      MetaAppEvents.initiateCoinCheckout(
+        coins: coins,
+        amount: amountInRupees,
+        orderId: response?.data?.id ?? '',
+      );
+
       final activeProvider = gatewayKey.provider.toLowerCase();
       final gatewayOrder =
           response!.gatewayOrder ?? response.data!.gatewayOrder;
@@ -167,7 +179,7 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody> {
       _razorpay.open({
         'key': keyId,
         'amount': amountInRupees * 100,
-        'name': 'PairEver',
+        'name': 'Dude',
         'description': description,
         'order_id': orderId,
         'prefill': {'contact': phoneNumber, 'email': 'user@example.com'},
@@ -284,9 +296,26 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody> {
     );
   }
 
+  void _logConfirmedPurchase(ConfirmPurchaseResponse? response) {
+    if (response == null ||
+        !response.status ||
+        _pendingPurchaseAmount <= 0 ||
+        _purchaseEventLogged) {
+      return;
+    }
+    _purchaseEventLogged = true;
+    final creditedCoins = response.data?.creditedCoins ?? 0;
+    MetaAppEvents.purchaseCoins(
+      coins: creditedCoins > 0 ? creditedCoins : _pendingPackageCoins,
+      amount: _pendingPurchaseAmount,
+      orderId: response.data?.orderId ?? '',
+    );
+  }
+
   Future<void> _applyTopUp(ConfirmPurchaseResponse? confirmResponse) async {
     if (!mounted) return;
     if (confirmResponse == null || !confirmResponse.status) return;
+    _logConfirmedPurchase(confirmResponse);
 
     final userVM = context.read<UserViewModel>();
     final creditedCoins = _creditedCoinsFrom(confirmResponse);
@@ -296,7 +325,9 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody> {
       userVM.updateLocalCoinBalance(newBalance);
     }
 
-    final coinsToApply = creditedCoins > 0 ? creditedCoins : _pendingPackageCoins;
+    final coinsToApply = creditedCoins > 0
+        ? creditedCoins
+        : _pendingPackageCoins;
     if (coinsToApply > 0) {
       CallService().extendCallWithAddedCoins(coinsToApply);
     }
@@ -362,200 +393,205 @@ class _InCallAddCoinSheetBodyState extends State<_InCallAddCoinSheetBody> {
       child: Stack(
         children: [
           Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.72,
-        ),
-        decoration: const BoxDecoration(
-          color: Color(0xFF1C1426),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border(
-            top: BorderSide(color: Color(0xFFD2EA46), width: 1),
-          ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 10),
-              Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.72,
+            ),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1C1426),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              border: Border(
+                top: BorderSide(color: Color(0xFFD2EA46), width: 1),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Add Coins',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Stay on call — time extends instantly',
-                            style: TextStyle(
-                              color: Colors.white60,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    IconButton(
-                      onPressed: _isCheckoutBusy
-                          ? null
-                          : () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close_rounded, color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-              Flexible(
-                child: Consumer<WalletViewModel>(
-                  builder: (context, vm, _) {
-                    if (vm.isLoading && vm.paymentPackages.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xFFD2EA46),
-                          ),
-                        ),
-                      );
-                    }
-
-                    final packages = vm.paymentPackages;
-                    if (packages.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'No packages available',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                            const SizedBox(height: 12),
-                            TextButton(
-                              onPressed: vm.fetchPaymentStructure,
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      itemCount: packages.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final package = packages[index];
-                        final coins = int.tryParse(package.coin) ?? 0;
-                        final amount = package.offerAmount.toString() == '0'
-                            ? package.amount
-                            : int.tryParse(package.offerAmount) ??
-                                  package.amount;
-                        final extraTime = pricePerMin > 0
-                            ? _formatAddedTime(coins, pricePerMin)
-                            : '';
-
-                        return Material(
-                          color: const Color(0xFF2A1F38),
-                          borderRadius: BorderRadius.circular(12),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: _isCheckoutBusy
-                                ? null
-                                : () => _buyPackage(package),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 14,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Add Coins',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                              child: Row(
-                                children: [
-                                  Image.asset(
-                                    'assets/Images/paircoin.png',
-                                    width: 28,
-                                    height: 28,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                      Icons.monetization_on,
-                                      color: Color(0xFFD2EA46),
-                                    ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Stay on call — time extends instantly',
+                                style: TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _isCheckoutBusy
+                              ? null
+                              : () => Navigator.of(context).pop(),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Flexible(
+                    child: Consumer<WalletViewModel>(
+                      builder: (context, vm, _) {
+                        if (vm.isLoading && vm.paymentPackages.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFFD2EA46),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final packages = vm.paymentPackages;
+                        if (packages.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'No packages available',
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                                const SizedBox(height: 12),
+                                TextButton(
+                                  onPressed: vm.fetchPaymentStructure,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return ListView.separated(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          itemCount: packages.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final package = packages[index];
+                            final coins = int.tryParse(package.coin) ?? 0;
+                            final amount = package.offerAmount.toString() == '0'
+                                ? package.amount
+                                : int.tryParse(package.offerAmount) ??
+                                      package.amount;
+                            final extraTime = pricePerMin > 0
+                                ? _formatAddedTime(coins, pricePerMin)
+                                : '';
+
+                            return Material(
+                              color: const Color(0xFF2A1F38),
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: _isCheckoutBusy
+                                    ? null
+                                    : () => _buyPackage(package),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
                                   ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '$coins Coins',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
+                                  child: Row(
+                                    children: [
+                                      Image.asset(
+                                        'assets/Images/dudecoin.jpg',
+                                        width: 28,
+                                        height: 28,
+                                        errorBuilder: (_, __, ___) =>
+                                            const Icon(
+                                              Icons.monetization_on,
+                                              color: Color(0xFFD2EA46),
+                                            ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '$coins Coins',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            if (extraTime.isNotEmpty)
+                                              Text(
+                                                '$extraTime call time',
+                                                style: const TextStyle(
+                                                  color: Color(0xFFD2EA46),
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        '₹$amount',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      if (_isCheckoutBusy) ...[
+                                        const SizedBox(width: 10),
+                                        const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFFD2EA46),
                                           ),
                                         ),
-                                        if (extraTime.isNotEmpty)
-                                          Text(
-                                            '$extraTime call time',
-                                            style: const TextStyle(
-                                              color: Color(0xFFD2EA46),
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
                                       ],
-                                    ),
+                                    ],
                                   ),
-                                  Text(
-                                    '₹$amount',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  if (_isCheckoutBusy) ...[
-                                    const SizedBox(width: 10),
-                                    const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Color(0xFFD2EA46),
-                                      ),
-                                    ),
-                                  ],
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         );
                       },
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
           if (_checkoutSession.blockInteraction)
             Positioned.fill(
               child: AbsorbPointer(

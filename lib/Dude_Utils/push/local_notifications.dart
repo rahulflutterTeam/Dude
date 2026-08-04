@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+typedef LocalNotificationTapHandler =
+    Future<void> Function(Map<String, dynamic> payload);
 
 class LocalNotifications {
   LocalNotifications._();
@@ -12,6 +16,8 @@ class LocalNotifications {
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+  LocalNotificationTapHandler? _tapHandler;
+  String? _pendingTapPayload;
   final Map<String, DateTime> _recentNotifications = {};
   static const Duration _duplicateWindow = Duration(minutes: 2);
 
@@ -19,11 +25,18 @@ class LocalNotifications {
     if (_initialized) return;
     _initialized = true; // Set early to prevent re-entry
 
-    const android = AndroidInitializationSettings('ic_promo_notify');
+    const android = AndroidInitializationSettings('ic_stat_notify');
     const ios = DarwinInitializationSettings();
     const settings = InitializationSettings(android: android, iOS: ios);
 
-    await _plugin.initialize(settings);
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: _handleNotificationResponse,
+    );
+    final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+    if (launchDetails?.didNotificationLaunchApp == true) {
+      _pendingTapPayload = launchDetails?.notificationResponse?.payload;
+    }
 
     if (Platform.isAndroid) {
       final androidImpl = _plugin
@@ -55,8 +68,46 @@ class LocalNotifications {
         sound: RawResourceAndroidNotificationSound('message_tone'),
       );
 
+      // ── Wave channel (staff → online user) ────────────────────────────────
+      const waveChannel = AndroidNotificationChannel(
+        'wave_channel',
+        'Waves',
+        description: 'Staff wave notifications while you are online',
+        importance: Importance.high,
+        playSound: true,
+      );
+
       await androidImpl?.createNotificationChannel(promoChannel);
       await androidImpl?.createNotificationChannel(chatChannel);
+      await androidImpl?.createNotificationChannel(waveChannel);
+    }
+  }
+
+  void configureTapHandler(LocalNotificationTapHandler handler) {
+    _tapHandler = handler;
+    final pending = _pendingTapPayload;
+    _pendingTapPayload = null;
+    if (pending != null) _dispatchTapPayload(pending);
+  }
+
+  void _handleNotificationResponse(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    if (_tapHandler == null) {
+      _pendingTapPayload = payload;
+      return;
+    }
+    _dispatchTapPayload(payload);
+  }
+
+  void _dispatchTapPayload(String payload) {
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map) {
+        _tapHandler?.call(Map<String, dynamic>.from(decoded));
+      }
+    } catch (e) {
+      debugPrint('Invalid local notification payload: $e');
     }
   }
 
@@ -86,7 +137,7 @@ class LocalNotifications {
         sound: RawResourceAndroidNotificationSound('message_tone'),
         icon: 'ic_stat_notify',
         largeIcon: DrawableResourceAndroidBitmap('ic_promo_notify'),
-        color: Color(0xFFCC529F),
+        color: Color(0xFFF2608C),
       );
 
       const iosDetails = DarwinNotificationDetails(
@@ -138,7 +189,7 @@ class LocalNotifications {
         playSound: true,
         icon: 'ic_stat_notify',
         largeIcon: DrawableResourceAndroidBitmap('ic_promo_notify'),
-        color: Color(0xFFCC529F),
+        color: Color(0xFFF2608C),
       );
 
       const iosDetails = DarwinNotificationDetails(
@@ -161,6 +212,53 @@ class LocalNotifications {
       );
     } catch (e) {
       debugPrint('❌ [LocalNotifications] showPromo error: $e');
+    }
+  }
+
+  /// Staff wave while user is online — socket delivery only (no FCM).
+  Future<void> showWave({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await init();
+    try {
+      // Unique id each time so repeated waves always show.
+      final notificationId =
+          DateTime.now().millisecondsSinceEpoch.remainder(0x7fffffff);
+
+      const androidDetails = AndroidNotificationDetails(
+        'wave_channel',
+        'Waves',
+        channelDescription: 'Staff wave notifications while you are online',
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: true,
+        icon: 'ic_stat_notify',
+        largeIcon: DrawableResourceAndroidBitmap('ic_promo_notify'),
+        color: Color(0xFFF2608C),
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      const details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _plugin.show(
+        notificationId,
+        title,
+        body,
+        details,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('❌ [LocalNotifications] showWave error: $e');
     }
   }
 

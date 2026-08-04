@@ -1,6 +1,7 @@
 import 'package:dude/DudeScreens/AccountSettingScreen/AccountSetting.dart';
 import 'package:dude/DudeScreens/AuthService.dart';
 import 'package:dude/DudeScreens/BottomNavBar/BottomNavBar.dart';
+import 'package:dude/DudeScreens/HomeScreen/Socket.dart';
 import 'package:dude/DudeScreens/HomeScreen/callServic.dart';
 import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
 import 'package:dude/DudeScreens/ProfileScreen/EditProfile/EditProfileScreen.dart';
@@ -20,6 +21,7 @@ import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
+import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -69,7 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _launchEmail() async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
-      path: 'dudeofficial@gmail.com',
+      path: 'dudeappofficial@gmail.com',
       query: 'subject=Dude Support Request',
     );
     if (await canLaunchUrl(emailUri)) {
@@ -89,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _openPrivacyPolicy() async {
-    const String privacyUrl = "https://www.pair-ever.com/privacy-policy";
+    const String privacyUrl = "https://dudee.online/privacy";
     final Uri url = Uri.parse(privacyUrl);
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -120,7 +122,10 @@ class _ProfileScreenState extends State<ProfileScreen>
           return const Scaffold(
             backgroundColor: DudeTheme.background,
             body: Center(
-              child: CircularProgressIndicator(color: DudeTheme.accent, strokeWidth: 2),
+              child: CircularProgressIndicator(
+                color: DudeTheme.accent,
+                strokeWidth: 2,
+              ),
             ),
           );
         }
@@ -138,7 +143,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                     decoration: BoxDecoration(
                       color: DudeTheme.accentDim,
                       shape: BoxShape.circle,
-                      border: Border.all(color: DudeTheme.accent.withOpacity(0.3)),
+                      border: Border.all(
+                        color: DudeTheme.accent.withOpacity(0.3),
+                      ),
                     ),
                     child: const Icon(
                       Icons.person_off_outlined,
@@ -194,10 +201,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                   child: Column(
                     children: [
-                      PremiumStaggerItem(
-                        index: 0,
-                        child: _buildTopBar(),
-                      ),
+                      PremiumStaggerItem(index: 0, child: _buildTopBar()),
                       const SizedBox(height: 20),
                       PremiumStaggerItem(
                         index: 1,
@@ -358,7 +362,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ),
                     padding: const EdgeInsets.all(2),
                     child: ClipOval(
-                      child: user.image != null &&
+                      child:
+                          user.image != null &&
                               (user.image as String).isNotEmpty
                           ? Image.network(
                               user.image as String,
@@ -418,10 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      _infoChip(
-                        Icons.badge_outlined,
-                        'ID ${user.memberID}',
-                      ),
+                      _infoChip(Icons.badge_outlined, 'ID ${user.memberID}'),
                       _infoChip(
                         Icons.calendar_today_outlined,
                         'Since ${_formatJoinDate(user.createdAt)}',
@@ -525,15 +527,33 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      '${user.coinBalance ?? 0}',
-                      style: const TextStyle(
-                        color: DudeTheme.textOnAccent,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                        height: 1,
-                      ),
+                    Row(
+                      children: [
+                        ClipOval(
+                          child: SizedBox(
+                            height: 40,
+                            width: 40,
+                            child: Transform.scale(
+                              scale: 1.4,
+                              child: Image.asset(
+                                'assets/Images/dudecoin.jpg',
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${user.coinBalance ?? 0}',
+                          style: const TextStyle(
+                            color: DudeTheme.textOnAccent,
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            height: 1,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -666,9 +686,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               decoration: BoxDecoration(
                 color: action.color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(11),
-                border: Border.all(
-                  color: action.color.withValues(alpha: 0.35),
-                ),
+                border: Border.all(color: action.color.withValues(alpha: 0.35)),
               ),
               child: Icon(action.icon, color: action.color, size: 20),
             ),
@@ -757,6 +775,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
+
   String _formatJoinDate(dynamic date) {
     if (date == null) return '—';
     try {
@@ -954,7 +973,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                         Navigator.pop(context);
                         await ZegoCallService().uninitialize();
                         await AuthService.logout();
+                        SocketService().disconnect();
                         userVM.clearUser();
+                        if (context.mounted) {
+                          context.read<StaffViewModel>().clearStaffData();
+                        }
                         if (!context.mounted) return;
                         bondNavigator.newPageRemoveUntil(
                           context,
@@ -1005,7 +1028,11 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.verified_user_rounded, color: DudeTheme.accent, size: 16),
+                Icon(
+                  Icons.verified_user_rounded,
+                  color: DudeTheme.accent,
+                  size: 16,
+                ),
                 SizedBox(width: 6),
                 Text(
                   '100% Safe and private',

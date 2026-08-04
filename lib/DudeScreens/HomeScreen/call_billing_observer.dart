@@ -67,9 +67,11 @@ class _CallBillingObserverState extends State<CallBillingObserver> {
       callID,
     );
 
-    if (success) {
+    if (success || userVM.lastBalanceUpdateQueued) {
       userVM.updateLocalCoinBalance(newBalance);
-      await userVM.fetchUserDetails();
+      if (success) {
+        await userVM.fetchUserDetails();
+      }
     }
   }
 

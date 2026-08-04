@@ -445,4 +445,55 @@ class StaffRepository {
       throw Exception("StaffRepository getStaffFeeManagement error: $e");
     }
   }
+
+  Future<List<Map<String, dynamic>>> getOnlineUsers() async {
+    try {
+      final response = await _apiService.getResponseV2(
+        ApiEndPoints().staffOnlineUsers,
+      );
+
+      if (kDebugMode) {
+        print("Staff Online Users Response: $response");
+      }
+
+      if (response['status'] != true) {
+        throw Exception(
+          response['message']?.toString() ?? 'Failed to fetch online users',
+        );
+      }
+
+      final data = response['data'];
+      if (data is! List) return [];
+      return data
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    } catch (e) {
+      throw Exception("StaffRepository getOnlineUsers error: $e");
+    }
+  }
+
+  Future<Map<String, dynamic>> waveUser({required String userMemberID}) async {
+    try {
+      final response = await _apiService.postResponseV3(
+        ApiEndPoints().staffWaveUser,
+        body: {'userMemberID': userMemberID},
+      );
+
+      if (kDebugMode) {
+        print("Staff Wave User Response: $response");
+      }
+
+      if (response is Map && response['status'] == true) {
+        return Map<String, dynamic>.from(response);
+      }
+
+      throw Exception(
+        (response is Map ? response['message']?.toString() : null) ??
+            'Failed to send wave',
+      );
+    } catch (e) {
+      throw Exception("StaffRepository waveUser error: $e");
+    }
+  }
 }

@@ -23,8 +23,7 @@ class staffAccountSettingsScreen extends StatefulWidget {
 class _staffAccountSettingsScreenState
     extends State<staffAccountSettingsScreen> {
   Future<void> _openPrivacyPolicy() async {
-    const String privacyUrl =
-        "https://www.pair-ever.com/privacy-policy"; // Change this to your actual URL
+    const String privacyUrl = "https://dudee.online/privacy";
 
     final Uri url = Uri.parse(privacyUrl);
     if (await canLaunchUrl(url)) {
@@ -72,7 +71,9 @@ class _staffAccountSettingsScreenState
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Text("Account Settings", style: TextStyle(
+                    Text(
+                      "Account Settings",
+                      style: TextStyle(
                         color: DudeTheme.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
@@ -159,7 +160,9 @@ class _staffAccountSettingsScreenState
               child: Text(
                 title,
                 style: TextStyle(
-                  color: isDestructive ? DudeTheme.danger : DudeTheme.textPrimary,
+                  color: isDestructive
+                      ? DudeTheme.danger
+                      : DudeTheme.textPrimary,
                   fontSize: 16.5,
                   fontWeight: FontWeight.w500,
                 ),

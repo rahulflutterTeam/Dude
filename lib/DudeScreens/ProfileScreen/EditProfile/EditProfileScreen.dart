@@ -1,19 +1,20 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:dude/APIService/Remote/network/ApiEndPoints.dart';
 import 'package:dude/DudeScreens/AuthService.dart';
-import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
 import 'package:dude/DudeScreens/HomeScreen/Model/UserDataModel.dart';
-import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
-import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
+import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:mime/mime.dart';
 import 'package:http_parser/http_parser.dart' as http_parser;
+import 'package:image_picker/image_picker.dart';
+import 'package:mime/mime.dart';
+import 'package:provider/provider.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -23,20 +24,19 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late TextEditingController _nameController;
   late TextEditingController _bioController;
 
   File? _selectedImage;
   String? _currentImageUrl;
   String? _selectedLanguage;
+  bool _isUpdating = false;
 
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+  late final AnimationController _fadeCtrl;
+  late final Animation<double> _fadeAnim;
 
-  final List<String> languages = [
+  final List<String> languages = const [
     "English",
     "Hindi",
     "Tamil",
@@ -49,33 +49,18 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     "Punjabi",
   ];
 
-  bool _isUpdating = false;
-
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController();
     _bioController = TextEditingController();
 
-    _fadeController = AnimationController(
+    _fadeCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 450),
     );
-    _slideController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
-    );
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
-          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
-        );
-
-    _fadeController.forward();
-    _slideController.forward();
+    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _fadeCtrl.forward();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userVM = context.read<UserViewModel>();
@@ -94,8 +79,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   void dispose() {
     _nameController.dispose();
     _bioController.dispose();
-    _fadeController.dispose();
-    _slideController.dispose();
+    _fadeCtrl.dispose();
     super.dispose();
   }
 
@@ -115,7 +99,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
         return null;
       }
       final uri = Uri.parse('${ApiEndPoints().baseUrl}auth/user/editProfile');
-      var request = http.MultipartRequest('POST', uri);
+      final request = http.MultipartRequest('POST', uri);
       request.headers['Authorization'] = 'Bearer $token';
       final mimeType = lookupMimeType(imageFile.path) ?? 'image/jpeg';
       final extension = mimeType.split('/').last;
@@ -185,80 +169,40 @@ class _EditProfileScreenState extends State<EditProfileScreen>
           return const Scaffold(
             backgroundColor: DudeTheme.background,
             body: Center(
-              child: CircularProgressIndicator(color: DudeTheme.accent),
+              child: CircularProgressIndicator(
+                color: DudeTheme.accent,
+                strokeWidth: 2,
+              ),
             ),
           );
         }
 
         return Scaffold(
           backgroundColor: DudeTheme.background,
-          body: Stack(
-            children: [
-              // ── Ambient background glows ────────────────────────────────
-              Positioned(
-                top: -80,
-                right: -60,
-                child: Container(
-                  width: 280,
-                  height: 280,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        DudeTheme.accentSoft.withOpacity(0.35),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 100,
-                left: -80,
-                child: Container(
-                  width: 240,
-                  height: 240,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        DudeTheme.accent.withOpacity(0.12),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // ── Main content ────────────────────────────────────────────
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: SafeArea(
-                    child: Column(
-                      children: [
-                        _buildTopBar(),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 28),
-                                _buildAvatarSection(user),
-                                const SizedBox(height: 36),
-                                _buildFieldsSection(user),
-                                const SizedBox(height: 100),
-                              ],
-                            ),
-                          ),
+          body: PremiumAmbientBackground(
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    _buildTopBar(),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                        child: Column(
+                          children: [
+                            _buildAvatarSection(user),
+                            const SizedBox(height: 24),
+                            _buildFieldsSection(user),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
           bottomNavigationBar: _buildBottomButton(userVM),
         );
@@ -268,59 +212,43 @@ class _EditProfileScreenState extends State<EditProfileScreen>
 
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => bondNavigator.backPage(context),
             child: Container(
-              width: 42,
-              height: 42,
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                color: DudeTheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: DudeTheme.border),
               ),
               child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Colors.white,
+                Icons.arrow_back_ios_new,
+                color: DudeTheme.textPrimary,
                 size: 18,
               ),
             ),
           ),
-          const Spacer(),
-          Column(
-            children: [
-              const Text(
-                "Edit Profile",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
-                ),
+          const Expanded(
+            child: Text(
+              'Edit Profile',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: DudeTheme.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
               ),
-              Container(
-                margin: const EdgeInsets.only(top: 3),
-                height: 2,
-                width: 28,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
-                  gradient: const LinearGradient(
-                    colors: [DudeTheme.accent, DudeTheme.accent],
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-          const Spacer(),
           const SizedBox(width: 42),
         ],
       ),
     );
   }
 
-  Widget _buildAvatarSection(user) {
+  Widget _buildAvatarSection(UserProfile user) {
     return Column(
       children: [
         GestureDetector(
@@ -328,78 +256,59 @@ class _EditProfileScreenState extends State<EditProfileScreen>
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Outer glow ring
-              Container(
-                width: 124,
-                height: 124,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const SweepGradient(
-                    colors: [
-                      DudeTheme.accent,
-                      DudeTheme.accentSoft,
-                      DudeTheme.accent,
-                    ],
-                  ),
-                ),
-              ),
-              // Inner dark ring
               Container(
                 width: 118,
                 height: 118,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: DudeTheme.premiumAccentGradient,
+                  boxShadow: DudeTheme.accentGlowShadow(blur: 18, spread: -4),
+                ),
+              ),
+              Container(
+                width: 112,
+                height: 112,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: DudeTheme.background,
                 ),
               ),
-              // Avatar image
               ClipOval(
                 child: SizedBox(
-                  width: 110,
-                  height: 110,
+                  width: 104,
+                  height: 104,
                   child: _selectedImage != null
                       ? Image.file(_selectedImage!, fit: BoxFit.cover)
                       : (user.image != null && user.image!.isNotEmpty
-                            ? Image.network(
-                                user.image!,
+                          ? Image.network(
+                              user.image!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                'assets/Images/men.png',
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Image.asset(
-                                  "assets/Images/men.png",
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : Image.asset(
-                                "assets/Images/men.png",
-                                fit: BoxFit.cover,
-                              )),
+                              ),
+                            )
+                          : Image.asset(
+                              'assets/Images/men.png',
+                              fit: BoxFit.cover,
+                            )),
                 ),
               ),
-              // Camera badge
               Positioned(
-                bottom: 4,
-                right: 4,
+                bottom: 2,
+                right: 2,
                 child: Container(
-                  width: 30,
-                  height: 30,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [DudeTheme.accent, DudeTheme.accent],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: DudeTheme.accent.withOpacity(0.5),
-                        blurRadius: 8,
-                        spreadRadius: 1,
-                      ),
-                    ],
+                    gradient: DudeTheme.premiumAccentGradient,
+                    border: Border.all(color: DudeTheme.background, width: 2),
                   ),
                   child: const Icon(
                     Icons.camera_alt_rounded,
-                    color: DudeTheme.textOnLightChip,
-                    size: 16,
+                    color: Colors.white,
+                    size: 15,
                   ),
                 ),
               ),
@@ -410,12 +319,11 @@ class _EditProfileScreenState extends State<EditProfileScreen>
         GestureDetector(
           onTap: _pickImage,
           child: const Text(
-            "Change Photo",
+            'Change Photo',
             style: TextStyle(
-              color: DudeTheme.accent,
+              color: DudeTheme.accentBright,
               fontSize: 13,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -423,133 +331,104 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     );
   }
 
-  Widget _buildFieldsSection(user) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          _buildCard(
-            children: [
-              _buildFieldLabel("Full Name", Icons.person_outline_rounded),
-              const SizedBox(height: 10),
-              _buildTextField(
-                controller: _nameController,
-                hint: "Enter your name",
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.info_outline_rounded,
-                    color: DudeTheme.textSubtle,
-                    size: 13,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    "Can change username 2 more times  •  4–10 characters",
+  Widget _buildFieldsSection(UserProfile user) {
+    return Column(
+      children: [
+        _card(
+          children: [
+            _fieldLabel('Full Name', Icons.person_outline_rounded),
+            const SizedBox(height: 10),
+            _textField(
+              controller: _nameController,
+              hint: 'Enter your name',
+            ),
+            const SizedBox(height: 8),
+            const Row(
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  color: DudeTheme.textSubtle,
+                  size: 13,
+                ),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Can change username 2 more times  •  4–10 characters',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.35),
+                      color: DudeTheme.textSubtle,
                       fontSize: 11,
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          _buildCard(
-            children: [
-              _buildFieldLabel("Bio", Icons.edit_note_rounded),
-              const SizedBox(height: 10),
-              _buildTextField(
-                controller: _bioController,
-                hint: "Write something about yourself...",
-                maxLines: 4,
-                maxLength: 200,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          _buildCard(
-            children: [
-              _buildFieldLabel("Preferred Language", Icons.language_rounded),
-              const SizedBox(height: 10),
-              _buildDropdown(user),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          _buildCard(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(7),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.06),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.wc_rounded,
-                          color: DudeTheme.accent,
-                          size: 16,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        "Gender",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _card(
+          children: [
+            _fieldLabel('Bio', Icons.edit_note_rounded),
+            const SizedBox(height: 10),
+            _textField(
+              controller: _bioController,
+              hint: 'Write something about yourself...',
+              maxLines: 4,
+              maxLength: 200,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _card(
+          children: [
+            _fieldLabel('Preferred Language', Icons.language_rounded),
+            const SizedBox(height: 10),
+            _dropdown(user),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _card(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _fieldLabel('Gender', Icons.wc_rounded),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
-                    ),
-                    child: Text(
-                      user.gender ?? "Not specified",
-                      style: const TextStyle(
-                        color: DudeTheme.textMid,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  decoration: BoxDecoration(
+                    color: DudeTheme.accentDim,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: DudeTheme.accent.withValues(alpha: 0.35),
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
+                  child: Text(
+                    user.gender ?? 'Not specified',
+                    style: const TextStyle(
+                      color: DudeTheme.accentBright,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _buildCard({required List<Widget> children}) {
+  Widget _card({required List<Widget> children}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        color: DudeTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DudeTheme.border.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,14 +437,17 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     );
   }
 
-  Widget _buildFieldLabel(String label, IconData icon) {
+  Widget _fieldLabel(String label, IconData icon) {
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
+            color: DudeTheme.accentDim,
             borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: DudeTheme.accent.withValues(alpha: 0.3),
+            ),
           ),
           child: Icon(icon, color: DudeTheme.accent, size: 16),
         ),
@@ -573,17 +455,16 @@ class _EditProfileScreenState extends State<EditProfileScreen>
         Text(
           label,
           style: const TextStyle(
-            color: Colors.white,
+            color: DudeTheme.textPrimary,
             fontSize: 14,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.2,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTextField({
+  Widget _textField({
     required TextEditingController controller,
     required String hint,
     int maxLines = 1,
@@ -593,129 +474,111 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       controller: controller,
       maxLines: maxLines,
       maxLength: maxLength,
+      cursorColor: DudeTheme.accent,
       style: const TextStyle(
-        color: Colors.white,
+        color: DudeTheme.textPrimary,
         fontSize: 15,
-        fontWeight: FontWeight.w400,
       ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(
-          color: Colors.white.withOpacity(0.25),
+        hintStyle: const TextStyle(
+          color: DudeTheme.textSubtle,
           fontSize: 14,
         ),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
+        fillColor: DudeTheme.surfaceRaised,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: DudeTheme.border.withValues(alpha: 0.6),
+          ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: DudeTheme.border.withValues(alpha: 0.6),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: DudeTheme.accent, width: 1.5),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: DudeTheme.accent, width: 1.4),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
-        counterStyle: TextStyle(
-          color: Colors.white.withOpacity(0.3),
+        counterStyle: const TextStyle(
+          color: DudeTheme.textSubtle,
           fontSize: 11,
         ),
       ),
     );
   }
 
-  Widget _buildDropdown(user) {
+  Widget _dropdown(UserProfile user) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        color: DudeTheme.surfaceRaised,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: DudeTheme.border.withValues(alpha: 0.6)),
       ),
       child: DropdownButton<String>(
-        value: _selectedLanguage ?? user.language ?? "English",
+        value: _selectedLanguage ?? user.language ?? 'English',
         isExpanded: true,
         underline: const SizedBox(),
-        dropdownColor: DudeTheme.surface,
+        dropdownColor: DudeTheme.surfaceRaised,
         icon: const Icon(
           Icons.keyboard_arrow_down_rounded,
           color: DudeTheme.accent,
         ),
         style: const TextStyle(
-          color: Colors.white,
+          color: DudeTheme.textPrimary,
           fontSize: 15,
-          fontWeight: FontWeight.w400,
         ),
-        items: languages.map((String lang) {
-          return DropdownMenuItem<String>(value: lang, child: Text(lang));
-        }).toList(),
-        onChanged: (String? newValue) {
-          setState(() => _selectedLanguage = newValue);
-        },
+        items: languages
+            .map((lang) => DropdownMenuItem(value: lang, child: Text(lang)))
+            .toList(),
+        onChanged: (value) => setState(() => _selectedLanguage = value),
       ),
     );
   }
 
   Widget _buildBottomButton(UserViewModel userVM) {
+    final busy = userVM.isLoading || _isUpdating;
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: GestureDetector(
-          onTap: (userVM.isLoading || _isUpdating) ? null : _updateProfile,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            height: 56,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: (userVM.isLoading || _isUpdating)
-                  ? LinearGradient(
-                      colors: [
-                        DudeTheme.accent.withOpacity(0.4),
-                        DudeTheme.accent.withOpacity(0.4),
-                      ],
-                    )
-                  : const LinearGradient(
-                      colors: [
-                        DudeTheme.accent,
-                        DudeTheme.accent,
-                        DudeTheme.accent,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-              boxShadow: (userVM.isLoading || _isUpdating)
-                  ? []
-                  : [
-                      BoxShadow(
-                        color: DudeTheme.accent.withOpacity(0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-            ),
+          onTap: busy ? null : _updateProfile,
+          child: Container(
+            height: 54,
             alignment: Alignment.center,
-            child: _isUpdating || userVM.isLoading
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: busy
+                  ? null
+                  : DudeTheme.premiumAccentGradient,
+              color: busy ? DudeTheme.surfaceElevated : null,
+              boxShadow: busy
+                  ? null
+                  : DudeTheme.accentGlowShadow(blur: 16, spread: -4),
+            ),
+            child: busy
                 ? const SizedBox(
                     height: 22,
                     width: 22,
                     child: CircularProgressIndicator(
-                      color: DudeTheme.textOnLightChip,
+                      color: Colors.white,
                       strokeWidth: 2.5,
                     ),
                   )
                 : const Text(
-                    "Save Changes",
+                    'Save Changes',
                     style: TextStyle(
-                      color: DudeTheme.textOnLightChip,
+                      color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
                     ),
                   ),
           ),

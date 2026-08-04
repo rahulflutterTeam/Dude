@@ -40,7 +40,7 @@ android {
     defaultConfig {
         applicationId = "com.dude.dudeapp"
         minSdk = flutter.minSdkVersion
-        targetSdk = 35
+        targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -73,7 +73,7 @@ flutter {
     source = "../.."
 }
 
-// Fix Zego iOS ringtone audio session before every Android build.
+// Apply Dude's locked Zego compatibility fixes before every Android build.
 val applyZegoPatch by tasks.registering(Exec::class) {
     workingDir = rootProject.projectDir.parentFile
     commandLine("dart", "run", "tool/apply_zego_patch.dart")
@@ -83,8 +83,8 @@ tasks.named("preBuild").configure {
 }
 
 dependencies {
-    // Firebase BoM — keeps all Firebase library versions in sync automatically
-    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
+    // Single Firebase BoM — keeps all Firebase library versions in sync
+    implementation(platform("com.google.firebase:firebase-bom:34.12.0"))
 
     // Firebase Cloud Messaging — provides FirebaseMessagingService + RemoteMessage
     // that MyFirebaseMessagingService.kt extends
@@ -93,7 +93,6 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("com.google.android.gms:play-services-auth-api-phone:18.3.0")
-    implementation(platform("com.google.firebase:firebase-bom:34.12.0"))
 
     // Add the dependencies for the Crashlytics and Analytics libraries
     // When using the BoM, you don't specify versions in Firebase library dependencies

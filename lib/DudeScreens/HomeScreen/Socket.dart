@@ -13,11 +13,15 @@ class SocketService {
   bool _isConnected = false;
   String? _currentUserId;
   bool _isConnecting = false;
+  String? _staffListUserId;
+  String? _staffListUserMemberID;
 
   // Listeners
   final List<Function(dynamic)> _staffListListeners = [];
   final List<Function(dynamic)> _statusChangeListeners = [];
   final List<Function(dynamic)> _callBalanceTopUpListeners = [];
+  final List<Function(dynamic)> _disconnectListeners = [];
+  final List<Function(dynamic)> _waveListeners = [];
 
   // Reconnection
   Timer? _reconnectTimer;
@@ -58,14 +62,23 @@ class SocketService {
   }
 
   void connectStaff(String userId) {
-    if (_isConnected) {
-      // debugPrint("🟢 [SOCKET] Already connected. Skipping reconnect.");
+    if (_isConnected && socket.connected && _currentUserId == userId) {
       return;
     }
 
-    if (_isConnecting) {
+    if ((_isConnected || _isConnecting) && _currentUserId != userId) {
+      socket.disconnect();
+      socket.dispose();
+      _isConnected = false;
+      _isConnecting = false;
+    } else if (_isConnecting) {
       debugPrint("🟡 [SOCKET] Already connecting, please wait...");
       return;
+    } else if (_isConnected) {
+      // Drop a stale transport before creating a replacement.
+      socket.disconnect();
+      socket.dispose();
+      _isConnected = false;
     }
 
     _isConnecting = true;
@@ -120,8 +133,8 @@ class SocketService {
       });
     } else {
       debugPrint("⚠️ [SOCKET] Cannot emit offline: Socket not connected");
-      // Force disconnect even if not connected
-      if (socket.connected) {
+      // A socket only exists after connectStaff has selected an identity.
+      if (_currentUserId != null && socket.connected) {
         socket.disconnect();
         socket.dispose();
       }
@@ -141,10 +154,7 @@ class SocketService {
       // DON'T automatically emit online - let the toggle button control it
       // _emitUserOnline(); // COMMENTED OUT
 
-      // Auto-request staff list after connection
-      Future.delayed(const Duration(milliseconds: 500), () {
-        requestStaffList();
-      });
+      _requestStaffListWhenConnected();
     });
 
     socket.onConnectError((data) {
@@ -154,11 +164,12 @@ class SocketService {
       _handleConnectionError();
     });
 
-    socket.onDisconnect((_) {
+    socket.onDisconnect((data) {
       debugPrint("❌ [SOCKET] Disconnected");
       _isConnected = false;
       _isConnecting = false;
       _stopHeartbeat();
+      _notifyDisconnectListeners(data);
       // DON'T auto-reconnect on disconnect - let app control it
       // _handleDisconnect(); // COMMENTED OUT
     });
@@ -169,11 +180,11 @@ class SocketService {
 
     socket.onReconnect((_) {
       debugPrint("🔄 [SOCKET] Reconnected");
-      _isConnected = true;
+      _isConnected = socket.connected;
       _isConnecting = false;
       // DON'T automatically emit online
       // _emitUserOnline();
-      requestStaffList();
+      _requestStaffListWhenConnected();
     });
 
     socket.onReconnectAttempt((_) {
@@ -204,22 +215,16 @@ class SocketService {
       }
 
       if (event == "staff_offline") {
-        final payload = _normalizePresencePayload(data, isOnline: false);
+        final payload = normalizeStaffPresencePayload(data, isOnline: false);
         _notifyStatusChangeListeners(payload);
       } else if (event == "staff_online") {
-        final payload = _normalizePresencePayload(data, isOnline: true);
+        final payload = normalizeStaffPresencePayload(data, isOnline: true);
         _notifyStatusChangeListeners(payload);
       } else if (event == "staff_busy_status" ||
           event == "busy_status" ||
           (data is Map && data['isBusy'] != null)) {
         _notifyStatusChangeListeners(data);
-      }
-
-      if (event == "call_balance_topup") {
-        _notifyCallBalanceTopUpListeners(data);
-      }
-
-      if (event == "staff_status_changed" ||
+      } else if (event == "staff_status_changed" ||
           event == "status_change" ||
           event == "presence" ||
           event == "staff_online_status" ||
@@ -230,9 +235,17 @@ class SocketService {
         _notifyStatusChangeListeners(data);
       }
 
+      if (event == "call_balance_topup") {
+        _notifyCallBalanceTopUpListeners(data);
+      }
+
+      if (event == "staff_wave" || event == "wave_user") {
+        _notifyWaveListeners(data);
+      }
+
       if (event == "connected" || event == "connection_established") {
         debugPrint("✅ [SOCKET] Connection confirmed by server");
-        requestStaffList();
+        _requestStaffListWhenConnected();
       }
     });
 
@@ -267,44 +280,69 @@ class SocketService {
   // void _emitUserOnline() { ... }
 
   // Public method to request staff list
-  void requestStaffList() {
-    if (!_isConnected) {
-      debugPrint("⚠️ [SOCKET] Cannot request staff list: Socket not connected");
-      return;
+  void setStaffListRequestContext({String? userId, String? userMemberID}) {
+    if (userId != null && userId.isNotEmpty) {
+      _staffListUserId = userId;
     }
-    _sendStaffListRequest();
+    if (userMemberID != null && userMemberID.isNotEmpty) {
+      _staffListUserMemberID = userMemberID;
+    }
   }
 
-  void _sendStaffListRequest() {
-    final requestData = {
-      "requestId": DateTime.now().millisecondsSinceEpoch.toString(),
-      "userId": _currentUserId,
-      "timestamp": DateTime.now().toIso8601String(),
-    };
+  void requestStaffList({String? userId, String? userMemberID}) {
+    setStaffListRequestContext(userId: userId, userMemberID: userMemberID);
+    if (!_isConnected || !socket.connected) {
+      debugPrint("⚠️ [SOCKET] Cannot request staff list: Socket not connected");
+      _requestStaffListWhenConnected(
+        userId: userId,
+        userMemberID: userMemberID,
+      );
+      return;
+    }
+    _sendStaffListRequest(userId: userId, userMemberID: userMemberID);
+  }
+
+  void _requestStaffListWhenConnected({
+    String? userId,
+    String? userMemberID,
+    int attempt = 0,
+  }) {
+    if (_isConnected && socket.connected) {
+      _sendStaffListRequest(userId: userId, userMemberID: userMemberID);
+      return;
+    }
+
+    if (attempt >= 12 || (!_isConnecting && _currentUserId == null)) return;
+
+    Future.delayed(const Duration(milliseconds: 250), () {
+      _requestStaffListWhenConnected(
+        userId: userId,
+        userMemberID: userMemberID,
+        attempt: attempt + 1,
+      );
+    });
+  }
+
+  void _sendStaffListRequest({String? userId, String? userMemberID}) {
+    final resolvedUserId = (userId != null && userId.isNotEmpty)
+        ? userId
+        : _staffListUserId;
+    final resolvedMemberId = (userMemberID != null && userMemberID.isNotEmpty)
+        ? userMemberID
+        : _staffListUserMemberID;
+
+    final Map<String, dynamic> requestData;
+    if (resolvedUserId != null && resolvedUserId.isNotEmpty) {
+      requestData = {"userId": resolvedUserId};
+    } else if (resolvedMemberId != null && resolvedMemberId.isNotEmpty) {
+      requestData = {"userMemberID": resolvedMemberId};
+    } else {
+      debugPrint("⚠️ [SOCKET] Cannot request staff list: missing user id");
+      return;
+    }
 
     // debugPrint("📤 [SOCKET] Requesting staff list...");
     emit("get_all_staff", requestData);
-  }
-
-  /// Normalize staff_online / staff_offline payloads so status handlers
-  /// always receive an explicit isOnline flag (server often sends only memberID).
-  Map<String, dynamic> _normalizePresencePayload(
-    dynamic data, {
-    required bool isOnline,
-  }) {
-    final Map<String, dynamic> payload;
-    if (data is Map) {
-      payload = Map<String, dynamic>.from(data);
-    } else if (data is String) {
-      payload = {"memberID": data};
-    } else {
-      payload = <String, dynamic>{};
-    }
-    payload['isOnline'] = isOnline;
-    if (!isOnline) {
-      payload['isBusy'] = false;
-    }
-    return payload;
   }
 
   void _handleConnectionError() {
@@ -322,20 +360,49 @@ class SocketService {
   // Public methods
   void listenStaffList(Function(dynamic) onUpdate) {
     // debugPrint("👂 [SOCKET] Adding staff list listener");
+    if (_staffListListeners.contains(onUpdate)) return;
     _staffListListeners.add(onUpdate);
   }
 
   void listenStatusChanges(Function(dynamic) onStatusChange) {
     // debugPrint("👂 [SOCKET] Adding status change listener");
+    if (_statusChangeListeners.contains(onStatusChange)) return;
     _statusChangeListeners.add(onStatusChange);
   }
 
+  void removeStaffListListener(Function(dynamic) onUpdate) {
+    _staffListListeners.remove(onUpdate);
+  }
+
+  void removeStatusChangeListener(Function(dynamic) onStatusChange) {
+    _statusChangeListeners.remove(onStatusChange);
+  }
+
   void listenCallBalanceTopUp(Function(dynamic) onUpdate) {
+    if (_callBalanceTopUpListeners.contains(onUpdate)) return;
     _callBalanceTopUpListeners.add(onUpdate);
   }
 
   void removeCallBalanceTopUpListener(Function(dynamic) onUpdate) {
     _callBalanceTopUpListeners.remove(onUpdate);
+  }
+
+  void listenDisconnect(Function(dynamic) onDisconnect) {
+    if (_disconnectListeners.contains(onDisconnect)) return;
+    _disconnectListeners.add(onDisconnect);
+  }
+
+  void removeDisconnectListener(Function(dynamic) onDisconnect) {
+    _disconnectListeners.remove(onDisconnect);
+  }
+
+  void listenWave(Function(dynamic) onWave) {
+    if (_waveListeners.contains(onWave)) return;
+    _waveListeners.add(onWave);
+  }
+
+  void removeWaveListener(Function(dynamic) onWave) {
+    _waveListeners.remove(onWave);
   }
 
   bool emit(String event, dynamic data) {
@@ -347,6 +414,17 @@ class SocketService {
       debugPrint("⚠️ [SOCKET] Cannot emit $event: Socket not connected");
       return false;
     }
+  }
+
+  Future<dynamic> emitWithAck(
+    String event,
+    dynamic data, {
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    if (!_isConnected || !socket.connected) {
+      throw StateError('Socket is not connected');
+    }
+    return socket.timeout(timeout.inMilliseconds).emitWithAckAsync(event, data);
   }
 
   void on(String event, Function(dynamic) handler) {
@@ -396,6 +474,26 @@ class SocketService {
     }
   }
 
+  void _notifyDisconnectListeners(dynamic data) {
+    for (final listener in List<Function(dynamic)>.from(_disconnectListeners)) {
+      try {
+        listener(data);
+      } catch (e) {
+        debugPrint("❌ [SOCKET] Error in disconnect listener: $e");
+      }
+    }
+  }
+
+  void _notifyWaveListeners(dynamic data) {
+    for (final listener in List<Function(dynamic)>.from(_waveListeners)) {
+      try {
+        listener(data);
+      } catch (e) {
+        debugPrint("❌ [SOCKET] Error in wave listener: $e");
+      }
+    }
+  }
+
   void disconnect() {
     debugPrint("🔌 [SOCKET] Disconnecting...");
     _reconnectTimer?.cancel();
@@ -409,10 +507,12 @@ class SocketService {
       _isConnected = false;
     }
 
-    _staffListListeners.clear();
-    _statusChangeListeners.clear();
-    _callBalanceTopUpListeners.clear();
+    // Listener ownership belongs to the provider/service that registered each
+    // callback. Keeping them across a transport disconnect lets the same
+    // providers rebind correctly after logout/login and network reconnects.
     _currentUserId = null;
+    _staffListUserId = null;
+    _staffListUserMemberID = null;
     _reconnectAttempts = 0;
     _isConnecting = false;
   }
@@ -420,4 +520,22 @@ class SocketService {
   String? getCurrentUserId() {
     return _currentUserId;
   }
+}
+
+/// Normalizes presence events because the backend may send only a member ID.
+Map<String, dynamic> normalizeStaffPresencePayload(
+  dynamic data, {
+  required bool isOnline,
+}) {
+  final Map<String, dynamic> payload;
+  if (data is Map) {
+    payload = Map<String, dynamic>.from(data);
+  } else if (data is String) {
+    payload = {"memberID": data};
+  } else {
+    payload = <String, dynamic>{};
+  }
+  payload['isOnline'] = isOnline;
+  if (!isOnline) payload['isBusy'] = false;
+  return payload;
 }

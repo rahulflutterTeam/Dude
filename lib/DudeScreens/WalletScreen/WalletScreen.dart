@@ -2,9 +2,9 @@
 
 import 'dart:ui';
 import 'package:dude/Analytics/firebase_purchase_events.dart';
+import 'package:dude/Analytics/meta_app_events.dart';
 import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
 import 'package:dude/DudeScreens/WalletScreen/AdBannerVM/AdBannerVM.dart';
-import 'package:dude/DudeScreens/WalletScreen/phonepe.dart';
 import 'package:dude/DudeScreens/WalletScreen/razorPayFlow/Model/amountAdminCoinModel.dart';
 import 'package:dude/DudeScreens/WalletScreen/razorPayFlow/Model/confirmPaymentModel.dart';
 import 'package:dude/DudeScreens/WalletScreen/animated_offer_border.dart';
@@ -13,7 +13,6 @@ import 'package:dude/DudeScreens/WalletScreen/razorPayFlow/ViewModel/PaymentVM.d
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
-import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +42,9 @@ class _WalletScreenState extends State<WalletScreen> {
   int _pendingPurchaseAmount = 0;
   int _pendingPurchaseCoins = 0;
   String _pendingOrderId = '';
+  String _pendingGatewayOrderId = '';
   bool _purchaseEventLogged = false;
+  final Set<String> _confirmingOrderIds = <String>{};
 
   bool get _isCheckoutBusy => _checkoutSession.isActive;
 
@@ -65,14 +66,7 @@ class _WalletScreenState extends State<WalletScreen> {
     required dynamic selectedBanner,
   }) {
     if (_isCheckoutBusy) return 'Please wait...';
-    if (selectedPackage != null) {
-      final coins = selectedPackage.coin;
-      final amount = _packageAmountInRupees(selectedPackage);
-      return 'Continue · $coins coins · ₹$amount';
-    }
-    final bannerCoins = selectedBanner?.purchaseCoins ?? 0;
-    final bannerAmount = selectedBanner?.amount ?? 0;
-    return 'Continue · $bannerCoins coins · ₹$bannerAmount';
+    return 'Buy Now';
   }
 
   @override
@@ -141,6 +135,10 @@ class _WalletScreenState extends State<WalletScreen> {
       );
     }
     HapticFeedback.selectionClick();
+    MetaAppEvents.viewCoinPackage(
+      coins: banner.purchaseCoins,
+      amount: banner.amount,
+    );
     FirebasePurchaseEvents.view(banner.purchaseCoins, banner.amount);
     setState(() {
       _isBannerSelected = true;
@@ -178,7 +176,13 @@ class _WalletScreenState extends State<WalletScreen> {
       _pendingPurchaseAmount = amountInRupees;
       _pendingPurchaseCoins = coins;
       _pendingOrderId = response!.data!.id;
+      _pendingGatewayOrderId = '';
       _purchaseEventLogged = false;
+      MetaAppEvents.initiateCoinCheckout(
+        coins: coins,
+        amount: amountInRupees,
+        orderId: _pendingOrderId,
+      );
       FirebasePurchaseEvents.checkout(coins, amountInRupees, _pendingOrderId);
 
       final activeProvider = gatewayKey.provider.toLowerCase();
@@ -204,6 +208,7 @@ class _WalletScreenState extends State<WalletScreen> {
           Utils.snackBarErrorMessage("Cashfree payment session not available");
           return;
         }
+        _pendingGatewayOrderId = orderId;
 
         debugPrint(
           "Cashfree checkout orderId=$orderId sessionLength=${paymentSessionId.length}",
@@ -236,6 +241,11 @@ class _WalletScreenState extends State<WalletScreen> {
       final orderId = gatewayOrder?.orderId.isNotEmpty == true
           ? gatewayOrder!.orderId
           : response.data!.razorpayOrderId;
+      if (orderId.isEmpty) {
+        Utils.snackBarErrorMessage("Payment order is not available");
+        return;
+      }
+      _pendingGatewayOrderId = orderId;
 
       var options = {
         'key': keyId,
@@ -315,100 +325,24 @@ class _WalletScreenState extends State<WalletScreen> {
     return token;
   }
 
-  void pay(PaymentPackage package) async {
-    final userVM = context.read<UserViewModel>();
-    final user = userVM.currentUser;
-
-    final success = await PhonePeService.startPayment(
-      context: context,
-      amountInRupees: int.parse(package.amount.toString()),
-      userId: user?.id.toString() ?? "guest",
-      mobileNumber: user?.phone ?? "9999999999",
-    );
-
-    if (success && mounted) {
-      await userVM.fetchUserDetails();
-      Navigator.pop(context);
-    }
-  }
-
-  /// Show Payment Options
-  void _showPaymentOptions(PaymentPackage package) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: DudeTheme.surface,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: DudeTheme.border.withValues(alpha: 0.6)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: DudeTheme.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Select payment method',
-                style: TextStyle(
-                  color: DudeTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: DudeTheme.accentDim,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.payment_rounded,
-                    color: DudeTheme.accent,
-                  ),
-                ),
-                title: const Text(
-                  'Razorpay',
-                  style: TextStyle(
-                    color: DudeTheme.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _openCheckout(package);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    _endCheckoutSession();
     final vm = context.read<WalletViewModel>();
+    final orderId = _firstNonEmpty([
+      response.orderId,
+      _pendingGatewayOrderId,
+      _pendingOrderId,
+    ]);
+    if (orderId.isEmpty || !_confirmingOrderIds.add(orderId)) return;
+    var confirmed = false;
 
     try {
       final confirmResponse = await vm.confirmPaymentAndCreditCoins(
-        orderId: response.orderId ?? '',
+        orderId: orderId,
         paymentId: response.paymentId ?? '',
         signature: response.signature ?? '',
       );
+      if (confirmResponse?.status != true) return;
+      confirmed = true;
       _logConfirmedPurchase(confirmResponse);
       await _syncBalanceAfterPayment(confirmResponse);
 
@@ -420,6 +354,9 @@ class _WalletScreenState extends State<WalletScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Payment confirmation failed")),
       );
+    } finally {
+      if (!confirmed) _confirmingOrderIds.remove(orderId);
+      _endCheckoutSession();
     }
   }
 
@@ -441,13 +378,21 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _handleCashfreeVerify(String orderId) async {
-    _endCheckoutSession();
     final vm = context.read<WalletViewModel>();
+    final resolvedOrderId = orderId.trim().isNotEmpty
+        ? orderId.trim()
+        : _pendingGatewayOrderId;
+    if (resolvedOrderId.isEmpty || !_confirmingOrderIds.add(resolvedOrderId)) {
+      return;
+    }
+    var confirmed = false;
 
     try {
       final confirmResponse = await vm.confirmCashfreePaymentAndCreditCoins(
-        orderId: orderId,
+        orderId: resolvedOrderId,
       );
+      if (confirmResponse?.status != true) return;
+      confirmed = true;
       _logConfirmedPurchase(confirmResponse);
       await _syncBalanceAfterPayment(confirmResponse);
 
@@ -460,6 +405,9 @@ class _WalletScreenState extends State<WalletScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Payment confirmation failed")),
       );
+    } finally {
+      if (!confirmed) _confirmingOrderIds.remove(resolvedOrderId);
+      _endCheckoutSession();
     }
   }
 
@@ -519,10 +467,17 @@ class _WalletScreenState extends State<WalletScreen> {
       return;
     _purchaseEventLogged = true;
     final credited = response.data?.creditedCoins ?? 0;
+    final creditedCoins = credited > 0 ? credited : _pendingPurchaseCoins;
+    final orderId = response.data?.orderId ?? _pendingOrderId;
     FirebasePurchaseEvents.purchase(
-      credited > 0 ? credited : _pendingPurchaseCoins,
+      creditedCoins,
       _pendingPurchaseAmount,
-      response.data?.orderId ?? _pendingOrderId,
+      orderId,
+    );
+    MetaAppEvents.purchaseCoins(
+      coins: creditedCoins,
+      amount: _pendingPurchaseAmount,
+      orderId: orderId,
     );
   }
 
@@ -587,7 +542,19 @@ class _WalletScreenState extends State<WalletScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const DudeLogo(height: 18),
+                ClipOval(
+                  child: SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: Transform.scale(
+                      scale: 1.4,
+                      child: Image.asset(
+                        'assets/Images/dudecoin.jpg',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 5),
                 Text(
                   '$balance',
@@ -603,16 +570,6 @@ class _WalletScreenState extends State<WalletScreen> {
         ],
       ),
     );
-  }
-
-  void _ensureDefaultSelection(List<PaymentPackage> packages) {
-    if (packages.isEmpty || _selectedPackageId != null || _isBannerSelected) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _selectedPackageId != null || _isBannerSelected) return;
-      setState(() => _selectedPackageId = packages.first.id);
-    });
   }
 
   Widget _buildSectionHeader({
@@ -738,7 +695,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       package.image,
                       height: 32,
                       errorBuilder: (_, __, ___) =>
-                          Image.asset('assets/Images/coinglow.png', height: 32),
+                          Image.asset('assets/Images/dudecoin.jpg', height: 32),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -827,6 +784,10 @@ class _WalletScreenState extends State<WalletScreen> {
               : () {
                   HapticFeedback.selectionClick();
                   FirebasePurchaseEvents.view(coins, displayPrice);
+                  MetaAppEvents.viewCoinPackage(
+                    coins: coins,
+                    amount: displayPrice,
+                  );
                   setState(() {
                     _selectedPackageId = package.id;
                     _isBannerSelected = false;
@@ -902,7 +863,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         package.image,
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => Image.asset(
-                          'assets/Images/coinglow.png',
+                          'assets/Images/dudecoin.jpg',
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -910,9 +871,30 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: const BoxDecoration(
-                      gradient: DudeTheme.premiumAccentGradient,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          DudeTheme.accentBright,
+                          DudeTheme.accent,
+                          DudeTheme.accentDeep,
+                        ],
+                        stops: [0.0, 0.55, 1.0],
+                      ),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        width: 0.8,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: DudeTheme.accentDeep.withValues(alpha: 0.55),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1042,10 +1024,10 @@ class _WalletScreenState extends State<WalletScreen> {
                 image,
                 height: 72,
                 errorBuilder: (_, __, ___) =>
-                    Image.asset('assets/Images/coinglow.png', height: 72),
+                    Image.asset('assets/Images/dudecoin.jpg', height: 72),
               )
             else
-              Image.asset('assets/Images/coinglow.png', height: 72),
+              Image.asset('assets/Images/dudecoin.jpg', height: 72),
             const SizedBox(height: 14),
             Text(
               '$coins coins',
@@ -1576,10 +1558,6 @@ class _WalletScreenState extends State<WalletScreen> {
           selectedBanner: selectedBanner,
         );
 
-        if (vm.paymentPackages.isNotEmpty) {
-          _ensureDefaultSelection(vm.paymentPackages);
-        }
-
         return PopScope(
           canPop: !_isCheckoutBusy,
           child: Scaffold(
@@ -1683,14 +1661,15 @@ class _WalletScreenState extends State<WalletScreen> {
                             ),
                           ),
                         ],
-                        _buildCheckoutBar(
-                          isCheckoutBusy: isCheckoutBusy,
-                          hasSelection: hasSelectedOffer,
-                          continueLabel: continueLabel,
-                          selectedPackage: selectedPackage,
-                          selectedBanner: selectedBanner,
-                          bannerVM: bannerVM,
-                        ),
+                        if (hasSelectedOffer)
+                          _buildCheckoutBar(
+                            isCheckoutBusy: isCheckoutBusy,
+                            hasSelection: hasSelectedOffer,
+                            continueLabel: continueLabel,
+                            selectedPackage: selectedPackage,
+                            selectedBanner: selectedBanner,
+                            bannerVM: bannerVM,
+                          ),
                       ],
                     ),
                     _buildCheckoutBlockingOverlay(),

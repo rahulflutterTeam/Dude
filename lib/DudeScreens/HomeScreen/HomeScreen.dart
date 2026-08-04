@@ -15,6 +15,8 @@ import 'package:dude/DudeScreens/HomeScreen/callService.dart';
 import 'package:dude/DudeScreens/ProfileScreen/ProfileScreen.dart';
 import 'package:dude/DudeScreens/WalletScreen/WalletScreen.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
+import 'package:dude/Dude_Utils/navigation/route_observer.dart';
+import 'package:dude/Reusable_Widgets/ActivePopupService.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:dude/Reusable_Widgets/shimmer_loader.dart';
@@ -26,24 +28,23 @@ import 'package:provider/provider.dart';
 import 'package:zego_uikit/zego_uikit.dart';
 import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Dude_Utils/push/local_notifications.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_animations.dart';
-import 'package:dude/Reusable_Widgets/Premium_UI/premium_chat_button.dart';
 import 'package:dude/Reusable_Widgets/ReviewDialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+class HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver, RouteAware, SingleTickerProviderStateMixin {
   final CallService _callService = CallService();
   final socketService = SocketService();
   bool _isInitialized = false;
-  late final AnimationController _coinPulseController;
   StreamSubscription<Map<String, dynamic>>? _callEndedSubscription;
 
   // ─── Search ─────────────────────────────────────────────────────────────
@@ -60,15 +61,20 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Track if we've requested staff list
   bool _staffListRequested = false;
+  bool _activePopupShown = false;
+  late final Function(dynamic) _waveSocketHandler;
+
+  /// True while the bottom-nav Home tab is selected (IndexedStack keeps us alive).
+  bool _isHomeTabVisible = true;
+  bool _isRefreshingVisible = false;
+  DateTime? _lastVisibleRefreshAt;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _coinPulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat(reverse: true);
+    _waveSocketHandler = _onStaffWave;
+    socketService.listenWave(_waveSocketHandler);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _clearSearchFilter();
@@ -136,6 +142,70 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
+  /// Called by bottom nav when the Home tab is shown or hidden.
+  void setHomeTabVisible(bool visible) {
+    _isHomeTabVisible = visible;
+  }
+
+  /// Refresh user + staff discovery when Home becomes visible again
+  /// (tab return or pop back), matching PairEver remount behavior.
+  Future<void> refreshOnVisible() async {
+    if (!mounted || !_isHomeTabVisible || !_isInitialized) return;
+    if (_isRefreshingVisible) return;
+
+    final now = DateTime.now();
+    if (_lastVisibleRefreshAt != null &&
+        now.difference(_lastVisibleRefreshAt!) < const Duration(seconds: 2)) {
+      return;
+    }
+
+    _isRefreshingVisible = true;
+    _lastVisibleRefreshAt = now;
+
+    try {
+      final userVM = context.read<UserViewModel>();
+      final staffVM = context.read<StaffViewModel>();
+
+      await userVM.fetchUserDetails();
+      if (!mounted || !_isHomeTabVisible) return;
+
+      final user = userVM.currentUser;
+      if (user == null) return;
+
+      staffVM.setStaffListRequestContext(
+        userId: user.id.isNotEmpty ? user.id : null,
+        userMemberID: user.memberID,
+      );
+
+      if (!socketService.isConnected) {
+        socketService.connectStaff(user.memberID);
+        await Future.delayed(const Duration(milliseconds: 400));
+      }
+
+      await staffVM.fetchStaffDetails();
+      if (!mounted || !_isHomeTabVisible) return;
+
+      if (socketService.isConnected) {
+        _requestStaffListForCurrentUser();
+        staffVM.refreshStaffListViaSocket();
+      }
+
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('⚠️ [HOMESCREEN] refreshOnVisible failed: $e');
+    } finally {
+      _isRefreshingVisible = false;
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // A pushed route (Wallet/Profile/etc.) was popped while Home is still mounted.
+    if (_isHomeTabVisible) {
+      unawaited(refreshOnVisible());
+    }
+  }
+
   void _clearSearchFilter() {
     _debounce?.cancel();
     _debounce = null;
@@ -172,6 +242,21 @@ class _HomeScreenState extends State<HomeScreen>
     _debounce = Timer(const Duration(milliseconds: 400), () {
       _staffVM?.updateSearchQuery(value);
     });
+  }
+
+  void _requestStaffListForCurrentUser() {
+    final user = context.read<UserViewModel>().currentUser;
+    if (user == null) return;
+
+    final staffVM = context.read<StaffViewModel>();
+    staffVM.setStaffListRequestContext(
+      userId: user.id.isNotEmpty ? user.id : null,
+      userMemberID: user.memberID,
+    );
+    socketService.requestStaffList(
+      userId: user.id.isNotEmpty ? user.id : null,
+      userMemberID: user.memberID,
+    );
   }
 
   void _addCallEventListeners() {
@@ -215,6 +300,10 @@ class _HomeScreenState extends State<HomeScreen>
     super.didChangeDependencies();
     _staffVM = context.read<StaffViewModel>();
     _addRoomStateListener();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      appRouteObserver.subscribe(this, route);
+    }
   }
 
   // Extract unique languages from staff list - called without setState
@@ -285,7 +374,7 @@ class _HomeScreenState extends State<HomeScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Image.asset(
-                  "assets/Images/heartcoin.png",
+                  "assets/Images/dudecoin.jpg",
                   width: 90,
                   height: 90,
                   fit: BoxFit.contain,
@@ -415,8 +504,9 @@ class _HomeScreenState extends State<HomeScreen>
   // Filter staff based on selected language and search query
   List<StaffDataProfile> _getFilteredStaff(StaffViewModel staffVM) {
     // Only show staff who are currently online (logged-out/offline are hidden).
-    var filteredList =
-        staffVM.allStaffList.where((staff) => staff.isOnline).toList();
+    var filteredList = staffVM.allStaffList
+        .where((staff) => staff.isOnline)
+        .toList();
 
     // Apply language filter
     if (_selectedLanguage != 'All') {
@@ -467,6 +557,10 @@ class _HomeScreenState extends State<HomeScreen>
       // debugPrint("🔌 [HOMESCREEN] Step 3: Connecting socket...");
 
       final staffID = user.memberID;
+      staffVM.setStaffListRequestContext(
+        userId: user.id.isNotEmpty ? user.id : null,
+        userMemberID: user.memberID,
+      );
       // debugPrint("🔌 [HOMESCREEN] Using user ID for socket: $staffID");
 
       try {
@@ -481,7 +575,7 @@ class _HomeScreenState extends State<HomeScreen>
             //   "📤 [HOMESCREEN] Requesting initial staff list via socket...",
             // );
             _staffListRequested = true;
-            socketService.requestStaffList();
+            _requestStaffListForCurrentUser();
           }
         });
       } catch (e, stackTrace) {
@@ -491,6 +585,8 @@ class _HomeScreenState extends State<HomeScreen>
 
       // debugPrint("👥 [HOMESCREEN] Step 5: Fetching initial staff list...");
       await staffVM.fetchStaffDetails();
+      // Load fee config for chat/call pricing from backend when available.
+      unawaited(staffVM.fetchFeeManagement());
       // debugPrint(
       //   "✅ [HOMESCREEN] Initial staff list loaded: ${staffVM.staffList.length}",
       // );
@@ -500,6 +596,7 @@ class _HomeScreenState extends State<HomeScreen>
       });
 
       await _maybeShowWelcomeBonusPopup(user);
+      await _maybeShowActivePopup();
 
       // debugPrint("✅ [HOMESCREEN] _initializeScreen completed successfully");
     } catch (e, stackTrace) {
@@ -529,6 +626,12 @@ class _HomeScreenState extends State<HomeScreen>
         );
       }
     }
+  }
+
+  Future<void> _maybeShowActivePopup() async {
+    if (_activePopupShown || !mounted) return;
+    _activePopupShown = true;
+    await ActivePopupService.showActivePopupsForRole(context, role: 'user');
   }
 
   ZegoUIKitPrebuiltCallEvents _buildZegoCallEvents() {
@@ -562,18 +665,16 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      final userVM = context.read<UserViewModel>();
-      if (userVM.currentUser != null) {
-        final staffID = userVM.currentUser!.memberID;
-        if (!socketService.isConnected) {
-          socketService.connectStaff(staffID);
-        }
-
-        Future.delayed(const Duration(seconds: 1), () {
-          if (socketService.isConnected) {
-            socketService.requestStaffList();
+      if (_isHomeTabVisible) {
+        unawaited(refreshOnVisible());
+      } else {
+        final userVM = context.read<UserViewModel>();
+        if (userVM.currentUser != null) {
+          final staffID = userVM.currentUser!.memberID;
+          if (!socketService.isConnected) {
+            socketService.connectStaff(staffID);
           }
-        });
+        }
       }
 
       _addRoomStateListener();
@@ -582,6 +683,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
 
     if (_roomStateListener != null) {
@@ -594,11 +696,27 @@ class _HomeScreenState extends State<HomeScreen>
     _debounce?.cancel();
     _callEndedSubscription?.cancel();
     _callService.cancelCallTimer();
-    _coinPulseController.dispose();
 
+    socketService.removeWaveListener(_waveSocketHandler);
     _staffVM?.disposeListeners();
 
     super.dispose();
+  }
+
+  void _onStaffWave(dynamic data) {
+    final map = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+    final title = map['title']?.toString() ??
+        map['staffName']?.toString() ??
+        'Someone is online';
+    final body = map['body']?.toString() ??
+        'They are waiting for you. Tap to connect.';
+    unawaited(
+      LocalNotifications.instance.showWave(
+        title: title,
+        body: body,
+        payload: jsonEncode(map),
+      ),
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -691,98 +809,53 @@ class _HomeScreenState extends State<HomeScreen>
                         GestureDetector(
                           onTap: () =>
                               _openPageClearingSearch(const WalletScreen()),
-                          child: AnimatedBuilder(
-                            animation: _coinPulseController,
-                            builder: (context, child) {
-                              final shimmerProgress =
-                                  (_coinPulseController.value * 2.2) - 0.6;
-                              final shimmerX =
-                                  (-110.0 + (shimmerProgress * 170));
-                              final shimmerY = (-42.0 + (shimmerProgress * 54));
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF1A1A1A),
-                                      DudeTheme.surfaceRaised,
-                                      DudeTheme.surface,
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: DudeTheme.accent.withOpacity(0.7),
-                                    width: 1.2,
-                                  ),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Stack(
-                                    children: [
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const _DudeCoinIcon(size: 22),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            "${currentUser?.coinBalance ?? 0}.00",
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Positioned.fill(
-                                        child: IgnorePointer(
-                                          child: Transform.translate(
-                                            offset: Offset(shimmerX, shimmerY),
-                                            child: Transform.rotate(
-                                              angle: 0.78,
-                                              child: Align(
-                                                alignment: Alignment.topLeft,
-                                                child: Container(
-                                                  width: 92,
-                                                  height: 170,
-                                                  decoration: BoxDecoration(
-                                                    gradient: LinearGradient(
-                                                      begin:
-                                                          Alignment.topCenter,
-                                                      end: Alignment
-                                                          .bottomCenter,
-                                                      colors: [
-                                                        Colors.white
-                                                            .withOpacity(0),
-                                                        Colors.white
-                                                            .withOpacity(0.08),
-                                                        Colors.white
-                                                            .withOpacity(0.22),
-                                                        Colors.white
-                                                            .withOpacity(0.40),
-                                                        Colors.white
-                                                            .withOpacity(0.22),
-                                                        Colors.white
-                                                            .withOpacity(0.08),
-                                                        Colors.white
-                                                            .withOpacity(0),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF1A1A1A),
+                                  DudeTheme.surfaceRaised,
+                                  DudeTheme.surface,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: DudeTheme.accent.withOpacity(0.7),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const _DudeCoinIcon(size: 28),
+                                const SizedBox(width: 6),
+                                Text(
+                                  "${currentUser?.coinBalance ?? 0}.00",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
                                   ),
                                 ),
-                              );
-                            },
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    gradient: DudeTheme.premiumAccentGradient,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.add_rounded,
+                                    color: DudeTheme.textOnAccent,
+                                    size: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -972,7 +1045,7 @@ class _HomeScreenState extends State<HomeScreen>
                                           const Duration(seconds: 1),
                                           () {
                                             if (socketService.isConnected) {
-                                              socketService.requestStaffList();
+                                              _requestStaffListForCurrentUser();
                                             }
                                           },
                                         );
@@ -1170,8 +1243,8 @@ class _HomeScreenState extends State<HomeScreen>
               bio,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: DudeTheme.textMuted,
+              style: const TextStyle(
+                color: Colors.white,
                 fontSize: 12.5,
                 height: 1.5,
               ),
@@ -1179,13 +1252,17 @@ class _HomeScreenState extends State<HomeScreen>
           ],
           if (staff.areaOfInterest.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: staff.areaOfInterest
-                  .take(3)
-                  .map((i) => _Tag(i.title, compact: true))
-                  .toList(),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final i in staff.areaOfInterest)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: _Tag(i.title, compact: true),
+                    ),
+                ],
+              ),
             ),
           ],
           const SizedBox(height: 16),
@@ -1205,32 +1282,18 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _staffNameLabel(String name, {required bool highlight}) {
     final style = TextStyle(
-      fontSize: 19,
+      fontSize: 20,
       fontWeight: FontWeight.w900,
       letterSpacing: -0.35,
       height: 1.1,
-      color: highlight ? Colors.white : DudeTheme.textPrimary,
+      color: highlight ? Colors.white : Colors.white,
     );
 
-    if (!highlight) {
-      return Text(
-        name,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: style,
-      );
-    }
-
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) =>
-          DudeTheme.premiumAccentGradient.createShader(bounds),
-      child: Text(
-        name,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: style,
-      ),
+    return Text(
+      name,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: style,
     );
   }
 
@@ -1344,7 +1407,7 @@ class _HomeScreenState extends State<HomeScreen>
     bool compact = false,
   }) {
     final gap = compact ? 6.0 : 12.0;
-    final chatSize = compact ? 46.0 : 50.0;
+    final chatSize = compact ? 40.0 : 50.0;
 
     if (showAudio && !showVideo) {
       return Row(
@@ -1353,7 +1416,7 @@ class _HomeScreenState extends State<HomeScreen>
             child: _customCallButton(
               label: 'Audio Call',
               coinText: '20',
-              min: compact ? '' : '/min',
+              min: '/min',
               pricePerMin: 20,
               isVideoCall: false,
               targetUserID: staff.memberID,
@@ -1365,20 +1428,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
           SizedBox(width: gap),
-          PremiumChatActionButton(
-            onTap: () {
-              if (!mounted) return;
-              _openPageClearingSearch(
-                ChatDetailScreen(
-                  conversationID: staff.memberID,
-                  peerMemberID: staff.memberID,
-                  name: staff.name ?? 'Staff',
-                  staffId: staff.id,
-                ),
-              );
-            },
-            size: chatSize,
-          ),
+          _chatImageButton(staff, size: chatSize),
         ],
       );
     }
@@ -1390,7 +1440,7 @@ class _HomeScreenState extends State<HomeScreen>
             child: _customCallButton(
               label: 'Video Call',
               coinText: '60',
-              min: compact ? '' : '/min',
+              min: '/min',
               pricePerMin: 60,
               isVideoCall: true,
               targetUserID: staff.memberID,
@@ -1402,20 +1452,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
           SizedBox(width: gap),
-          PremiumChatActionButton(
-            onTap: () {
-              if (!mounted) return;
-              _openPageClearingSearch(
-                ChatDetailScreen(
-                  conversationID: staff.memberID,
-                  peerMemberID: staff.memberID,
-                  name: staff.name ?? 'Staff',
-                  staffId: staff.id,
-                ),
-              );
-            },
-            size: chatSize,
-          ),
+          _chatImageButton(staff, size: chatSize),
         ],
       );
     }
@@ -1426,7 +1463,7 @@ class _HomeScreenState extends State<HomeScreen>
           child: _customCallButton(
             label: compact ? 'Audio Call' : '20/min',
             coinText: '20',
-            min: compact ? '' : '/min',
+            min: '/min',
             pricePerMin: 20,
             isVideoCall: false,
             targetUserID: staff.memberID,
@@ -1442,7 +1479,7 @@ class _HomeScreenState extends State<HomeScreen>
           child: _customCallButton(
             label: compact ? 'Video Call' : '60/min',
             coinText: '60',
-            min: compact ? '' : '/min',
+            min: '/min',
             pricePerMin: 60,
             isVideoCall: true,
             targetUserID: staff.memberID,
@@ -1454,21 +1491,33 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
         SizedBox(width: gap),
-        PremiumChatActionButton(
-          onTap: () {
-            if (!mounted) return;
-            _openPageClearingSearch(
-              ChatDetailScreen(
-                conversationID: staff.memberID,
-                peerMemberID: staff.memberID,
-                name: staff.name ?? 'Staff',
-                staffId: staff.id,
-              ),
-            );
-          },
-          size: chatSize,
-        ),
+        _chatImageButton(staff, size: chatSize),
       ],
+    );
+  }
+
+  Widget _chatImageButton(StaffDataProfile staff, {required double size}) {
+    return GestureDetector(
+      onTap: () {
+        if (!mounted) return;
+        _openPageClearingSearch(
+          ChatDetailScreen(
+            conversationID: staff.memberID,
+            peerMemberID: staff.memberID,
+            name: staff.name ?? 'Staff',
+            staffId: staff.id,
+            imageUrl: staff.image,
+          ),
+        );
+      },
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Image.asset(
+          'assets/Images/chatdude.png',
+          fit: BoxFit.contain,
+        ),
+      ),
     );
   }
 
@@ -1550,7 +1599,7 @@ class _HomeScreenState extends State<HomeScreen>
 
                   final success = await ZegoUIKitPrebuiltCallInvitationService()
                       .send(
-                        resourceID: "pair_ever",
+                        resourceID: "dude_push",
                         invitees: [
                           ZegoCallUser.fromUIKit(
                             ZegoUIKitUser(
@@ -1676,7 +1725,7 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                           ),
                           const SizedBox(width: 7),
-                          _DudeCoinIcon(size: 14),
+                          _DudeCoinIcon(size: 20),
                           const SizedBox(width: 4),
                           Text(
                             coinText,
@@ -1688,27 +1737,22 @@ class _HomeScreenState extends State<HomeScreen>
                               fontWeight: FontWeight.w800,
                             ),
                           ),
+                          Text(
+                            min,
+                            style: TextStyle(
+                              color: isEnabled
+                                  ? DudeTheme.textOnAccent
+                                  : Colors.white.withValues(alpha: 0.5),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ],
                       )
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Center(
-                            child: Image.asset(
-                              'assets/Images/heartcoin.png',
-                              width: 20,
-                              height: 20,
-                              errorBuilder: (_, __, ___) => Icon(
-                                isVideoCall
-                                    ? Icons.videocam_rounded
-                                    : Icons.phone_rounded,
-                                color: isEnabled
-                                    ? DudeTheme.textOnAccent
-                                    : DudeTheme.textMuted,
-                                size: 18,
-                              ),
-                            ),
-                          ),
+                          const Center(child: _DudeCoinIcon(size: 26)),
                           const SizedBox(width: 2),
                           Text(
                             coinText,
@@ -1884,33 +1928,40 @@ class _DudeCoinIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFFE9A8), Color(0xFFF0B429), Color(0xFFB8790C)],
-        ),
-        border: Border.all(color: const Color(0xFF8A5A00), width: size * 0.045),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF0B429).withValues(alpha: 0.45),
-            blurRadius: size * 0.35,
-            spreadRadius: -size * 0.08,
+    return ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Transform.scale(
+          scale: 1.4,
+          child: Image.asset(
+            'assets/Images/dudecoin.jpg',
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFFFE9A8),
+                    Color(0xFFF0B429),
+                    Color(0xFFB8790C),
+                  ],
+                ),
+              ),
+              child: Text(
+                'D',
+                style: TextStyle(
+                  color: const Color(0xFF6B4400),
+                  fontSize: size * 0.5,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+            ),
           ),
-        ],
-      ),
-      child: Text(
-        'D',
-        style: TextStyle(
-          color: const Color(0xFF6B4400),
-          fontSize: size * 0.5,
-          fontWeight: FontWeight.w900,
-          height: 1,
         ),
       ),
     );
@@ -1924,26 +1975,52 @@ class _Tag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 8 : 12,
-        vertical: compact ? 3 : 6,
-      ),
-      decoration: BoxDecoration(
-        color: DudeTheme.accentDim.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: DudeTheme.accentBright.withValues(alpha: 0.25),
+    const radius = 4.0;
+    return CustomPaint(
+      painter: _GradientBorderPainter(radius: radius, strokeWidth: 1.2),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 8 : 12,
+          vertical: compact ? 5 : 8,
         ),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: DudeTheme.accentBright,
-          fontSize: compact ? 10 : 12,
-          fontWeight: FontWeight.w700,
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
   }
+}
+
+class _GradientBorderPainter extends CustomPainter {
+  final double radius;
+  final double strokeWidth;
+
+  const _GradientBorderPainter({required this.radius, required this.strokeWidth});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndRadius(
+      rect.deflate(strokeWidth / 2),
+      Radius.circular(radius),
+    );
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [DudeTheme.accentBright, DudeTheme.accentDeep],
+      ).createShader(rect);
+    canvas.drawRRect(rrect, paint);
+  }
+
+  @override
+  bool shouldRepaint(_GradientBorderPainter oldDelegate) =>
+      oldDelegate.radius != radius || oldDelegate.strokeWidth != strokeWidth;
 }

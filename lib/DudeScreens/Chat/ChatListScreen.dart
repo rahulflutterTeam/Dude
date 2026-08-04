@@ -455,6 +455,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                       peerMemberID: conversation.peerMemberId,
                       name: conversation.peerName,
                       staffId: staffId,
+                      imageUrl: conversation.peerImage,
                     ),
                   ),
                 ).then((_) {

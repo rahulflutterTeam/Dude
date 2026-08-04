@@ -6,8 +6,8 @@ import 'package:dude/DudeScreens/Splash/SplashScreen.dart';
 import 'package:dude/DudeScreens/Splash/SplashScreen2.dart';
 import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class VerificationUnsuccessScreen extends StatefulWidget {
   const VerificationUnsuccessScreen({super.key});
@@ -32,8 +32,7 @@ class _VerificationUnsuccessScreenState
               children: [
                 const SizedBox(height: 10),
 
-                /// 🔹 Logo
-                SvgPicture.asset("assets/Images/dude.svg", height: 45),
+                const DudeLogo(height: 45),
 
                 SizedBox(height: 30),
                 Center(

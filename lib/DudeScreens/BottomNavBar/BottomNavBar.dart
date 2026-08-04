@@ -50,17 +50,19 @@ class _MainBottomBarState extends State<MainBottomBar>
   static const _pillWidth = 54.0;
   static const _pillHeight = 48.0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    ChatListScreen(backPage: false),
-    TransactionsScreen(backPage: false),
-    ProfileScreen(backPage: false),
-  ];
+  final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
+  late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.index ?? 0;
+    _screens = [
+      HomeScreen(key: _homeKey),
+      const ChatListScreen(backPage: false),
+      const TransactionsScreen(backPage: false),
+      const ProfileScreen(backPage: false),
+    ];
     _tabFadeCtrl = AnimationController(
       vsync: this,
       duration: PremiumAnimations.normal,
@@ -71,6 +73,7 @@ class _MainBottomBarState extends State<MainBottomBar>
     );
     _startConnectivityListener();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _homeKey.currentState?.setHomeTabVisible(_selectedIndex == 0);
       _showLowBalanceCallIfNeeded();
     });
   }
@@ -163,13 +166,19 @@ class _MainBottomBarState extends State<MainBottomBar>
     HapticFeedback.selectionClick();
     if (_selectedIndex == 0 && index != 0) {
       _homeEntryId++;
+      _homeKey.currentState?.setHomeTabVisible(false);
       context.read<StaffViewModel>().updateSearchQuery('');
     }
     _tabFadeCtrl.forward(from: 0).then((_) {
       if (mounted) _tabFadeCtrl.value = 1;
     });
     setState(() => _selectedIndex = index);
-    if (isEnteringHome) _showLowBalanceCallIfNeeded();
+    if (isEnteringHome) {
+      _homeKey.currentState?.setHomeTabVisible(true);
+      // IndexedStack keeps Home alive — refresh like PairEver remount.
+      unawaited(_homeKey.currentState?.refreshOnVisible() ?? Future.value());
+      _showLowBalanceCallIfNeeded();
+    }
   }
 
   @override

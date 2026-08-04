@@ -1,6 +1,6 @@
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
-import 'package:flutter/material.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class RefundsCancellationsScreen extends StatelessWidget {
@@ -9,7 +9,7 @@ class RefundsCancellationsScreen extends StatelessWidget {
   Future<void> _launchEmail() async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
-      path: 'dudeofficial@gmail.com',
+      path: 'dudeappofficial@gmail.com',
       queryParameters: {
         'subject': 'Billing Support Request',
         'body':
@@ -20,11 +20,9 @@ class RefundsCancellationsScreen extends StatelessWidget {
     try {
       if (await canLaunchUrl(emailUri)) {
         await launchUrl(emailUri);
-      } else {
-        throw 'Could not launch email client';
       }
     } catch (e) {
-      print('Error launching email: $e');
+      debugPrint('Error launching email: $e');
     }
   }
 
@@ -39,177 +37,163 @@ class RefundsCancellationsScreen extends StatelessWidget {
           gradient: DudeTheme.backgroundGradient,
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Custom Back Button
-                  GestureDetector(
-                    onTap: () => bondNavigator.backPage(context),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: DudeTheme.surfaceRaised,
-                        borderRadius: BorderRadius.circular(40),
-                      ),
-                      child: const Padding(
-                        padding: EdgeInsets.all(10.0),
-                        child: Icon(
-                          Icons.arrow_back,
-                          color: Colors.white,
-                          size: 24,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => bondNavigator.backPage(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: DudeTheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: DudeTheme.border),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new,
+                          color: DudeTheme.textPrimary,
+                          size: 18,
                         ),
                       ),
                     ),
-                  ),
-
-                  // Main Title
-                  const Text(
-                    "Refunds & Cancellations",
-                    style: TextStyle(
-                      color: Color(0xFFbdd534),
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Refunds & Cancellations',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: DudeTheme.textPrimary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  Container(
-                    height: 2,
-                    width: 60,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFbdd534),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Subscription Cancellation
-                  _buildSubSectionHeader("Subscription Cancellation"),
-                  const SizedBox(height: 12),
-                  _buildDescriptionText(
-                    "Users may cancel their subscription at any time through Google Play Store or Apple App Store settings.",
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Refund Policy
-                  _buildSubSectionHeader("Refund Policy"),
-                  const SizedBox(height: 16),
-                  _buildBulletPointWithSubtext(
-                    "Subscription payments are generally non-refundable after successful activation.",
-                  ),
-                  const SizedBox(height: 12),
-                  _buildBulletPointWithSubtext(
-                    "Refund requests may be considered in exceptional cases such as duplicate transactions or technical issues.",
-                  ),
-                  const SizedBox(height: 12),
-                  _buildBulletPointWithSubtext(
-                    "Approved refunds may take 5–10 business days to process.",
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Auto-Renewal
-                  _buildSubSectionHeader("Auto-Renewal"),
-                  const SizedBox(height: 12),
-                  _buildDescriptionText(
-                    "Subscriptions may renew automatically unless canceled before the renewal date.",
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Contact for Billing Issues
-                  _buildSubSectionHeader("Contact for Billing Issues"),
-                  const SizedBox(height: 12),
-                  _buildDescriptionText(
-                    "For any billing-related questions or concerns, please contact our support team:",
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Contact Cards
-                  _buildContactCard(
-                    icon: Icons.email_outlined,
-                    title: "Email Support",
-                    detail: "dudeofficial@gmail.com",
-                    onTap: () async {
-                      await _launchEmail();
-                    },
-                  ),
-
-                  const SizedBox(height: 40),
-                ],
+                  ],
+                ),
               ),
-            ),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _heroCard(),
+                      const SizedBox(height: 16),
+                      _sectionCard(
+                        title: 'Subscription Cancellation',
+                        child: const Text(
+                          'Users may cancel their subscription at any time through Google Play Store or Apple App Store settings.',
+                          style: TextStyle(
+                            color: DudeTheme.textPrimary,
+                            fontSize: 14.5,
+                            height: 1.55,
+                          ),
+                        ),
+                      ),
+                      _sectionCard(
+                        title: 'Refund Policy',
+                        child: Column(
+                          children: [
+                            _bullet(
+                              'Subscription payments are generally non-refundable after successful activation.',
+                            ),
+                            const SizedBox(height: 10),
+                            _bullet(
+                              'Refund requests may be considered in exceptional cases such as duplicate transactions or technical issues.',
+                            ),
+                            const SizedBox(height: 10),
+                            _bullet(
+                              'Approved refunds may take 5–10 business days to process.',
+                            ),
+                          ],
+                        ),
+                      ),
+                      _sectionCard(
+                        title: 'Auto-Renewal',
+                        child: const Text(
+                          'Subscriptions may renew automatically unless canceled before the renewal date.',
+                          style: TextStyle(
+                            color: DudeTheme.textPrimary,
+                            fontSize: 14.5,
+                            height: 1.55,
+                          ),
+                        ),
+                      ),
+                      _sectionCard(
+                        title: 'Contact for Billing Issues',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'For any billing-related questions or concerns, please contact our support team:',
+                              style: TextStyle(
+                                color: DudeTheme.textPrimary,
+                                fontSize: 14.5,
+                                height: 1.55,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _contactCard(
+                              icon: Icons.email_outlined,
+                              title: 'Email Support',
+                              detail: 'dudeappofficial@gmail.com',
+                              onTap: _launchEmail,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSubSectionHeader(String title) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 24,
-          decoration: BoxDecoration(
-            color: const Color(0xFFbdd534),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.3,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDescriptionText(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 16),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Color(0xFFC4C0D0),
-          fontSize: 15,
-          height: 1.6,
+  Widget _heroCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: DudeTheme.border.withValues(alpha: 0.55)),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [DudeTheme.accentDim, DudeTheme.surface],
         ),
       ),
-    );
-  }
-
-  Widget _buildBulletPointWithSubtext(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 16),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            margin: const EdgeInsets.only(top: 6),
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: Color(0xFFbdd534),
-              shape: BoxShape.circle,
+          const Text(
+            'Refunds & Cancellations',
+            style: TextStyle(
+              color: DudeTheme.accentBright,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: Color(0xFFC4C0D0),
-                fontSize: 15,
-                height: 1.6,
-              ),
+          const SizedBox(height: 8),
+          Container(
+            height: 3,
+            width: 48,
+            decoration: BoxDecoration(
+              gradient: DudeTheme.premiumAccentGradient,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Learn how cancellations, refunds, and billing support work on Dude.',
+            style: TextStyle(
+              color: DudeTheme.textMuted,
+              fontSize: 14,
+              height: 1.5,
             ),
           ),
         ],
@@ -217,7 +201,78 @@ class RefundsCancellationsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildContactCard({
+  Widget _sectionCard({required String title, required Widget child}) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: DudeTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DudeTheme.border.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 22,
+                decoration: BoxDecoration(
+                  gradient: DudeTheme.premiumAccentGradient,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: DudeTheme.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _bullet(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(top: 7),
+          width: 6,
+          height: 6,
+          decoration: const BoxDecoration(
+            color: DudeTheme.accent,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: DudeTheme.textPrimary,
+              fontSize: 14.5,
+              height: 1.55,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _contactCard({
     required IconData icon,
     required String title,
     required String detail,
@@ -226,23 +281,26 @@ class RefundsCancellationsScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: DudeTheme.surface,
+          color: DudeTheme.surfaceRaised,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: DudeTheme.surfaceRaised, width: 1),
+          border: Border.all(color: DudeTheme.border.withValues(alpha: 0.55)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: DudeTheme.surfaceRaised,
+                color: DudeTheme.accentDim,
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: DudeTheme.accent.withValues(alpha: 0.35),
+                ),
               ),
-              child: Icon(icon, color: const Color(0xFFbdd534), size: 24),
+              child: Icon(icon, color: DudeTheme.accent, size: 22),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,16 +308,16 @@ class RefundsCancellationsScreen extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      color: DudeTheme.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     detail,
                     style: const TextStyle(
-                      color: DudeTheme.textMid,
+                      color: DudeTheme.accentBright,
                       fontSize: 13,
                     ),
                   ),
@@ -267,9 +325,9 @@ class RefundsCancellationsScreen extends StatelessWidget {
               ),
             ),
             const Icon(
-              Icons.arrow_forward_ios,
-              color: Color(0xFFbdd534),
-              size: 16,
+              Icons.arrow_forward_ios_rounded,
+              color: DudeTheme.accent,
+              size: 14,
             ),
           ],
         ),

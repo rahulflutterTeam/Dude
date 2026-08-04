@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:dude/APIService/Remote/network/BaseApiService.dart';
+import 'package:dude/APIService/Remote/network/ApiEndPoints.dart';
 import 'package:dude/DudeScreens/AuthService.dart';
 
 class SupportTicketService {
@@ -10,7 +11,10 @@ class SupportTicketService {
 
   Future<Map<String, String>> _headers() async {
     final token = await AuthService.getToken() ?? '';
-    return {'Authorization': 'Bearer $token', 'Accept': 'application/json'};
+    return {
+      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+};
   }
 
   Future<Map<String, dynamic>> getDashboard() async {
@@ -64,7 +68,7 @@ class SupportTicketService {
     var request = http.MultipartRequest('POST', uri);
     request.headers['Authorization'] =
         'Bearer $token'; // Only set Authorization for multipart
-    request.fields['description'] = description;
+request.fields['description'] = description;
     if (images != null) {
       for (var img in images.take(3)) {
         final ext = img.path.split('.').last.toLowerCase();

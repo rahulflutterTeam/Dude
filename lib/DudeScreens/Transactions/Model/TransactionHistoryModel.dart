@@ -15,11 +15,20 @@ class DepositHistoryResponse {
   });
 
   factory DepositHistoryResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    final items = rawData is List
+        ? rawData
+        : rawData is Map && rawData['docs'] is List
+        ? rawData['docs'] as List
+        : rawData is Map && rawData['transactions'] is List
+        ? rawData['transactions'] as List
+        : const [];
     return DepositHistoryResponse(
-      status: json['status'] as bool? ?? false,
-      message: json['message'] as String? ?? 'No message',
-      data: (json['data'] as List<dynamic>?)
-          ?.map((e) => DepositHistoryItem.fromJson(e as Map<String, dynamic>))
+      status: _boolValue(json['status']),
+      message: json['message']?.toString() ?? 'No message',
+      data: items
+          .whereType<Map>()
+          .map((e) => DepositHistoryItem.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
     );
   }
@@ -62,22 +71,35 @@ class DepositHistoryItem {
 
   factory DepositHistoryItem.fromJson(Map<String, dynamic> json) {
     return DepositHistoryItem(
-      id: json['_id'] as String? ?? '',
-      userId: json['userId'] as String? ?? '',
-      userName: json['userName'] as String? ?? '',
-      userPhone: json['userPhone'] as String? ?? '',
-      razorpayOrderId: json['razorpayOrderId'] as String? ?? '',
-      totalAmount: json['totalAmount'] as int? ?? 0,
-      currency: json['currency'] as String? ?? 'INR',
-      paymentStatus: json['paymentStatus'] as String? ?? 'pending',
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      userId: json['userId']?.toString() ?? '',
+      userName: json['userName']?.toString() ?? '',
+      userPhone: json['userPhone']?.toString() ?? '',
+      razorpayOrderId:
+          json['orderId']?.toString() ??
+          json['order_id']?.toString() ??
+          json['razorpayOrderId']?.toString() ??
+          json['cashfreeOrderId']?.toString() ??
+          '',
+      totalAmount: _intValue(
+        json['totalAmount'] ?? json['amount'] ?? json['orderAmount'],
+      ),
+      currency: json['currency']?.toString() ?? 'INR',
+      paymentStatus:
+          json['paymentStatus']?.toString() ??
+          json['status']?.toString() ??
+          'pending',
       createdAt: HistoryTimeFormatter.parseLocal(json['createdAt']),
       updatedAt: HistoryTimeFormatter.parseLocal(json['updatedAt']),
-      v: json['__v'] as int? ?? 0,
-      razorpayPaymentId: json['razorpayPaymentId'] as String?,
-      razorpaySignature: json['razorpaySignature'] as String?,
+      v: _intValue(json['__v']),
+      razorpayPaymentId:
+          json['razorpayPaymentId']?.toString() ??
+          json['paymentId']?.toString() ??
+          json['cfPaymentId']?.toString(),
+      razorpaySignature: json['razorpaySignature']?.toString(),
 
       // Parse the new image field
-      image: json['image'] as String?,
+      image: json['image']?.toString(),
     );
   }
 
@@ -107,4 +129,15 @@ class DepositHistoryItem {
         return Colors.grey;
     }
   }
+}
+
+bool _boolValue(dynamic value) {
+  if (value is bool) return value;
+  final normalized = value?.toString().toLowerCase();
+  return normalized == 'true' || normalized == '1' || normalized == 'success';
+}
+
+int _intValue(dynamic value) {
+  if (value is num) return value.toInt();
+  return num.tryParse(value?.toString() ?? '')?.toInt() ?? 0;
 }

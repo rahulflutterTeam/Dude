@@ -74,10 +74,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                       height: 90,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: DudeTheme.accent,
-                          width: 3,
-                        ),
+                        border: Border.all(color: DudeTheme.accent, width: 3),
                       ),
                       child: ClipOval(
                         child:
@@ -106,7 +103,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "ID: ${transaction.razorpayOrderId.substring(0, 10)}...",
+                      "ID: ${_shortOrderId(transaction.razorpayOrderId)}",
                       style: const TextStyle(
                         color: DudeTheme.textMid,
                         fontSize: 14,
@@ -307,6 +304,11 @@ class TransactionDetailsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _shortOrderId(String orderId) {
+    if (orderId.isEmpty) return '—';
+    return orderId.length > 10 ? '${orderId.substring(0, 10)}...' : orderId;
   }
 
   Widget _buildDetailRow(String label, String value) {

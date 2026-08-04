@@ -115,6 +115,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- Persist a genuine Accept tap before Flutter cold-start routing. -->
+        <receiver
+            android:name=".AcceptedCallReceiver"
+            android:exported="false">
+            <intent-filter android:priority="999">
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_ACCEPT" />
+            </intent-filter>
+        </receiver>
+
         <!-- CALLKIT FOREGROUND SERVICE — keeps ringtone alive -->
         <service
             android:name="com.hiennv.flutter_callkit_incoming.CallkitIncomingService"
@@ -154,6 +163,9 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_stat_notify" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
         <meta-data
             android:name="com.hiennv.flutter_callkit_incoming.FULL_SCREEN_INTENT"
             android:value="true" />

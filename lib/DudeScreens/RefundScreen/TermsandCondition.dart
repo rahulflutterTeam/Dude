@@ -355,7 +355,7 @@ class TermsAndConditionsScreen extends StatelessWidget {
                         "DUDE TECH\n"
                         "Plot No. 1, Velan Nagar, Lakshmi Complex,\n"
                         "Sengunram Nagar, Madurai – 625004, Tamil Nadu, India\n\n"
-                        "Support: dudeofficial@gmail.com\n"
+                        "Support: dudeappofficial@gmail.com\n"
                         "Grievance: hariharanpandiyarajan8@gmail.com\n"
                         "Nodal: vinithrichardsjl@gmail.com",
                         style: TextStyle(

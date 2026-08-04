@@ -3,10 +3,10 @@ import 'dart:ui';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_animations.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_nav_icon.dart';
-import 'package:dude/StaffScreenScreens/RecentCallScreen/RecentCallScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffDashBoardScreen/DashBoardScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffProfileScreen/staffProfileScreen.dart';
 import 'package:dude/StaffScreenScreens/WithdrawScreen/WithdrawHistory.dart';
+import 'package:dude/StaffScreenScreens/OnlineUsersScreen/staff_online_users_screen.dart';
 import 'package:dude/StaffScreenScreens/staffChat/staffChatListScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -30,6 +30,7 @@ class _StaffBottomBarState extends State<StaffBottomBar>
     with TickerProviderStateMixin {
   int _selectedIndex = 0;
   DateTime? _lastBackPressed;
+  late final ValueNotifier<int> _activeTab;
 
   late final AnimationController _tabFadeCtrl;
   late final Animation<double> _tabFadeAnim;
@@ -40,8 +41,8 @@ class _StaffBottomBarState extends State<StaffBottomBar>
 
   static const _tabs = [
     StaffNavTab.dashboard,
-    StaffNavTab.calls,
     StaffNavTab.chat,
+    StaffNavTab.onlineUsers,
     StaffNavTab.withdrawals,
     StaffNavTab.profile,
   ];
@@ -55,10 +56,15 @@ class _StaffBottomBarState extends State<StaffBottomBar>
   void initState() {
     super.initState();
     _selectedIndex = widget.index ?? 0;
+    _activeTab = ValueNotifier<int>(_selectedIndex);
     _screens = [
       BondingDashboardPage(launchingAcceptedCall: widget.launchingAcceptedCall),
-      const RecentCallsPage(backPage: false),
       const StaffChatListScreen(backPage: false),
+      StaffOnlineUsersScreen(
+        backPage: false,
+        activeTab: _activeTab,
+        tabIndex: 2,
+      ),
       const WithdrawHistory(backPage: false),
       const StaffProfileScreen(backPage: false),
     ];
@@ -74,6 +80,7 @@ class _StaffBottomBarState extends State<StaffBottomBar>
 
   @override
   void dispose() {
+    _activeTab.dispose();
     _tabFadeCtrl.dispose();
     super.dispose();
   }
@@ -103,6 +110,7 @@ class _StaffBottomBarState extends State<StaffBottomBar>
       if (mounted) _tabFadeCtrl.value = 1;
     });
     setState(() => _selectedIndex = index);
+    _activeTab.value = index;
   }
 
   @override

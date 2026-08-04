@@ -1,26 +1,28 @@
-// lib/viewmodels/staff_view_model.dart
-
 import 'dart:io';
 import 'dart:developer';
 
 import 'package:dude/DudeScreens/DeleteAccountScreeen/Model/DeleteModel.dart';
 import 'package:dude/DudeScreens/HomeScreen/Model/StaffDataModel.dart';
+import 'package:dude/DudeScreens/HomeScreen/Socket.dart';
 import 'package:dude/DudeScreens/LoginScreens/AddProfile/Model/ProfileModel.dart';
 import 'package:dude/DudeScreens/LoginScreens/InterestScreen/Model/InterestModel.dart';
 import 'package:dude/StaffScreenScreens/ProfileVerficationScreen/Model/ProfileIdModel.dart';
 import 'package:dude/StaffScreenScreens/RecentCallScreen/Model/recentCallModel.dart';
 import 'package:dude/StaffScreenScreens/StaffDashBoardScreen/Model/CallGraphModel.dart';
 import 'package:dude/StaffScreenScreens/StaffDashBoardScreen/Model/StaffSingleDataModel.dart';
-import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/Model/StaffRegisterModel.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/Model/StaffGiftModel.dart';
+import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/Model/StaffRegisterModel.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/Repo/StaffRegisterRepo.dart';
 import 'package:dude/StaffScreenScreens/WithdrawScreen/Model/FeeManagementModel.dart';
-import 'package:dude/DudeScreens/HomeScreen/Socket.dart';
 import 'package:flutter/material.dart';
 
 class StaffViewModel extends ChangeNotifier {
   final StaffRepository _staffRepo;
   final SocketService _socketService = SocketService();
+  late final Function(dynamic) _staffListSocketHandler;
+  late final Function(dynamic) _statusChangeSocketHandler;
+  late final Function(dynamic) _disconnectSocketHandler;
+  bool _isDisposed = false;
 
   // ─── Staff Gifts ─────────────────────────────────────────────────────────
   List<StaffGiftItem> _gifts = [];
@@ -31,7 +33,12 @@ class StaffViewModel extends ChangeNotifier {
   bool get isFetchingGifts => _isFetchingGifts;
   String? get giftsError => _giftsError;
 
+  StaffRepository get repository => _staffRepo;
+
   StaffViewModel(this._staffRepo) {
+    _staffListSocketHandler = _processStaffListUpdate;
+    _statusChangeSocketHandler = _processStatusUpdate;
+    _disconnectSocketHandler = _handleSocketDisconnect;
     _setupSocketListeners();
   }
 
@@ -66,6 +73,14 @@ class StaffViewModel extends ChangeNotifier {
 
   double messageAmount({double fallback = 0}) {
     return feeValue(FeeManagementData.messageAmount, fallback: fallback);
+  }
+
+  double minimumWithdrawalAmount({double fallback = 200}) {
+    final configured = feeValue(
+      FeeManagementData.minimumWithdrawalAmount,
+      fallback: fallback,
+    );
+    return configured > 0 ? configured : fallback;
   }
 
   double withdrawFee({double fallback = 0}) {
@@ -138,6 +153,8 @@ class StaffViewModel extends ChangeNotifier {
   // Track socket listeners to avoid duplicates
   bool _socketListenersSet = false;
   String? _currentStaffId;
+  String? _staffListRequestUserId;
+  String? _staffListRequestUserMemberID;
 
   // ─── Online Status Tracking ──────────────────────────────────────────────
   Map<String, bool> onlineStatus = {};
@@ -172,25 +189,48 @@ class StaffViewModel extends ChangeNotifier {
     return onlineStatus[userId] ?? false;
   }
 
+  void setStaffListRequestContext({String? userId, String? userMemberID}) {
+    if (userId != null && userId.isNotEmpty) {
+      _staffListRequestUserId = userId;
+    }
+    if (userMemberID != null && userMemberID.isNotEmpty) {
+      _staffListRequestUserMemberID = userMemberID;
+    }
+    _socketService.setStaffListRequestContext(
+      userId: userId,
+      userMemberID: userMemberID,
+    );
+  }
+
+  Map<String, dynamic> _buildGetAllStaffPayload() {
+    if (_staffListRequestUserId?.isNotEmpty == true) {
+      return {"userId": _staffListRequestUserId};
+    }
+    if (_staffListRequestUserMemberID?.isNotEmpty == true) {
+      return {"userMemberID": _staffListRequestUserMemberID};
+    }
+    return {};
+  }
+
   // ─── Socket Setup ────────────────────────────────────────────────────────
   void _setupSocketListeners() {
-    if (_socketListenersSet) return;
+    if (_socketListenersSet || _isDisposed) return;
 
     // debugPrint("🔌 [StaffVM] Setting up socket listeners");
 
     // Listen for staff list updates
-    _socketService.listenStaffList((data) {
-      // debugPrint("📡 [StaffVM] Received staff list update via socket");
-      _processStaffListUpdate(data);
-    });
+    _socketService.listenStaffList(_staffListSocketHandler);
 
     // Listen for status changes (including busy status)
-    _socketService.listenStatusChanges((data) {
-      // debugPrint("📡 [StaffVM] Received status change via socket");
-      _processStatusUpdate(data);
-    });
+    _socketService.listenStatusChanges(_statusChangeSocketHandler);
+    _socketService.listenDisconnect(_disconnectSocketHandler);
 
     _socketListenersSet = true;
+  }
+
+  void _handleSocketDisconnect(dynamic _) {
+    // SocketService retains provider-owned callbacks across transport
+    // reconnects. Re-registering here can race a deliberate logout.
   }
 
   // ─── Process Staff List Update from Socket ──────────────────────────────
@@ -498,12 +538,9 @@ class StaffViewModel extends ChangeNotifier {
   // ─── Request Full List Refresh ──────────────────────────────────────────
   void _requestFullListRefresh() {
     if (_socketService.isConnected) {
-      // debugPrint("📤 [StaffVM] Requesting full staff list refresh via socket");
-      _socketService.emit("get_all_staff", {
-        "requestId": DateTime.now().millisecondsSinceEpoch.toString(),
-        "timestamp": DateTime.now().toIso8601String(),
-        "reason": "refresh_requested",
-      });
+      final payload = _buildGetAllStaffPayload();
+      if (payload.isEmpty) return;
+      _socketService.emit("get_all_staff", payload);
     }
   }
 
@@ -514,7 +551,10 @@ class StaffViewModel extends ChangeNotifier {
 
     if (_socketService.isConnected) {
       // debugPrint("📤 [StaffVM] Manually requesting staff list via socket");
-      _socketService.requestStaffList();
+      _socketService.requestStaffList(
+        userId: _staffListRequestUserId,
+        userMemberID: _staffListRequestUserMemberID,
+      );
 
       // Set a timeout to stop showing loading if no response
       Future.delayed(const Duration(seconds: 5), () {
@@ -920,6 +960,9 @@ class StaffViewModel extends ChangeNotifier {
   // ─── Clean up listeners ──────────────────────────────────────────────────
   void disposeListeners() {
     // debugPrint("🧹 [StaffVM] Cleaning up socket listeners");
+    _socketService.removeStaffListListener(_staffListSocketHandler);
+    _socketService.removeStatusChangeListener(_statusChangeSocketHandler);
+    _socketService.removeDisconnectListener(_disconnectSocketHandler);
     _socketListenersSet = false;
   }
 
@@ -952,7 +995,10 @@ class StaffViewModel extends ChangeNotifier {
 
         Future.delayed(const Duration(seconds: 1), () {
           if (_socketService.isConnected) {
-            _socketService.requestStaffList();
+            _socketService.requestStaffList(
+              userId: _staffListRequestUserId,
+              userMemberID: _staffListRequestUserMemberID,
+            );
           }
         });
 
@@ -1158,6 +1204,7 @@ class StaffViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _isDisposed = true;
     disposeListeners();
     super.dispose();
   }

@@ -1,11 +1,11 @@
-// submit_ticket_screen.dart
 import 'dart:io';
+
+import 'package:dude/APIService/support_ticket_service.dart';
+import 'package:dude/DudeScreens/ProfileScreen/ProfileScreen.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:dude/APIService/support_ticket_service.dart';
-import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
-import 'ProfileScreen.dart';
 
 class SubmitTicketScreen extends StatefulWidget {
   @override
@@ -13,13 +13,12 @@ class SubmitTicketScreen extends StatefulWidget {
 }
 
 class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
-  final Color primary = const Color(0xFF4FB9D1); // App main color
   final TextEditingController _descController = TextEditingController();
   List<File> _images = [];
   bool loading = false;
   String? error;
   String? success;
-  late SupportTicketService _service = SupportTicketService();
+  late final SupportTicketService _service = SupportTicketService();
 
   Future<void> _pickImages() async {
     final picker = ImagePicker();
@@ -44,7 +43,7 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
         });
         return;
       }
-      final result = await _service.createTicket(
+      await _service.createTicket(
         description: desc,
         images: _images,
       );
@@ -70,227 +69,288 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
   }
 
   @override
+  void dispose() {
+    _descController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: DudeTheme.background,
       appBar: AppBar(
-        leading: BackButton(color: Colors.white54),
-        title: Text(
+        leading: const BackButton(color: DudeTheme.textMid),
+        title: const Text(
           'Submit Ticket',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: DudeTheme.textPrimary,
+          ),
         ),
-        backgroundColor: DudeTheme.surface,
+        backgroundColor: DudeTheme.background,
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             if (error != null) ...[
-              Text(error!, style: TextStyle(color: Colors.red)),
-              SizedBox(height: 8),
+              Text(error!, style: const TextStyle(color: DudeTheme.danger)),
+              const SizedBox(height: 8),
             ],
             if (success != null) ...[
-              Text(success!, style: TextStyle(color: Colors.green)),
-              SizedBox(height: 8),
+              Text(success!, style: const TextStyle(color: DudeTheme.success)),
+              const SizedBox(height: 8),
             ],
-            Card(
-              color: DudeTheme.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Describe your issue',
+            _TicketCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Describe your issue',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color: DudeTheme.textPrimary,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: DudeTheme.accentDim,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: DudeTheme.accent.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: const Text(
+                          'Required',
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.white,
+                            color: DudeTheme.accent,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
                           ),
                         ),
-                        Spacer(),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: primary.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'Required',
-                            style: TextStyle(
-                              color: primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Please provide detailed information (minimum 15 characters)',
+                    style: TextStyle(color: DudeTheme.textSubtle),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _descController,
+                    maxLines: 5,
+                    maxLength: 250,
+                    style: const TextStyle(color: DudeTheme.textPrimary),
+                    cursorColor: DudeTheme.accent,
+                    decoration: InputDecoration(
+                      hintText: 'Describe your issue...',
+                      hintStyle: const TextStyle(color: DudeTheme.textSubtle),
+                      filled: true,
+                      fillColor: DudeTheme.surfaceRaised,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: DudeTheme.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: DudeTheme.border.withValues(alpha: 0.6),
                         ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Please provide detailed information (minimum 15 characters)',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    SizedBox(height: 8),
-                    TextField(
-                      controller: _descController,
-                      maxLines: 5,
-                      maxLength: 250,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: 'Describe your issue...',
-                        hintStyle: TextStyle(color: Colors.white54),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: DudeTheme.accent,
+                          width: 1.4,
                         ),
-                        counterText: '250',
+                      ),
+                      counterStyle: const TextStyle(
+                        color: DudeTheme.textSubtle,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 16),
-            Card(
-              color: DudeTheme.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Attach Images',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.white,
-                          ),
+            const SizedBox(height: 16),
+            _TicketCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Attach Images',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color: DudeTheme.textPrimary,
                         ),
-                        Spacer(),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[100],
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'Optional',
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Add up to 3 images to help us understand better',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: DudeTheme.border,
-                        foregroundColor: Colors.white,
-                        side: BorderSide(color: Colors.grey[700]!),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                        minimumSize: Size(double.infinity, 48),
                       ),
-                      icon: Icon(Icons.attach_file),
-                      label: Text('ATTACH IMAGES'),
-                      onPressed: loading ? null : _pickImages,
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: DudeTheme.surfaceElevated,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: DudeTheme.borderSubtle),
+                        ),
+                        child: const Text(
+                          'Optional',
+                          style: TextStyle(
+                            color: DudeTheme.textMid,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Add up to 3 images to help us understand better',
+                    style: TextStyle(color: DudeTheme.textSubtle),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: DudeTheme.surfaceRaised,
+                      foregroundColor: DudeTheme.textPrimary,
+                      side: BorderSide(
+                        color: DudeTheme.border.withValues(alpha: 0.7),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                      minimumSize: const Size(double.infinity, 48),
                     ),
-                    if (_images.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Wrap(
-                          spacing: 8,
-                          children: _images
-                              .map(
-                                (img) => Stack(
-                                  alignment: Alignment.topRight,
-                                  children: [
-                                    Image.file(
+                    icon: const Icon(
+                      Icons.attach_file_rounded,
+                      color: DudeTheme.accent,
+                    ),
+                    label: const Text('ATTACH IMAGES'),
+                    onPressed: loading ? null : _pickImages,
+                  ),
+                  if (_images.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Wrap(
+                        spacing: 8,
+                        children: _images
+                            .map(
+                              (img) => Stack(
+                                alignment: Alignment.topRight,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.file(
                                       img,
                                       width: 80,
                                       height: 80,
                                       fit: BoxFit.cover,
                                     ),
-                                    GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _images.remove(img);
-                                        });
-                                      },
-                                      child: CircleAvatar(
-                                        radius: 12,
-                                        backgroundColor: Colors.red,
-                                        child: Icon(
-                                          Icons.close,
-                                          size: 16,
-                                          color: Colors.white,
-                                        ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _images.remove(img);
+                                      });
+                                    },
+                                    child: const CircleAvatar(
+                                      radius: 12,
+                                      backgroundColor: DudeTheme.danger,
+                                      child: Icon(
+                                        Icons.close,
+                                        size: 16,
+                                        color: Colors.white,
                                       ),
                                     ),
-                                  ],
-                                ),
-                              )
-                              .toList(),
-                        ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            .toList(),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFcee640),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: loading ? null : DudeTheme.premiumAccentGradient,
+                  color: loading ? DudeTheme.surfaceElevated : null,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: loading
-                    ? CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        'Submit Ticket',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.black,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: loading ? null : _submitTicket,
+                  child: loading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Submit Ticket',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            color: DudeTheme.textOnAccent,
+                          ),
                         ),
-                      ),
-                onPressed: loading ? null : _submitTicket,
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _TicketCard extends StatelessWidget {
+  const _TicketCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: DudeTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DudeTheme.border.withValues(alpha: 0.5)),
+      ),
+      child: child,
     );
   }
 }

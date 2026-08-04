@@ -1,4 +1,5 @@
 // lib/Services/AppUpdateService.dart
+import 'package:dude/APIService/Remote/network/ApiEndPoints.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
@@ -19,11 +20,16 @@ class AppUpdateService {
       final currentVersion = await _getAppVersion();
       print('Current App Version: $currentVersion');
 
+      final endpoints = ApiEndPoints();
+      final uri = Uri.parse(
+        "${endpoints.baseUrl}auth/user/getAppUpdateConfig",
+      ).replace(queryParameters: {"appname":"0"});
+
       final response = await http.get(
-        Uri.parse(
-          "https://api.dudee.online/api/v1/auth/user/getAppUpdateConfig",
-        ),
-        headers: {'Content-Type': 'application/json'},
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       );
       if (!context.mounted) return false;
 

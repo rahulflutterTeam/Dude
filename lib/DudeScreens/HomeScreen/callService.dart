@@ -1,6 +1,9 @@
 // lib/Services/CallService.dart
 
 import 'dart:async';
+import 'package:dude/APIService/Remote/network/NetworkApiService.dart';
+import 'package:dude/Analytics/meta_app_events.dart';
+import 'package:dude/DudeScreens/HomeScreen/Repo/UserDataRepo.dart';
 import 'package:dude/DudeScreens/HomeScreen/Socket.dart';
 import 'package:dude/DudeScreens/HomeScreen/call_balance_sync.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -16,6 +19,7 @@ class CallService {
   }
 
   final SocketService _socketService = SocketService();
+  final UserRepository _userRepository = UserRepository(NetworkApiService());
   final Connectivity _connectivity = Connectivity();
 
   DateTime? _realCallStartTime;
@@ -31,12 +35,16 @@ class CallService {
   bool _isCurrentCallVideo = false;
   bool _wasCallReallyConnected = false;
   Timer? _callTimer;
+  Duration? _armedCallTimerDuration;
   Timer? _uiTicker;
   Timer? _periodicCheckTimer;
   VoidCallback? _onCallTimeout;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   int _notInRoomCount = 0;
   bool _needsRoomCleanupOnReconnect = false;
+  bool _missedCallReported = false;
+  String? _lastMissedCallReportKey;
+  DateTime? _lastMissedCallReportAt;
 
   // Add a flag to track if a call is currently active
   bool _isCallActive = false;
@@ -93,7 +101,7 @@ class CallService {
   static int maxCallSecondsForBalance(int balance, int pricePerMin) {
     if (balance <= 0 || pricePerMin <= 0) return 0;
     final maxMinutes = balance ~/ pricePerMin;
-    return maxMinutes > 20 ? 20 * 60 : maxMinutes * 60;
+    return maxMinutes * 60;
   }
 
   static int secondsForCoinAmount(int coins, int pricePerMin) {
@@ -210,6 +218,7 @@ class CallService {
     _isCurrentCallVideo = isVideoCall;
     _wasCallReallyConnected = false;
     _notInRoomCount = 0;
+    _missedCallReported = false;
     _isCallActive = true;
     _isProcessingCallEnd = false;
 
@@ -222,6 +231,54 @@ class CallService {
       "📞 Call started - Target: $targetUserID, Price: $pricePerMin/min",
     );
     debugPrint("📞 Call started at: ${_callStartTime?.toIso8601String()}");
+  }
+
+  Future<void> reportMissedCall({
+    String? staffId,
+    String? callType,
+    String? callID,
+  }) async {
+    final resolvedStaffId = staffId ?? _staffId;
+    final resolvedCallType =
+        callType ?? (_isCurrentCallVideo ? "video" : "audio");
+
+    if (resolvedStaffId == null || resolvedStaffId.isEmpty) {
+      debugPrint("⚠️ Missed call report skipped: staffId missing");
+      return;
+    }
+
+    final reportKey =
+        (callID != null && callID.isNotEmpty ? callID : _currentCallID) ??
+        "$resolvedStaffId:$resolvedCallType";
+    final now = DateTime.now();
+    final alreadyReportedRecently =
+        _lastMissedCallReportKey == reportKey &&
+        _lastMissedCallReportAt != null &&
+        now.difference(_lastMissedCallReportAt!) < const Duration(minutes: 2);
+
+    if (_missedCallReported || alreadyReportedRecently) {
+      debugPrint("⚠️ Missed call report skipped: already reported");
+      return;
+    }
+
+    _missedCallReported = true;
+    _lastMissedCallReportKey = reportKey;
+    _lastMissedCallReportAt = now;
+
+    try {
+      await _userRepository.reportMissedCall(
+        staffId: resolvedStaffId,
+        callType: resolvedCallType,
+      );
+      debugPrint(
+        "✅ Missed call reported → staffId: $resolvedStaffId, callType: $resolvedCallType",
+      );
+    } catch (e) {
+      _missedCallReported = false;
+      _lastMissedCallReportKey = null;
+      _lastMissedCallReportAt = null;
+      debugPrint("❌ Missed call report failed: $e");
+    }
   }
 
   void _startUiTicker() {
@@ -250,6 +307,7 @@ class CallService {
       if (!_wasCallReallyConnected) {
         _wasCallReallyConnected = true;
         _realCallStartTime = DateTime.now();
+        _startArmedCallTimer();
         debugPrint("✅ Real call started at: ${_realCallStartTime}");
         _notifyListeners();
 
@@ -306,7 +364,6 @@ class CallService {
     _callTimer?.cancel();
 
     final pricePerMin = _currentCallPricePerMin ?? 0;
-    print("???????$pricePerMin");
 
     final spent = calculateSpentCoins(
       durationSeconds: durationSeconds,
@@ -314,6 +371,11 @@ class CallService {
     );
     debugPrint("spent:::::::$spent");
     debugPrint("durationSeconds:::::::$durationSeconds");
+
+    MetaAppEvents.spendCredits(
+      credits: spent,
+      isVideoCall: _isCurrentCallVideo,
+    );
 
     final callData = {
       'staffId': _staffId,
@@ -384,6 +446,7 @@ class CallService {
 
   void _forceReset() {
     _onCallTimeout = null;
+    _armedCallTimerDuration = null;
     _realCallStartTime = null;
     _callStartTime = null;
     _currentCallID = null;
@@ -411,6 +474,24 @@ class CallService {
 
   void startCallTimer(Duration duration, VoidCallback onTimeout) {
     _onCallTimeout = onTimeout;
+    _armedCallTimerDuration = duration;
+    _callTimer?.cancel();
+    _callTimer = null;
+    if (_wasCallReallyConnected) {
+      _startArmedCallTimer();
+    }
+  }
+
+  void _startArmedCallTimer() {
+    final duration = _armedCallTimerDuration;
+    final onTimeout = _onCallTimeout;
+    if (!_isCallActive ||
+        !_wasCallReallyConnected ||
+        duration == null ||
+        onTimeout == null) {
+      return;
+    }
+
     _callTimer?.cancel();
     _callTimer = Timer(duration, () {
       if (_isCallActive) {

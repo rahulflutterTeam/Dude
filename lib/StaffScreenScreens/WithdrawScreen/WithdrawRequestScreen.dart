@@ -109,9 +109,12 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
 
     final amount = double.parse(_amountController.text);
     final availableBalance = double.parse(widget.withdrawAmount);
+    final minimumAmount = staffVM.minimumWithdrawalAmount();
 
-    if (amount < 200) {
-      Utils.snackBarErrorMessage("Minimum withdrawal amount is ₹200");
+    if (amount < minimumAmount) {
+      Utils.snackBarErrorMessage(
+        "Minimum withdrawal amount is ₹${vm.normalizedMoney(minimumAmount)}",
+      );
       return;
     }
 
@@ -149,10 +152,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
 
     if (confirmed != true || !mounted) return;
 
-    final netSubmitAmount = vm.normalizedMoney(netAmount);
     final requestedSubmitAmount = vm.normalizedMoney(amount);
-    final feeSubmitAmount = vm.normalizedMoney(fee);
-    final feePercent = staffVM.staffWithdrawalFeePercent();
 
     vm.submitStaffWithdrawal(
       accountNumber: detail.accountNumber ?? '',
@@ -162,13 +162,9 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
       bankName: detail.bankName ?? '',
       upi: detail.upi ?? '',
       confirmUpi: detail.upi ?? '',
-      amount: netSubmitAmount,
-      requestedAmount: requestedSubmitAmount,
-      withdrawFeeAmount: feeSubmitAmount,
-      withdrawFeePercent: feePercent > 0
-          ? vm.normalizedMoney(feePercent)
-          : null,
-      netAmount: netSubmitAmount,
+      // The backend owns fee calculation and balance validation. The local
+      // fee/net values above are a preview only.
+      amount: requestedSubmitAmount,
       context: context,
     );
   }
@@ -253,7 +249,9 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                 isTotal: true,
               ),
               const SizedBox(height: 14),
-              Text("Only the final amount after fee deduction will be submitted.", style: TextStyle(
+              Text(
+                "Only the final amount after fee deduction will be submitted.",
+                style: TextStyle(
                   color: DudeTheme.textMid,
                   fontSize: 12,
                   height: 1.4,
@@ -327,9 +325,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
         Text(
           value,
           style: TextStyle(
-            color:
-                valueColor ??
-                (isTotal ? DudeTheme.accent : Colors.white),
+            color: valueColor ?? (isTotal ? DudeTheme.accent : Colors.white),
             fontSize: isTotal ? 18 : 14,
             fontWeight: isTotal ? FontWeight.w900 : FontWeight.w700,
           ),
@@ -374,7 +370,9 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
 
     if (staffVM.feeManagementError != null ||
         staffVM.staffWithdrawalFeeConfig == null) {
-      return Text("Withdrawal fee will be confirmed while processing.", style: TextStyle(color: DudeTheme.textMid, fontSize: 13),
+      return Text(
+        "Withdrawal fee will be confirmed while processing.",
+        style: TextStyle(color: DudeTheme.textMid, fontSize: 13),
       );
     }
 
@@ -438,13 +436,11 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
 
         return Scaffold(
           backgroundColor: DudeTheme.background,
-      body: PremiumAmbientBackground(
-        child: SafeArea(
+          body: PremiumAmbientBackground(
+            child: SafeArea(
               child: vm.isFetchingBankDetails
                   ? const Center(
-                      child: CircularProgressIndicator(
-                        color: DudeTheme.accent,
-                      ),
+                      child: CircularProgressIndicator(color: DudeTheme.accent),
                     )
                   : SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(
@@ -502,9 +498,7 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                                 decoration: BoxDecoration(
                                   color: DudeTheme.surface,
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: DudeTheme.border,
-                                  ),
+                                  border: Border.all(color: DudeTheme.border),
                                 ),
                                 child: Column(
                                   children: [
@@ -523,7 +517,9 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 8),
-                                    Text("Add your bank account or UPI ID to withdraw earnings", style: TextStyle(
+                                    Text(
+                                      "Add your bank account or UPI ID to withdraw earnings",
+                                      style: TextStyle(
                                         color: DudeTheme.textMid,
                                         fontSize: 14,
                                       ),
@@ -565,14 +561,14 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                               decoration: BoxDecoration(
                                 color: DudeTheme.surface,
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: DudeTheme.border,
-                                ),
+                                border: Border.all(color: DudeTheme.border),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text("Saved Account Details", style: TextStyle(
+                                  Text(
+                                    "Saved Account Details",
+                                    style: TextStyle(
                                       color: DudeTheme.textMid,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
@@ -656,14 +652,14 @@ class _WithdrawalRequestScreenState extends State<WithdrawalRequestScreen> {
                               decoration: BoxDecoration(
                                 color: DudeTheme.surface,
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: DudeTheme.border,
-                                ),
+                                border: Border.all(color: DudeTheme.border),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text("Enter Amount (₹)", style: TextStyle(
+                                  Text(
+                                    "Enter Amount (₹)",
+                                    style: TextStyle(
                                       color: DudeTheme.textMid,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,

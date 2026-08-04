@@ -10,6 +10,7 @@ import 'package:dude/DudeScreens/HomeScreen/call_balance_sync.dart';
 import 'package:dude/DudeScreens/HomeScreen/callService.dart';
 import 'package:dude/DudeScreens/HomeScreen/zego_lifecycle.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
+import 'package:dude/Reusable_Widgets/ActivePopupService.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
@@ -80,6 +81,8 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
   StreamSubscription<ZegoInRoomCommandReceivedData>?
   _callBalanceSyncSubscription;
   late final void Function(dynamic) _socketCallBalanceTopUpHandler;
+  late final void Function(dynamic) _socketStatusChangeHandler;
+  late final void Function(dynamic) _socketDisconnectHandler;
 
   // ── nullable until loaded from prefs — prevents flicker on re-entry ──
   bool? _isOnline;
@@ -110,6 +113,7 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
   Timer? _acceptTimeoutTimer;
   Timer? _toggleTimeoutTimer;
   bool _isDashboardDisposed = false;
+  bool _activePopupShown = false;
 
   // ─────────────────────────────────────────────────────────────────────────
   // PERSISTENCE HELPERS
@@ -183,6 +187,8 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
     _killedStateAcceptPending = widget.launchingAcceptedCall;
     WidgetsBinding.instance.addObserver(this);
     _socketCallBalanceTopUpHandler = _handleSocketCallBalanceTopUp;
+    _socketStatusChangeHandler = _handleSocketStatusChange;
+    _socketDisconnectHandler = _handleSocketDisconnect;
     AppUpdateService.checkForUpdate(context);
     _setupCallListeners();
 
@@ -190,8 +196,9 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
       if (Platform.isAndroid) _requestOverlayPermission();
 
       // ── Step 1: Load persisted UI state FIRST — no flicker on re-entry ──
-      final persistedOnline = await _loadPersistedOnlineStatus();
-      if (mounted) setState(() => _isOnline = persistedOnline);
+      var effectiveOnline = await _loadPersistedOnlineStatus();
+      if (mounted) setState(() => _isOnline = effectiveOnline);
+      if (!mounted) return;
 
       // ── Step 2: Fetch staff profile (needed for Zego memberID) ───────────
       final staffVM = context.read<StaffViewModel>();
@@ -200,12 +207,18 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
       final staff = staffVM.currentStaff;
       if (staff == null || staff.memberID.isEmpty) return;
 
+      if (staff.isOnline != null && staff.isOnline != effectiveOnline) {
+        effectiveOnline = staff.isOnline!;
+        await _saveOnlineStatus(effectiveOnline);
+        if (mounted) setState(() => _isOnline = effectiveOnline);
+      }
+
       final resolvedCallType = await _loadPersistedCallType(staff.callType);
       if (mounted) setState(() => _selectedCallType = resolvedCallType);
 
       // ── Step 3: Register with Zego as early as possible (killed-state) ─
       await _detectKilledStateAccept();
-      if (persistedOnline) {
+      if (effectiveOnline) {
         await _initZego(staff);
       }
       if (_killedStateAcceptPending) _startAcceptTimeout();
@@ -222,23 +235,29 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
       }
 
       // ── Step 4: Socket + dashboard stats ─────────────────────────────────
-      if (persistedOnline) {
+      if (effectiveOnline) {
         if (!socketService.isConnected) {
           socketService.connectStaff(staff.memberID);
           await Future.delayed(const Duration(milliseconds: 600));
         }
         if (socketService.isConnected) {
+          _registerSocketDashboardListeners();
           _emitOnlineStatus(staff.memberID, isOnline: true);
         }
       }
 
-      socketService.listenStatusChanges((data) {
-        if (mounted) debugPrint("📡 Status change: $data");
-      });
+      _registerSocketDashboardListeners();
 
       await staffVM.fetchStaffCallStats();
       await staffVM.fetchWeeklyCallGraph();
+      await _maybeShowActivePopup();
     });
+  }
+
+  Future<void> _maybeShowActivePopup() async {
+    if (_activePopupShown || !mounted || _isDashboardDisposed) return;
+    _activePopupShown = true;
+    await ActivePopupService.showActivePopupsForRole(context, role: 'staff');
   }
 
   @override
@@ -250,6 +269,8 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
     socketService.removeCallBalanceTopUpListener(
       _socketCallBalanceTopUpHandler,
     );
+    socketService.removeStatusChangeListener(_socketStatusChangeHandler);
+    socketService.removeDisconnectListener(_socketDisconnectHandler);
     _acceptTimeoutTimer?.cancel();
     _toggleTimeoutTimer?.cancel();
     // Do not dispose: it is app-lifetime and may still be referenced by the
@@ -263,28 +284,12 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final staffVM = context.read<StaffViewModel>();
-    final staff = staffVM.currentStaff;
-    final isOnline = _isOnline ?? false;
-
     switch (state) {
       case AppLifecycleState.resumed:
         _isAppInForeground = true;
         _isAppMinimized = false;
         debugPrint("📱 App resumed");
-
-        if (isOnline && staff != null) {
-          if (!socketService.isConnected) {
-            socketService.connectStaff(staff.memberID);
-            Future.delayed(const Duration(milliseconds: 600), () {
-              if (socketService.isConnected && (_isOnline ?? false)) {
-                _emitOnlineStatus(staff.memberID, isOnline: true);
-              }
-            });
-          } else {
-            _emitOnlineStatus(staff.memberID, isOnline: true);
-          }
-        }
+        unawaited(_syncOnlineStatusOnResume());
         break;
 
       case AppLifecycleState.paused:
@@ -361,6 +366,7 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
         }
 
         if (socketService.isConnected) {
+          _registerSocketDashboardListeners();
           _emitOnlineStatus(staff.memberID, isOnline: true);
           socketService.emit("staff_online", {"memberID": staff.memberID});
           await Future.delayed(const Duration(milliseconds: 200));
@@ -446,6 +452,214 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
       });
     } catch (e) {
       debugPrint("❌ Error emitting online status: $e");
+    }
+  }
+
+  void _registerSocketDashboardListeners() {
+    socketService.listenCallBalanceTopUp(_socketCallBalanceTopUpHandler);
+    socketService.listenStatusChanges(_socketStatusChangeHandler);
+    socketService.listenDisconnect(_socketDisconnectHandler);
+  }
+
+  Map<String, dynamic>? _socketMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return null;
+  }
+
+  Map<String, dynamic> _statusPayload(Map<String, dynamic> data) {
+    for (final key in const ['data', 'staff', 'staffData', 'payload']) {
+      final nested = data[key];
+      if (nested is Map<String, dynamic>) {
+        return {...data, ...nested};
+      }
+      if (nested is Map) {
+        return {...data, ...Map<String, dynamic>.from(nested)};
+      }
+    }
+    return data;
+  }
+
+  bool? _onlineStatusFromPayload(Map<String, dynamic> data) {
+    final payload = _statusPayload(data);
+    // NOTE: intentionally do NOT read `status` here. On bulk staff-list
+    // broadcasts (`{status: true, data: [...]}`) `status` is the API success
+    // flag, not a presence value — treating it as presence flips this staff
+    // back online right after they tap Offline.
+    final value =
+        payload['isOnline'] ?? payload['online'] ?? payload['presence'];
+    if (value is bool) return value;
+
+    final normalized = value?.toString().toLowerCase();
+    if (normalized == 'online' ||
+        normalized == 'available' ||
+        normalized == 'active' ||
+        normalized == 'true') {
+      return true;
+    }
+    if (normalized == 'offline' ||
+        normalized == 'inactive' ||
+        normalized == 'false') {
+      return false;
+    }
+    return null;
+  }
+
+  bool _isStatusForCurrentStaff(Map<String, dynamic> data) {
+    final staff = context.read<StaffViewModel>().currentStaff;
+    if (staff == null) return false;
+
+    // Bulk staff-list broadcasts (`{status: true, data: [...]}`) are the list
+    // of online staff shown to users — they are NOT presence updates for this
+    // staff. Ignore them entirely so they can't flip our toggle.
+    if (data['data'] is List) return false;
+
+    final payload = _statusPayload(data);
+    final targetId =
+        payload['memberID']?.toString() ??
+        payload['memberId']?.toString() ??
+        payload['userId']?.toString() ??
+        payload['staffId']?.toString() ??
+        payload['staff_id']?.toString() ??
+        payload['_id']?.toString() ??
+        payload['id']?.toString();
+
+    // Only act on updates that explicitly target this staff. If we can't tell
+    // who the update is for, do NOT assume it's ours.
+    if (targetId == null || targetId.isEmpty) return false;
+    return targetId == staff.memberID || targetId == staff.id;
+  }
+
+  void _handleSocketStatusChange(dynamic data) {
+    if (!mounted || _isDashboardDisposed) return;
+    // While the user is mid-toggle, ignore backend echoes so a stale broadcast
+    // can't fight the manual action (duplicate toasts / flip back online).
+    if (_isTogglingStatus) return;
+    debugPrint("📡 Status change: $data");
+
+    final map = _socketMap(data);
+    if (map == null || !_isStatusForCurrentStaff(map)) return;
+
+    final payload = _statusPayload(map);
+    final isOnline = _onlineStatusFromPayload(payload);
+    if (isOnline == null || isOnline == (_isOnline ?? false)) return;
+
+    unawaited(
+      _applyBackendOnlineStatus(
+        isOnline,
+        reason: payload['reason']?.toString(),
+      ),
+    );
+  }
+
+  void _handleSocketDisconnect(dynamic data) {
+    if (!mounted || _isDashboardDisposed || _isTogglingStatus) return;
+    if (!(_isOnline ?? false)) return;
+
+    debugPrint("📡 Staff socket disconnected while online: $data");
+    unawaited(_syncOnlineStatusAfterSocketDisconnect());
+  }
+
+  Future<void> _syncOnlineStatusAfterSocketDisconnect() async {
+    await Future.delayed(const Duration(milliseconds: 700));
+    if (!mounted || _isDashboardDisposed || _isTogglingStatus) return;
+    if (!(_isOnline ?? false)) return;
+
+    final staffVM = context.read<StaffViewModel>();
+    try {
+      await staffVM.fetchStaffSingleData();
+    } catch (e) {
+      debugPrint("❌ Failed to sync staff status after socket disconnect: $e");
+      return;
+    }
+
+    if (!mounted || _isDashboardDisposed || _isTogglingStatus) return;
+
+    final serverOnline = staffVM.currentStaff?.isOnline;
+    if (serverOnline == false) {
+      await _applyBackendOnlineStatus(false, reason: "missed_calls");
+    } else if (serverOnline == null) {
+      debugPrint(
+        "⚠️ Staff status API did not include isOnline after disconnect; "
+        "keeping local toggle unchanged",
+      );
+    }
+  }
+
+  Future<void> _syncOnlineStatusOnResume() async {
+    if (!mounted || _isDashboardDisposed) return;
+
+    final staffVM = context.read<StaffViewModel>();
+    await staffVM.fetchStaffSingleData();
+    if (!mounted || _isDashboardDisposed) return;
+
+    final staff = staffVM.currentStaff;
+    final serverOnline = staff?.isOnline;
+
+    if (serverOnline != null && serverOnline != (_isOnline ?? false)) {
+      await _applyBackendOnlineStatus(serverOnline);
+      return;
+    }
+
+    if ((_isOnline ?? false) && staff != null) {
+      if (!socketService.isConnected) {
+        socketService.connectStaff(staff.memberID);
+        await Future.delayed(const Duration(milliseconds: 600));
+      }
+      if (socketService.isConnected && (_isOnline ?? false)) {
+        _registerSocketDashboardListeners();
+        _emitOnlineStatus(staff.memberID, isOnline: true);
+      }
+    }
+  }
+
+  Future<void> _applyBackendOnlineStatus(
+    bool isOnline, {
+    String? reason,
+  }) async {
+    await _saveOnlineStatus(isOnline);
+
+    if (!mounted || _isDashboardDisposed) return;
+    setState(() => _isOnline = isOnline);
+
+    if (!isOnline) {
+      try {
+        await ZegoLifecycle.uninitSafely();
+        _zegoInitialized = false;
+      } catch (e) {
+        debugPrint("❌ Error uninitializing Zego after backend offline: $e");
+      }
+
+      if (socketService.isConnected) {
+        socketService.disconnect();
+      }
+
+      final message = reason == 'missed_calls'
+          ? "You are offline due to missed calls"
+          : "You are now offline";
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    final staff = context.read<StaffViewModel>().currentStaff;
+    if (staff == null) return;
+
+    await _initZego(staff);
+    if (!socketService.isConnected) {
+      socketService.connectStaff(staff.memberID);
+      await Future.delayed(const Duration(milliseconds: 600));
+    }
+    if (socketService.isConnected) {
+      _registerSocketDashboardListeners();
+      _emitOnlineStatus(staff.memberID, isOnline: true);
     }
   }
 
@@ -613,9 +827,9 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
     await FlutterCallkitIncoming.requestFullIntentPermission();
 
     await ZegoUIKitPrebuiltCallInvitationService().init(
-      appID: 1545531832,
+      appID: 474972896,
       appSign:
-          "9c91e452ef3e7c19b88c8a332ca0b6caf18bfd2f2232e7b37239bd98a81ebf0d",
+          "e950eba53072e23f8cdd3f0e2341f60cb240300059d8e613c53aafdd5d844ad3",
       userID: staff.memberID,
       userName: staff.name ?? "Staff",
       plugins: [ZegoUIKitSignalingPlugin()],
@@ -624,7 +838,7 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
         androidNotificationConfig: ZegoAndroidNotificationConfig(
           channelID: "zego_call_channel",
           channelName: "Incoming Calls",
-          sound: "zego_incoming",
+          sound: "duderingtone",
           icon: "ic_stat_notify",
           vibrate: true,
           callIDVisibility: true,
@@ -634,7 +848,7 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
             channelID: "zego_call_channel",
             channelName: "Incoming Calls",
             icon: "ic_stat_notify",
-            sound: "zego_incoming",
+            sound: "duderingtone",
             vibrate: true,
           ),
           missedCallChannel: ZegoCallAndroidNotificationChannelConfig(
@@ -648,6 +862,10 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
         iOSNotificationConfig: ZegoIOSNotificationConfig(
           isSandboxEnvironment: false,
         ),
+      ),
+      ringtoneConfig: ZegoCallRingtoneConfig(
+        incomingCallPath: 'assets/audio/duderingtone.mp3',
+        outgoingCallPath: 'assets/audio/duderingtone.mp3',
       ),
       invitationEvents: ZegoUIKitPrebuiltCallInvitationEvents(
         onIncomingCallReceived:
@@ -855,7 +1073,7 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
     final maxSeconds = sentMaxSeconds > 0
         ? sentMaxSeconds
         : pricePerMin > 0
-        ? ((balance ~/ pricePerMin) * 60).clamp(0, 20 * 60)
+        ? (balance ~/ pricePerMin) * 60
         : 0;
 
     if (balance <= 0 && pricePerMin <= 0 && maxSeconds <= 0) {
@@ -950,20 +1168,24 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
     bool markAvailable = true,
   }) {
     if (_isDashboardDisposed) {
-      defaultAction();
+      WidgetsBinding.instance.addPostFrameCallback((_) => defaultAction());
       return;
     }
     if (_isStaffCallEnding) {
-      defaultAction();
+      debugPrint('📞 Duplicate staff onCallEnd ignored → ${event.reason}');
       return;
     }
     _isStaffCallEnding = true;
 
     debugPrint('📞 Staff onCallEnd → ${event.reason}');
 
-    defaultAction();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        defaultAction();
+      } catch (e) {
+        debugPrint('Failed to run staff call defaultAction: $e');
+      }
+
       if (_isDashboardDisposed) {
         _isStaffCallEnding = false;
         return;

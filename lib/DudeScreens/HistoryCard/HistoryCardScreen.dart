@@ -17,6 +17,7 @@ import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/Reusable_Widgets/shimmer_loader.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -284,8 +285,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          // Logo or Title (you can change if needed)
-          SvgPicture.asset("assets/Images/dude.svg", height: 45),
+          const DudeLogo(height: 40),
 
           const Spacer(),
 
@@ -317,7 +317,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Image.asset("assets/Images/paircoin.png", height: 18),
+                  Image.asset("assets/Images/dudecoin.jpg", height: 18),
                   const SizedBox(width: 6),
                   Text(
                     "${currentUser?.coinBalance ?? 0}.00",
@@ -368,7 +368,10 @@ class _HistoryScreenState extends State<HistoryScreen>
           style: const TextStyle(color: Colors.white, fontSize: 14),
           decoration: InputDecoration(
             hintText: 'Search by name, call topics...',
-            hintStyle: const TextStyle(color: DudeTheme.textSubtle, fontSize: 14),
+            hintStyle: const TextStyle(
+              color: DudeTheme.textSubtle,
+              fontSize: 14,
+            ),
             prefixIcon: const Icon(
               Icons.search,
               color: DudeTheme.textSubtle,
@@ -685,6 +688,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                           peerMemberID: staff.memberID,
                           name: staff.name ?? "Staff",
                           staffId: staff.id,
+                          imageUrl: staff.image,
                         ),
                       );
                     }
@@ -703,11 +707,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                       color: const Color(0xFF373031),
 
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: DudeTheme.accent,
-
-                        width: 1,
-                      ),
+                      border: Border.all(color: DudeTheme.accent, width: 1),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(8.0),

@@ -254,7 +254,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       _buildHeading("7. ACCOUNT DELETION"),
                       const Text(
                         "Users may request account deletion by contacting:\n"
-                        "dudeofficial@gmail.com\n\n"
+                        "dudeappofficial@gmail.com\n\n"
                         "Upon deletion:\n"
                         "• Public profile information will be removed.\n"
                         "• Access to the account will be disabled.\n"
@@ -276,7 +276,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                         "• Withdraw consent\n"
                         "• Object to certain processing activities\n\n"
                         "Requests may be submitted to:\n"
-                        "dudeofficial@gmail.com",
+                        "dudeappofficial@gmail.com",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 15.5,
@@ -357,7 +357,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       const Text(
                         "For privacy concerns, complaints, or requests:\n\n"
                         "Support\n"
-                        "Email: dudeofficial@gmail.com\n\n"
+                        "Email: dudeappofficial@gmail.com\n\n"
                         "Grievance Officer\n"
                         "Name: Hari Haran\n"
                         "Email: hariharanpandiyarajan8@gmail.com\n\n"

@@ -1,9 +1,10 @@
 class ApiEndPoints {
-  // bitbab
+  // Local testing — Mac LAN IP (AirPlay uses 7000, so backend uses 7010)
+  // final String baseUrl = "http://192.168.1.4:7010/api/v1/";
+  // final String webSocketUrl = "http://192.168.1.4:7010";
+  // Production
   final String baseUrl = "https://api.dudee.online/api/v1/";
-  // final String baseUrl = "http://192.168.1.43:7000/api/v1/";
   final String webSocketUrl = "https://api.dudee.online";
-  // final String webSocketUrl = "http://192.168.1.43:7000";
   // final String profileBaseUrl = "https://predictapi.unitythink.com";
 
   final String login = "auth/user/signup";
@@ -15,6 +16,7 @@ class ApiEndPoints {
   final String getUserDetails = "auth/user/getUserDetails";
   final String updateIsFirstLogin = "auth/user/updateIsFirstLogin";
   final String userBalanceUpdate = "auth/user/userBalanceUpdate";
+  final String reportMissedCall = "auth/user/reportMissedCall";
   final String userCallHistory = "auth/user/userCallHistory";
   final String placeOrder = "auth/user/placeOrder";
   final String confirmPurchase = "auth/user/confirmPurchase";
@@ -25,6 +27,8 @@ class ApiEndPoints {
   final String deleteAccount = "auth/user/deleteAccount";
 
   final String getAdBanner = "auth/user/getAdBanner";
+  final String activePopups = "auth/user/popups/active";
+  final String readPopup = "auth/user/popups/read";
 
   final String referralDashboard = "auth/user/referral/dashboard";
 
@@ -69,4 +73,8 @@ class ApiEndPoints {
 
   final String getStaffGifts = "auth/user/getStaffGifts";
   final String staffFeeManagement = "staff/getFeeManagement";
+
+  /// Staff wave flow
+  final String staffOnlineUsers = "staff/online-users";
+  final String staffWaveUser = "staff/wave-user";
 }

@@ -1,13 +1,12 @@
+import 'package:dude/Analytics/meta_app_events.dart';
 import 'package:dude/DudeScreens/BottomNavBar/BottomNavBar.dart';
-import 'package:dude/DudeScreens/LoginScreens/AllsetScreen/AllSetScreen.dart';
 import 'package:dude/DudeScreens/LoginScreens/ViewModel/LoginVM.dart';
-import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
-import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
+import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class InterestLanguageScreen extends StatefulWidget {
@@ -19,48 +18,18 @@ class InterestLanguageScreen extends StatefulWidget {
 
 class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
   final List<Map<String, dynamic>> languages = [
-    {
-      "title": "Tamil",
-      "active": "assets/Images/tamactive.svg",
-      "inactive": "assets/Images/taminactive.svg",
-      "selected": false,
-    },
-    {
-      "title": "English",
-      "active": "assets/Images/engactive.svg",
-      "inactive": "assets/Images/enginactive.svg",
-      "selected": false,
-    },
-    {
-      "title": "Malayalam",
-      "active": "assets/Images/malactive.svg",
-      "inactive": "assets/Images/malinactive.svg",
-      "selected": false,
-    },
-    {
-      "title": "Hindi",
-      "active": "assets/Images/hinactive.svg",
-      "inactive": "assets/Images/hininactive.svg",
-      "selected": false,
-    },
-    {
-      "title": "Telugu",
-      "active": "assets/Images/telactive.svg",
-      "inactive": "assets/Images/telinactive.svg",
-      "selected": false,
-    },
-    {
-      "title": "Kannada",
-      "active": "assets/Images/kanactive.svg",
-      "inactive": "assets/Images/kaninactive.svg",
-      "selected": false,
-    },
+    {"title": "Tamil", "native": "தமிழ்", "selected": false},
+    {"title": "English", "native": "English", "selected": false},
+    {"title": "Malayalam", "native": "മലയാളം", "selected": false},
+    {"title": "Hindi", "native": "हिन्दी", "selected": false},
+    {"title": "Telugu", "native": "తెలుగు", "selected": false},
+    {"title": "Kannada", "native": "ಕನ್ನಡ", "selected": false},
   ];
 
   String? get selectedLanguage {
     final selected = languages.firstWhere(
       (e) => e["selected"] == true,
-      orElse: () => {"title": ""},
+      orElse: () => {"title": null},
     );
     return selected["title"] as String?;
   }
@@ -70,63 +39,64 @@ class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
     return Consumer<LoginViewModel>(
       builder: (context, vm, child) {
         return Scaffold(
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-                colors: [
-                  DudeTheme.background,
-                  DudeTheme.surface,
-                  DudeTheme.background,
-                  DudeTheme.background,
-                  DudeTheme.background,
-                  DudeTheme.background,
-                ],
-              ),
-            ),
+          backgroundColor: DudeTheme.background,
+          body: PremiumAmbientBackground(
             child: SafeArea(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 10),
-                        DudeLogo(height: 40),
-                        const SizedBox(height: 30),
-
+                        const Center(child: DudeLogo(height: 54)),
+                        const SizedBox(height: 26),
                         Row(
                           children: [
                             GestureDetector(
                               onTap: () => bondNavigator.backPage(context),
-                              child: const Icon(
-                                Icons.arrow_back_ios,
-                                color: Colors.white,
+                              child: Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: DudeTheme.surfaceRaised,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: DudeTheme.borderSubtle,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_back_ios_new_rounded,
+                                  color: Colors.white,
+                                  size: 17,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
-                            AppText(
-                              "Select your Language",
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
+                            _stepLabel("LANGUAGE"),
                           ],
                         ),
-
-                        const SizedBox(height: 8),
-                        AppText(
-                          "Select a Few of your Language to match with users who have similar things in common.",
-                          fontSize: 15,
-                          color: DudeTheme.textMuted,
-                          maxLines: 2,
+                        const SizedBox(height: 16),
+                        const Text(
+                          "Which language do you prefer?",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 27,
+                            height: 1.18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
+                          ),
                         ),
-
+                        const SizedBox(height: 9),
+                        const Text(
+                          "Choose your primary conversation language. You can update it later from your profile.",
+                          style: TextStyle(
+                            color: DudeTheme.textSubtle,
+                            fontSize: 14,
+                            height: 1.5,
+                          ),
+                        ),
                         if (vm.languageError != null) ...[
                           const SizedBox(height: 16),
                           Center(
@@ -143,20 +113,18 @@ class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 20),
-
+                  const SizedBox(height: 22),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: GridView.builder(
                         itemCount: languages.length,
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              mainAxisSpacing: 10,
+                              mainAxisSpacing: 12,
                               crossAxisSpacing: 12,
-                              childAspectRatio: 1.3,
+                              childAspectRatio: 1.15,
                             ),
                         itemBuilder: (context, index) {
                           final item = languages[index];
@@ -165,14 +133,13 @@ class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
                       ),
                     ),
                   ),
-
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 16,
                     ),
                     child: GestureDetector(
-                      onTap: vm.isUpdatingLanguage
+                      onTap: vm.isUpdatingLanguage || selectedLanguage == null
                           ? null
                           : () async {
                               final lang = selectedLanguage;
@@ -185,7 +152,9 @@ class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
 
                               final success = await vm.updateUserLanguage(lang);
 
+                              if (!context.mounted) return;
                               if (success) {
+                                MetaAppEvents.completeRegistration();
                                 bondNavigator.newPageRemoveUntil(
                                   context,
                                   page: const MainBottomBar(),
@@ -200,18 +169,13 @@ class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
                         height: 54,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(16),
                           gradient: selectedLanguage != null
-                              ? const LinearGradient(
-                                  colors: [
-                                    DudeTheme.accent,
-                                    DudeTheme.accent,
-                                  ],
-                                )
+                              ? DudeTheme.premiumAccentGradient
                               : const LinearGradient(
                                   colors: [
-                                    Color(0xFF353535),
-                                    Color(0xFF353535),
+                                    Color(0xFF452331),
+                                    Color(0xFF301923),
                                   ],
                                 ),
                         ),
@@ -225,10 +189,12 @@ class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
                                     strokeWidth: 2.5,
                                   ),
                                 )
-                              : const Text(
-                                  "Continue  →",
-                                  style: TextStyle(
-                                    color: Colors.black,
+                              : Text(
+                                  selectedLanguage == null
+                                      ? "Select a language"
+                                      : "Continue  →",
+                                  style: const TextStyle(
+                                    color: Colors.white,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -252,15 +218,103 @@ class _InterestLanguageScreenState extends State<InterestLanguageScreen> {
     return GestureDetector(
       onTap: () {
         setState(() {
-          // Unselect all others
           for (var i = 0; i < languages.length; i++) {
             languages[i]["selected"] = false;
           }
-          // Select current
           languages[index]["selected"] = true;
         });
       },
-      child: SvgPicture.asset(selected ? item["active"] : item["inactive"]),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: selected
+              ? DudeTheme.accentDim
+              : DudeTheme.surface.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? DudeTheme.accent : DudeTheme.borderSubtle,
+            width: selected ? 1.5 : 1,
+          ),
+          boxShadow: selected
+              ? DudeTheme.accentGlowShadow(blur: 18)
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: selected
+                        ? DudeTheme.accent
+                        : DudeTheme.surfaceRaised,
+                  ),
+                  child: Icon(
+                    Icons.translate_rounded,
+                    size: 19,
+                    color: selected ? Colors.white : DudeTheme.textSubtle,
+                  ),
+                ),
+                AnimatedOpacity(
+                  opacity: selected ? 1 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: DudeTheme.accentBright,
+                    size: 22,
+                  ),
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item["native"],
+                  style: TextStyle(
+                    color: selected ? Colors.white : DudeTheme.textMuted,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  item["title"],
+                  style: const TextStyle(
+                    color: DudeTheme.textSubtle,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
+
+  Widget _stepLabel(String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(
+      color: DudeTheme.accentDim,
+      borderRadius: BorderRadius.circular(30),
+      border: Border.all(color: DudeTheme.accent.withValues(alpha: 0.35)),
+    ),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: DudeTheme.accentBright,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.7,
+      ),
+    ),
+  );
 }

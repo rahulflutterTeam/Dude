@@ -1,11 +1,12 @@
-// lib/DudeScreens/WalletScreen/WithdrawAddBank.dart
-
-import 'dart:ui';
 import 'package:dude/DudeScreens/WalletScreen/razorPayFlow/ViewModel/PaymentVM.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
-import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_animations.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 class WithdrawAddBank extends StatefulWidget {
@@ -18,16 +19,11 @@ class WithdrawAddBank extends StatefulWidget {
 class _WithdrawAddBankState extends State<WithdrawAddBank> {
   int _selectedTab = 0; // 0 = Bank, 1 = UPI
 
-  // Bank fields
   final _accountNumberController = TextEditingController();
   final _ifscController = TextEditingController();
   final _accountHolderController = TextEditingController();
   final _bankNameController = TextEditingController();
-
-  // UPI field
   final _upiController = TextEditingController();
-
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -47,7 +43,7 @@ class _WithdrawAddBankState extends State<WithdrawAddBank> {
           _ifscController.text.isEmpty ||
           _accountHolderController.text.isEmpty ||
           _bankNameController.text.isEmpty) {
-        Utils.snackBarErrorMessage("Please fill all bank details");
+        Utils.snackBarErrorMessage('Please fill all bank details');
         return;
       }
 
@@ -60,7 +56,7 @@ class _WithdrawAddBankState extends State<WithdrawAddBank> {
       );
     } else {
       if (_upiController.text.isEmpty) {
-        Utils.snackBarErrorMessage("Please enter UPI ID");
+        Utils.snackBarErrorMessage('Please enter UPI ID');
         return;
       }
 
@@ -73,250 +69,137 @@ class _WithdrawAddBankState extends State<WithdrawAddBank> {
     return Consumer<WalletViewModel>(
       builder: (context, vm, child) {
         return Scaffold(
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF241b40),
-                  Color(0xFF1C1426),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF12151c),
-                  Color(0xFF2b1e4e),
-                ],
-              ),
-            ),
+          backgroundColor: DudeTheme.background,
+          body: PremiumAmbientBackground(
             child: SafeArea(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top Bar
-                    Row(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    child: Row(
                       children: [
                         GestureDetector(
-                          onTap: () => bondNavigator.backPage(context),
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            bondNavigator.backPage(context);
+                          },
                           child: Container(
-                            padding: const EdgeInsets.all(10),
+                            width: 42,
+                            height: 42,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2A1F38),
-                              borderRadius: BorderRadius.circular(40),
-                              border: Border.all(color: Colors.white12),
+                              color: DudeTheme.surface.withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: DudeTheme.border.withValues(alpha: 0.5),
+                              ),
                             ),
                             child: const Icon(
-                              Icons.arrow_back,
-                              color: Colors.white,
-                              size: 26,
+                              Icons.arrow_back_ios_new_rounded,
+                              color: DudeTheme.textPrimary,
+                              size: 18,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         const Text(
-                          "Add Bank / UPI",
+                          'Add Bank / UPI',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
+                            color: DudeTheme.textPrimary,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
                           ),
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 32),
-
-                    // Tabs
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2A1F38),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF3A2A4A)),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _selectedTab = 0),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _selectedTab == 0
-                                      ? const Color(0xFFd9f155)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    "Bank Account",
-                                    style: TextStyle(
-                                      color: _selectedTab == 0
-                                          ? Colors.black
-                                          : Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                // setState(() => _selectedTab = 1);
-                                Utils.snackBar("UPI coming soon!");
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _selectedTab == 1
-                                      ? const Color(0xFFd9f155)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    "UPI ID",
-                                    style: TextStyle(
-                                      color: _selectedTab == 1
-                                          ? Colors.black
-                                          : Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // Form Fields
-                    if (_selectedTab == 0) ...[
-                      _buildTextField(
-                        _accountHolderController,
-                        "Account Holder Name",
-                        "Enter full name",
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        _accountNumberController,
-                        "Account Number",
-                        "XXXXXXXXXXXX",
-                        TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        _ifscController,
-                        "IFSC Code",
-                        "SBIN0001234",
-                        TextInputType.text,
-                        TextCapitalization.characters,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        _bankNameController,
-                        "Bank Name",
-                        "HDFC Bank",
-                      ),
-                    ] else ...[
-                      _buildTextField(_upiController, "UPI ID", "yourname@upi"),
-                    ],
-
-                    const SizedBox(height: 40),
-
-                    // Submit Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: GestureDetector(
-                        onTap: vm.isLoading ? null : _submitDetails,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFd9f155), Color(0xFFd9f155)],
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFd9f155).withOpacity(0.4),
-                                blurRadius: 12,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: vm.isLoading
-                                ? const SizedBox(
-                                    height: 26,
-                                    width: 26,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 3,
-                                    ),
-                                  )
-                                : const Text(
-                                    "Save Details",
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Note Box
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2A1F38),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF3A2A4A)),
-                      ),
-                      child: Row(
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: PremiumAnimations.scrollPhysics,
+                      padding: const EdgeInsets.fromLTRB(16, 24, 16, 28),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.info_outline,
-                            color: Color(0xFFd9f155),
-                            size: 28,
+                          _buildTabSwitcher(),
+                          const SizedBox(height: 24),
+                          if (_selectedTab == 0) ...[
+                            _buildTextField(
+                              controller: _accountHolderController,
+                              label: 'Account Holder Name',
+                              hint: 'Enter full name',
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _accountNumberController,
+                              label: 'Account Number',
+                              hint: 'XXXXXXXXXXXX',
+                              keyboardType: TextInputType.number,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _ifscController,
+                              label: 'IFSC Code',
+                              hint: 'SBIN0001234',
+                              textCapitalization: TextCapitalization.characters,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _bankNameController,
+                              label: 'Bank Name',
+                              hint: 'HDFC Bank',
+                            ),
+                          ] else ...[
+                            _buildTextField(
+                              controller: _upiController,
+                              label: 'UPI ID',
+                              hint: 'yourname@upi',
+                            ),
+                          ],
+                          const SizedBox(height: 32),
+                          PremiumPrimaryButton(
+                            label: 'Save Details',
+                            loading: vm.isLoading,
+                            height: 54,
+                            onTap: vm.isLoading ? null : _submitDetails,
                           ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              "Bank/UPI details are required for withdrawal. Ensure accuracy. Verification may take 24-48 hours.",
-                              style: TextStyle(
-                                color: Color(0xFFB0A8C0),
-                                fontSize: 14,
-                                height: 1.5,
+                          const SizedBox(height: 18),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: DudeTheme.surface.withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: DudeTheme.accent.withValues(alpha: 0.35),
                               ),
+                            ),
+                            child: const Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.info_outline_rounded,
+                                  color: DudeTheme.accentBright,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Bank/UPI details are required for withdrawal. Ensure accuracy. Verification may take 24–48 hours.',
+                                    style: TextStyle(
+                                      color: DudeTheme.textMuted,
+                                      fontSize: 13.5,
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-
-                    const SizedBox(height: 40),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -325,53 +208,136 @@ class _WithdrawAddBankState extends State<WithdrawAddBank> {
     );
   }
 
-  Widget _buildTextField(
-    TextEditingController controller,
-    String label,
-    String hint, [
+  Widget _buildTabSwitcher() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: DudeTheme.surfaceRaised.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DudeTheme.border.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _TabChip(
+              label: 'Bank Account',
+              selected: _selectedTab == 0,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _selectedTab = 0);
+              },
+            ),
+          ),
+          Expanded(
+            child: _TabChip(
+              label: 'UPI ID',
+              selected: _selectedTab == 1,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                Utils.snackBar('UPI coming soon!');
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
     TextInputType keyboardType = TextInputType.text,
     TextCapitalization textCapitalization = TextCapitalization.none,
-  ]) {
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: const TextStyle(
-            color: Color(0xFFB0A8C0),
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
+            color: DudeTheme.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          textCapitalization: textCapitalization,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(color: Color(0xFF6B5F7A)),
-            filled: true,
-            fillColor: const Color(0xFF1C1426),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF2E2040)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF2E2040)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFd9f155),
-                width: 1.5,
+        Container(
+          decoration: BoxDecoration(
+            color: DudeTheme.background.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: DudeTheme.border.withValues(alpha: 0.45)),
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            textCapitalization: textCapitalization,
+            style: const TextStyle(color: DudeTheme.textPrimary, fontSize: 16),
+            cursorColor: DudeTheme.accent,
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(color: DudeTheme.textSubtle),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+              border: InputBorder.none,
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(
+                  color: DudeTheme.accent,
+                  width: 1.4,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TabChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TabChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          gradient: selected ? DudeTheme.premiumAccentGradient : null,
+          color: selected ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: selected
+              ? DudeTheme.accentGlowShadow(blur: 12, spread: -4)
+              : null,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? DudeTheme.textOnAccent : DudeTheme.textMuted,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

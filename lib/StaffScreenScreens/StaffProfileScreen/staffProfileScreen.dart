@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dude/DudeScreens/AuthService.dart';
 import 'package:dude/DudeScreens/HomeScreen/zego_lifecycle.dart';
 import 'package:dude/DudeScreens/Splash/SplashScreen2.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
@@ -8,6 +9,7 @@ import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
+import 'package:dude/StaffScreenScreens/RecentCallScreen/RecentCallScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffBottomNavBar/StaffBottomNavBar.dart';
 import 'package:dude/StaffScreenScreens/StaffProfileScreen/StaffRewardsScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
@@ -17,7 +19,6 @@ import 'package:dude/StaffScreenScreens/staffAccountSettingScreen/staffAccountSe
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dude/DudeScreens/HomeScreen/Socket.dart';
 
@@ -74,7 +75,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
   Future<void> _launchEmail() async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
-      path: 'dudeofficial@gmail.com',
+      path: 'dudeappofficial@gmail.com',
       query: 'subject=Dude Support Request',
     );
 
@@ -87,15 +88,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
 
   Future<void> _clearAllLocalData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('staff_is_online');
-      await prefs.remove('staff_call_type');
-      await prefs.remove('auth_token');
-      await prefs.remove('user_id');
-      await prefs.remove('user_phone');
-      await prefs.remove('staff_data');
-      await prefs.remove('staff_profile');
-      await prefs.remove('isLoggedIn');
+      await AuthService.logout();
       debugPrint("✅ All local data cleared");
     } catch (e) {
       debugPrint("❌ Error clearing local data: $e");
@@ -308,7 +301,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text('No staff data', style: TextStyle(
+                  Text(
+                    'No staff data',
+                    style: TextStyle(
                       color: DudeTheme.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -326,7 +321,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
                         color: DudeTheme.accent,
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      child: Text('Retry', style: TextStyle(
+                      child: Text(
+                        'Retry',
+                        style: TextStyle(
                           color: DudeTheme.textOnAccent,
                           fontWeight: FontWeight.w700,
                         ),
@@ -351,10 +348,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
                   ),
                   child: Column(
                     children: [
-                      PremiumStaggerItem(
-                        index: 0,
-                        child: _buildTopBar(),
-                      ),
+                      PremiumStaggerItem(index: 0, child: _buildTopBar()),
                       const SizedBox(height: 20),
                       PremiumStaggerItem(
                         index: 1,
@@ -570,10 +564,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      _infoChip(
-                        Icons.badge_outlined,
-                        'ID ${staff.memberID}',
-                      ),
+                      _infoChip(Icons.badge_outlined, 'ID ${staff.memberID}'),
                       _infoChip(
                         Icons.calendar_today_outlined,
                         'Since ${_formatJoinDate(staff.createdAt)}',
@@ -731,13 +722,20 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
   Widget _buildQuickActionsGrid(BuildContext context) {
     final actions = [
       _QuickAction(
+        icon: Icons.history_rounded,
+        label: 'Recent Calls',
+        color: DudeTheme.success,
+        onTap: () => bondNavigator.newPage(
+          context,
+          page: const RecentCallsPage(backPage: true),
+        ),
+      ),
+      _QuickAction(
         icon: Icons.account_balance_wallet_outlined,
         label: 'Wallet',
         color: DudeTheme.accent,
-        onTap: () => bondNavigator.newPage(
-          context,
-          page: const StaffWalletScreen(),
-        ),
+        onTap: () =>
+            bondNavigator.newPage(context, page: const StaffWalletScreen()),
       ),
       _QuickAction(
         icon: Icons.receipt_long_rounded,
@@ -752,16 +750,14 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
         icon: Icons.card_giftcard_rounded,
         label: 'Rewards',
         color: DudeTheme.accentDeep,
-        onTap: () => bondNavigator.newPage(
-          context,
-          page: const StaffRewardsScreen(),
-        ),
+        onTap: () =>
+            bondNavigator.newPage(context, page: const StaffRewardsScreen()),
       ),
       _QuickAction(
         icon: Icons.support_agent_rounded,
         label: 'Contact',
         color: DudeTheme.warning,
-        onTap: () => openWhatsApp("919999999999"),
+        onTap: () => openWhatsApp("919345192388"),
       ),
     ];
 
@@ -811,9 +807,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
               decoration: BoxDecoration(
                 color: action.color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(11),
-                border: Border.all(
-                  color: action.color.withValues(alpha: 0.35),
-                ),
+                border: Border.all(color: action.color.withValues(alpha: 0.35)),
               ),
               child: Icon(action.icon, color: action.color, size: 20),
             ),
@@ -919,9 +913,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
   }
 
   Widget _divider() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Container(height: 1, color: DudeTheme.border),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Container(height: 1, color: DudeTheme.border),
+  );
 
   Widget _buildLogoutSection(BuildContext context, StaffViewModel staffVM) {
     return Padding(
@@ -1035,7 +1029,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Logout', style: TextStyle(
+              Text(
+                'Logout',
+                style: TextStyle(
                   color: DudeTheme.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -1060,7 +1056,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
                           color: DudeTheme.border,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text('Cancel', style: TextStyle(
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
                             color: DudeTheme.textMid,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1115,7 +1113,11 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.verified_user_rounded, color: DudeTheme.accent, size: 16),
+                Icon(
+                  Icons.verified_user_rounded,
+                  color: DudeTheme.accent,
+                  size: 16,
+                ),
                 SizedBox(width: 6),
                 Text(
                   '100% Safe and private',
@@ -1132,7 +1134,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
           GestureDetector(
             onTap: _launchEmail,
             child: Text(
-              'dudeofficial@gmail.com',
+              'dudeappofficial@gmail.com',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: DudeTheme.accent.withValues(alpha: 0.9),

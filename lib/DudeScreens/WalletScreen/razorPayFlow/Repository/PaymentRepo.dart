@@ -24,10 +24,6 @@ class WalletRepository {
         ApiEndPoints().getPaymentGatewayKey,
       );
 
-      if (kDebugMode) {
-        print("Payment Gateway Key Response: $response");
-      }
-
       final resp = PaymentGatewayKeyResponse.fromJson(response);
 
       final gateway = resp.data;
@@ -62,16 +58,10 @@ class WalletRepository {
         "currency": currency,
         "coin": coin,
       };
-      print("body:::: $body");
-
       final response = await _apiService.postResponseV3(
         ApiEndPoints().placeOrder,
         body: body,
       );
-
-      if (kDebugMode) {
-        print("Place Order API Response: $response");
-      }
 
       final resp = PlaceOrderResponse.fromJson(response);
 
@@ -97,15 +87,10 @@ class WalletRepository {
         "razorpay_payment_id": razorpayPaymentId,
         "razorpay_signature": razorpaySignature,
       };
-      print("body ::::: $body");
       final response = await _apiService.postResponseV3(
         ApiEndPoints().confirmPurchase, // ← your endpoint path
         body: body,
       );
-
-      if (kDebugMode) {
-        print("Confirm Purchase Response: $response");
-      }
 
       final resp = ConfirmPurchaseResponse.fromJson(response);
 
@@ -125,16 +110,11 @@ class WalletRepository {
   }) async {
     try {
       final body = {"order_id": orderId};
-      print("cashfree confirm body ::::: $body");
 
       final response = await _apiService.postResponseV3(
         ApiEndPoints().confirmPurchase,
         body: body,
       );
-
-      if (kDebugMode) {
-        print("Confirm Cashfree Purchase Response: $response");
-      }
 
       final resp = ConfirmPurchaseResponse.fromJson(response);
 
@@ -154,10 +134,6 @@ class WalletRepository {
       final response = await _apiService.getResponseV2(
         ApiEndPoints().userDepositHistory, // ← your GET endpoint
       );
-
-      if (kDebugMode) {
-        print("User Deposit History Response: $response");
-      }
 
       final resp = DepositHistoryResponse.fromJson(response);
 
@@ -181,10 +157,6 @@ class WalletRepository {
         body: body,
       );
 
-      if (kDebugMode) {
-        print("Add Bank Details Response: $response");
-      }
-
       final resp = AddBankDetailsResponse.fromJson(response);
 
       if (resp.status) {
@@ -203,10 +175,6 @@ class WalletRepository {
       final response = await _apiService.getResponseV2(
         ApiEndPoints().getAllBankDetails, // "staff/getAllBankDetails"
       );
-
-      if (kDebugMode) {
-        print("Get All Bank Details Response: $response");
-      }
 
       final resp = BankDetailsResponse.fromJson(response);
 
@@ -230,10 +198,6 @@ class WalletRepository {
         body: body,
       );
 
-      if (kDebugMode) {
-        print("Delete Bank Details Response: $response");
-      }
-
       if (response['status'] != true) {
         throw Exception(response['message'] ?? "Delete failed");
       }
@@ -252,10 +216,6 @@ class WalletRepository {
     required String upi,
     required String confirmUpi,
     required num amount,
-    num? requestedAmount,
-    num? withdrawFeeAmount,
-    num? withdrawFeePercent,
-    num? netAmount,
   }) async {
     try {
       final body = {
@@ -267,21 +227,12 @@ class WalletRepository {
         "UPI": upi,
         "confirmUPI": confirmUpi,
         "amount": amount,
-        if (requestedAmount != null) "requestedAmount": requestedAmount,
-        if (withdrawFeeAmount != null) "withdrawFeeAmount": withdrawFeeAmount,
-        if (withdrawFeePercent != null)
-          "withdrawFeePercent": withdrawFeePercent,
-        if (netAmount != null) "netAmount": netAmount,
       };
 
       final response = await _apiService.postResponseV3(
         ApiEndPoints().staffWithdraw,
         body: body,
       );
-
-      if (kDebugMode) {
-        print("Staff Withdraw Response: $response");
-      }
 
       final resp = StaffWithdrawResponse.fromJson(response);
 
@@ -298,10 +249,6 @@ class WalletRepository {
       final response = await _apiService.getResponseV2(
         ApiEndPoints().staffWithdrawHistory, // "staff/staffWithdrawHistory"
       );
-
-      if (kDebugMode) {
-        print("Staff Withdraw History Response: $response");
-      }
 
       final resp = StaffWithdrawHistoryResponse.fromJson(response);
 
@@ -321,10 +268,6 @@ class WalletRepository {
       final response = await _apiService.getResponseV2(
         ApiEndPoints().getPaymentsStructure, // ← your actual endpoint
       );
-
-      if (kDebugMode) {
-        print("Get Payment Structure Response: $response");
-      }
 
       final resp = PaymentStructureResponse.fromJson(response);
 

@@ -4,9 +4,10 @@ import 'dart:io';
 
 import 'package:dude/Dude_Utils/push/local_notifications.dart';
 import 'package:dude/Dude_Utils/push/push_repo.dart';
+import 'package:dude/DudeScreens/BottomNavBar/BottomNavBar.dart';
 import 'package:dude/NotificationService/NotificationService.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PushService {
@@ -103,18 +104,35 @@ class PushService {
       final body = n?.body ?? message.data['body']?.toString();
       if (title == null || body == null) return;
 
-      if (_isChatMessage(message.data)) {
+      if (_isWaveMessage(message.data)) {
+        LocalNotifications.instance.showPromo(
+          title: title,
+          body: body,
+          payload: jsonEncode(message.data),
+        );
+      } else if (_isChatMessage(message.data)) {
         // ← gentle message_tone sound
         LocalNotifications.instance.showChatMessage(title: title, body: body);
       } else {
         // ← default system sound
-        LocalNotifications.instance.showPromo(title: title, body: body);
+        LocalNotifications.instance.showPromo(
+          title: title,
+          body: body,
+          payload: jsonEncode(message.data),
+        );
       }
     });
   }
 
+  bool _isWaveMessage(Map<String, dynamic> data) {
+    final type = data['type']?.toString().toLowerCase() ?? '';
+    final screen = data['screen']?.toString().toLowerCase() ?? '';
+    return type == 'wave' || screen == 'wave';
+  }
+
   /// Determines if the incoming FCM data payload is a chat message.
   bool _isChatMessage(Map<String, dynamic> data) {
+    if (_isWaveMessage(data)) return false;
     final screen = data['screen']?.toString().toLowerCase() ?? '';
     if (screen == 'chat' || screen == 'message' || screen == 'messages') {
       return true;
@@ -215,17 +233,34 @@ class PushService {
     RemoteMessage message,
     GlobalKey<NavigatorState> navigatorKey,
   ) {
-    final chatData = _extractChatData(message);
     final screen = message.data['screen']?.toString();
+    final type = message.data['type']?.toString();
 
-    debugPrint('[Push] tapped. screen=$screen data=${message.data}');
+    debugPrint('[Push] tapped. screen=$screen type=$type data=${message.data}');
 
+    if (_isWaveMessage(message.data)) {
+      _openUserHome(navigatorKey);
+      return;
+    }
+
+    final chatData = _extractChatData(message);
     if (chatData != null) {
       NotificationService.navigateToChatData(chatData);
     }
   }
 
+  void _openUserHome(GlobalKey<NavigatorState> navigatorKey) {
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
+    nav.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MainBottomBar(index: 0)),
+      (route) => false,
+    );
+  }
+
   Map<String, dynamic>? _extractChatData(RemoteMessage message) {
+    if (_isWaveMessage(message.data)) return null;
+
     final merged = <String, dynamic>{};
     merged.addAll(message.data);
 
@@ -242,23 +277,29 @@ class PushService {
     _mergeJsonPayload(merged, merged['conversation']);
 
     final senderId = _stringValue(merged, [
-      'id',
-      'conversationID',
-      'conversationId',
-      'conversation_id',
       'senderUserID',
+      'senderMemberID',
       'senderId',
       'sender_id',
       'senderUserId',
+      'staffMemberID',
+      'userMemberID',
       'userID',
       'userId',
       'fromUserID',
       'from',
+      'id',
+    ]);
+    final conversationId = _stringValue(merged, [
+      'conversationID',
+      'conversationId',
+      'conversation_id',
     ]);
 
     final screen = _stringValue(merged, ['screen', 'type']).toLowerCase();
     final looksLikeChat =
         senderId.isNotEmpty ||
+        conversationId.isNotEmpty ||
         screen == 'chat' ||
         screen == 'message' ||
         screen == 'messages';

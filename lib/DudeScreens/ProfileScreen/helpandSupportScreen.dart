@@ -1,4 +1,3 @@
-// help_and_support_screen.dart
 import 'package:dude/APIService/support_ticket_service.dart';
 import 'package:dude/DudeScreens/ProfileScreen/myTicketScreen.dart';
 import 'package:dude/DudeScreens/ProfileScreen/submitTicketScreen.dart';
@@ -11,7 +10,6 @@ class HelpAndSupportScreen extends StatefulWidget {
 }
 
 class _HelpAndSupportScreenState extends State<HelpAndSupportScreen> {
-  final Color primary = const Color(0xFFcee640); // Updated app main color
   late SupportTicketService _service;
   Map<String, dynamic>? dashboard;
   bool loading = true;
@@ -20,7 +18,6 @@ class _HelpAndSupportScreenState extends State<HelpAndSupportScreen> {
   @override
   void initState() {
     super.initState();
-    // TODO: Replace with your actual baseUrl and token retrieval
     _service = SupportTicketService();
     fetchDashboard();
   }
@@ -49,103 +46,140 @@ class _HelpAndSupportScreenState extends State<HelpAndSupportScreen> {
     return Scaffold(
       backgroundColor: DudeTheme.background,
       appBar: AppBar(
-        leading: BackButton(color: Colors.white54),
-        title: Text(
+        leading: const BackButton(color: DudeTheme.textMid),
+        title: const Text(
           'Help and Support',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: DudeTheme.textPrimary,
+          ),
         ),
-        backgroundColor: DudeTheme.surface,
+        backgroundColor: DudeTheme.background,
         elevation: 0,
       ),
       body: loading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: DudeTheme.accent,
+                strokeWidth: 2,
+              ),
+            )
           : error != null
-          ? Center(child: Text(error!))
+          ? Center(
+              child: Text(
+                error!,
+                style: const TextStyle(color: DudeTheme.danger),
+              ),
+            )
           : Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Your tickets',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                       fontSize: 18,
-                      color: Colors.white,
+                      color: DudeTheme.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 8),
-                  Card(
-                    color: DudeTheme.surface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: ListTile(
-                      title: Text(
-                        'Raised Ticket',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      subtitle: Text(
+                  const SizedBox(height: 8),
+                  _SupportTile(
+                    title: 'Raised Ticket',
+                    subtitle:
                         '${dashboard?['activeTickets'] ?? 0} active ticket',
-                        style: TextStyle(color: primary),
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: primary,
-                        child: Icon(Icons.info, color: Colors.white),
-                      ),
-                      trailing: Icon(Icons.chevron_right, color: Colors.white),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => MyTicketsScreen()),
-                        );
-                      },
-                    ),
+                    icon: Icons.confirmation_number_outlined,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => MyTicketsScreen()),
+                      );
+                    },
                   ),
-                  SizedBox(height: 24),
-                  Text(
+                  const SizedBox(height: 24),
+                  const Text(
                     'Create a new ticket',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                       fontSize: 18,
-                      color: Colors.white,
+                      color: DudeTheme.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 8),
-                  Card(
-                    color: DudeTheme.surface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: ListTile(
-                      title: Text(
-                        'Raise new ticket',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                  const SizedBox(height: 8),
+                  _SupportTile(
+                    title: 'Raise new ticket',
+                    subtitle: 'Describe your issue and attach screenshots',
+                    icon: Icons.add_circle_outline_rounded,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SubmitTicketScreen(),
                         ),
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: primary,
-                        child: Icon(Icons.info, color: Colors.white),
-                      ),
-                      trailing: Icon(Icons.chevron_right, color: Colors.white),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => SubmitTicketScreen(),
-                          ),
-                        );
-                      },
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _SupportTile extends StatelessWidget {
+  const _SupportTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: DudeTheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: DudeTheme.border.withValues(alpha: 0.5)),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 6,
+            ),
+            title: Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: DudeTheme.textPrimary,
+              ),
+            ),
+            subtitle: Text(
+              subtitle,
+              style: const TextStyle(color: DudeTheme.accent),
+            ),
+            leading: CircleAvatar(
+              backgroundColor: DudeTheme.accentDim,
+              child: Icon(icon, color: DudeTheme.accent),
+            ),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: DudeTheme.textMid,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

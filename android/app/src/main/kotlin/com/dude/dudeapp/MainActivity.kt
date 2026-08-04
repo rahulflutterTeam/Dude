@@ -9,10 +9,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.core.content.ContextCompat
@@ -31,6 +35,7 @@ class MainActivity : FlutterActivity() {
 
     private var otpChannel: MethodChannel? = null
     private var smsConsentReceiver: BroadcastReceiver? = null
+    private var incomingCallVibrator: Vibrator? = null
 
     // When user presses back button, move app to background instead of
     // destroying it. This keeps socket + Zego connected so incoming calls
@@ -81,16 +86,40 @@ class MainActivity : FlutterActivity() {
         }
 
         // Existing channels used by your call/invitation stack
+        val ringtoneUri = Uri.parse(
+            "android.resource://${packageName}/${R.raw.duderingtone}"
+        )
+        val missedUri = Uri.parse(
+            "android.resource://${packageName}/${R.raw.missed_call_sound}"
+        )
+        val callAttrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+
+        // Recreate so a previously silent channel picks up ringtone settings.
+        nm.deleteNotificationChannel("zego_call_channel")
+        nm.deleteNotificationChannel("missed_call_channel")
+
         val zegoCall = NotificationChannel(
             "zego_call_channel",
             "Incoming Calls",
             NotificationManager.IMPORTANCE_HIGH
-        )
+        ).apply {
+            description = "Incoming audio/video calls"
+            setSound(ringtoneUri, callAttrs)
+            enableVibration(true)
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+        }
         val missedCall = NotificationChannel(
             "missed_call_channel",
             "Missed Calls",
             NotificationManager.IMPORTANCE_DEFAULT
-        )
+        ).apply {
+            description = "Missed call alerts"
+            setSound(missedUri, callAttrs)
+            enableVibration(true)
+        }
 
         nm.createNotificationChannel(promo)
         nm.createNotificationChannel(zegoCall)
@@ -239,6 +268,15 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
 
+                    "startIncomingCallVibration" -> {
+                        result.success(startIncomingCallVibration())
+                    }
+
+                    "stopIncomingCallVibration" -> {
+                        stopIncomingCallVibration()
+                        result.success(null)
+                    }
+
                     "getAcceptedCallData" -> {
                         val callId = MyFirebaseMessagingService.pendingCallId
                         if (callId != null && MyFirebaseMessagingService.pendingAction == "ACCEPT") {
@@ -263,6 +301,39 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun getDeviceVibrator(): Vibrator {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val manager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            manager.defaultVibrator
+        } else {
+            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun startIncomingCallVibration(): Boolean {
+        val vibrator = getDeviceVibrator()
+        if (!vibrator.hasVibrator()) return false
+
+        incomingCallVibrator?.cancel()
+        incomingCallVibrator = vibrator
+
+        val pattern = longArrayOf(0L, 700L, 350L, 700L, 900L)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val amplitudes = intArrayOf(0, 255, 0, 255, 0)
+            vibrator.vibrate(VibrationEffect.createWaveform(pattern, amplitudes, 0))
+        } else {
+            vibrator.vibrate(pattern, 0)
+        }
+        return true
+    }
+
+    private fun stopIncomingCallVibration() {
+        incomingCallVibrator?.cancel()
+        incomingCallVibrator = null
     }
 
     private fun startSmsUserConsent(result: MethodChannel.Result) {
@@ -357,6 +428,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        stopIncomingCallVibration()
         stopSmsUserConsent()
         super.onDestroy()
     }

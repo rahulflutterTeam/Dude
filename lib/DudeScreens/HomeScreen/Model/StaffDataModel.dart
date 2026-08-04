@@ -129,7 +129,9 @@ class StaffDataProfile {
 
       /// call type - ADD THIS LINE
       callType: json['callType']?.toString(),
-      bio: json['bio']?.toString() ?? "Not here to waste time - impress me",
+      bio: (json['bio']?.toString().trim().isNotEmpty ?? false)
+          ? json['bio'].toString().trim()
+          : "Your search ends here. 😉",
     );
   }
 

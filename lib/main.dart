@@ -9,11 +9,12 @@ import 'package:dude/DudeScreens/LoginScreens/Repository/LoginRepo.dart';
 import 'package:dude/DudeScreens/LoginScreens/ViewModel/LoginVM.dart';
 import 'package:dude/DudeScreens/LoginScreens/ViewModel/ReferralVM.dart';
 import 'package:dude/DudeScreens/Splash/SplashScreen.dart';
+import 'package:dude/DudeScreens/BottomNavBar/BottomNavBar.dart';
 import 'package:dude/DudeScreens/Transactions/TransactionScreen.dart';
 import 'package:dude/DudeScreens/WalletScreen/AdBannerVM/AdBannerVM.dart';
-import 'package:dude/DudeScreens/WalletScreen/phonepe.dart';
 import 'package:dude/Dude_Utils/push/local_notifications.dart';
 import 'package:dude/Dude_Utils/push/push_service.dart';
+import 'package:dude/NotificationService/NotificationService.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/Repo/StaffRegisterRepo.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:dude/StaffScreenScreens/StaffBottomNavBar/StaffBottomNavBar.dart';
@@ -22,6 +23,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:facebook_app_events/facebook_app_events.dart';
 import 'package:dude/firebase_options.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Dude_Utils/navigation/route_observer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -29,8 +31,6 @@ import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 import 'DudeScreens/Transactions/ViewModel/TransactionHistoryVM.dart';
 import 'DudeScreens/WalletScreen/razorPayFlow/Repository/PaymentRepo.dart';
 import 'DudeScreens/WalletScreen/razorPayFlow/ViewModel/PaymentVM.dart';
-import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
-import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -42,99 +42,38 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final data = message.data;
-  if (!_isZegoCallInvitation(data)) return;
+  // Zego/CallKit owns call invitations in the background.
+  if (_isZegoCallInvitation(data)) return;
 
-  String callId = data['call_id'] ?? data['callID'] ?? '';
-  String callerName = data['caller_name'] ?? 'Incoming Call';
-  String callerId = data['caller_id'] ?? '';
-  bool isVideo = data['call_type'] == '1';
-
-  if (callId.isEmpty) {
-    try {
-      final payload = data['payload'];
-      if (payload != null) {
-        final json = jsonDecode(payload) as Map<String, dynamic>;
-        callId =
-            json['call_id'] ?? json['callID'] ?? json['invitationID'] ?? '';
-        final caller = json['caller'] as Map<String, dynamic>?;
-        if (caller != null) {
-          callerName = caller['name'] ?? callerName;
-          callerId = caller['id'] ?? callerId;
-        } else {
-          callerName = json['caller_name'] ?? callerName;
-          callerId = json['caller_id'] ?? callerId;
-        }
-        isVideo = json['call_type'] == '1' || json['call_type'] == 'video';
-      }
-    } catch (_) {}
-  }
-
-  if (callId.isEmpty) return;
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final n = message.notification;
-
   final title = n?.title ?? data['title']?.toString();
   final body = n?.body ?? data['body']?.toString();
 
-  // Skip if no content to show
   if (title == null || body == null) return;
 
-  // Skip Zego call invitations — CallKit / Zego handles those
-  if (_isZegoCallInvitation(data)) return;
-
-  // Initialize local notification channels
   await LocalNotifications.instance.init();
 
-  // Route to correct channel based on message type
   if (_isChatMessageData(data)) {
-    await LocalNotifications.instance.showChatMessage(title: title, body: body);
+    await LocalNotifications.instance.showChatMessage(
+      title: title,
+      body: body,
+      payload: jsonEncode(data),
+    );
   } else {
-    await LocalNotifications.instance.showPromo(title: title, body: body);
+    await LocalNotifications.instance.showPromo(
+      title: title,
+      body: body,
+      payload: jsonEncode(data),
+    );
   }
-  // await FlutterCallkitIncoming.showCallkitIncoming(CallKitParams(
-  //   id: callId,
-  //   nameCaller: callerName,
-  //   appName: 'Dude',
-  //   handle: callerId,
-  //   type: isVideo ? 1 : 0,
-  //   textAccept: 'Accept',
-  //   textDecline: 'Decline',
-  //   duration: 60000,
-  //   extra: <String, dynamic>{
-  //     'callId': callId,
-  //     'callerName': callerName,
-  //     'callerId': callerId,
-  //     'isVideo': isVideo,
-  //   },
-  //   missedCallNotification: const NotificationParams(
-  //     showNotification: true,
-  //     isShowCallback: false,
-  //     subtitle: 'Missed call',
-  //   ),
-  //   android: const AndroidParams(
-  //     isCustomNotification: true,
-  //     isShowFullLockedScreen: true,
-  //     isShowLogo: false,
-  //     ringtonePath: 'system_ringtone_default',
-  //     backgroundColor: '#1A1A2E',
-  //     actionColor: '#CC529F',
-  //     textColor: '#FFFFFF',
-  //     incomingCallNotificationChannelName: 'Incoming Callsde',
-  //     missedCallNotificationChannelName: 'Missed Calls',
-  //   ),
-  //   ios: const IOSParams(
-  //     iconName: 'CallKitLogo',
-  //     handleType: 'generic',
-  //     supportsVideo: false,
-  //     maximumCallGroups: 1,
-  //     maximumCallsPerCallGroup: 1,
-  //   ),
-  // ));
 }
 
 bool _isChatMessageData(Map<String, dynamic> data) {
+  final type = data['type']?.toString().toLowerCase() ?? '';
   final screen = data['screen']?.toString().toLowerCase() ?? '';
+  if (type == 'wave' || screen == 'wave') return false;
   if (screen == 'chat' || screen == 'message' || screen == 'messages') {
     return true;
   }
@@ -194,6 +133,21 @@ void main() async {
   );
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await LocalNotifications.instance.init();
+  LocalNotifications.instance.configureTapHandler((payload) async {
+    final type = payload['type']?.toString().toLowerCase() ?? '';
+    final screen = payload['screen']?.toString().toLowerCase() ?? '';
+    if (type == 'wave' || screen == 'wave' || screen == 'home') {
+      final nav = navigatorKey.currentState;
+      if (nav == null) return;
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainBottomBar(index: 0)),
+        (route) => false,
+      );
+      return;
+    }
+    await NotificationService.navigateToChatData(payload);
+  });
   await PushService.instance.captureInitialMessage();
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -241,6 +195,7 @@ class MyApp extends StatelessWidget {
         ),
         child: MaterialApp(
           navigatorKey: navigatorKey,
+          navigatorObservers: [appRouteObserver],
           title: 'Dude',
           debugShowCheckedModeBanner: false,
           theme: DudeTheme.appTheme,
@@ -253,7 +208,15 @@ class MyApp extends StatelessWidget {
                 fontFamily: DudeTheme.fontFamily,
                 color: DudeTheme.textPrimary,
               ),
-              child: child ?? const SizedBox.shrink(),
+              child: Stack(
+                children: [
+                  child ?? const SizedBox.shrink(),
+                  ZegoUIKitPrebuiltCallMiniOverlayPage(
+                    contextQuery: () =>
+                        navigatorKey.currentState?.context ?? context,
+                  ),
+                ],
+              ),
             );
           },
           home: const _InitialLaunchGate(),

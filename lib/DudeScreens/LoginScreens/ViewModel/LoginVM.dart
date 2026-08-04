@@ -76,6 +76,14 @@ class LoginViewModel extends ChangeNotifier {
           userId: _verifyResponse!.user?.id,
           phone: phone,
         );
+        final user = _verifyResponse!.user;
+        if (user != null) {
+          await AuthService.saveNewUserDemoCall(
+            newUser: _verifyResponse!.newUser,
+            userId: user.id,
+            appName: user.appName,
+          );
+        }
       }
 
       notifyListeners();

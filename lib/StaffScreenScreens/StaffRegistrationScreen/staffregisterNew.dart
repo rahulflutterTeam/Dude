@@ -1,3 +1,4 @@
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/login_auth_shell.dart';
@@ -59,7 +60,7 @@ class _StaffRegisterNewState extends State<StaffRegisterNew> {
     return Consumer<StaffViewModel>(
       builder: (context, vm, child) {
         return LoginAuthShell(
-          title: 'Join as staff',
+          title: 'Join Dude',
           subtitle:
               'Enter your mobile number — we\'ll send a 4-digit code to verify you.',
           form: Column(
@@ -81,7 +82,7 @@ class _StaffRegisterNewState extends State<StaffRegisterNew> {
                   vm.errorMessage!,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Color(0xFFFF6B6B),
+                    color: DudeTheme.danger,
                     fontSize: 13,
                   ),
                 ),
@@ -95,15 +96,36 @@ class _StaffRegisterNewState extends State<StaffRegisterNew> {
               ),
             ],
           ),
-          footer: Center(
-            child: Text(
-              'Verified female staff · earn through audio & video calls',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.45),
-                fontSize: 12.5,
-                height: 1.4,
+          footer: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: DudeTheme.surface.withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: DudeTheme.accent.withValues(alpha: 0.35),
               ),
-              textAlign: TextAlign.center,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 18,
+                  color: DudeTheme.accentBright,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Verified females only · earn through audio & video calls',
+                    style: TextStyle(
+                      color: DudeTheme.textMuted.withValues(alpha: 0.9),
+                      fontSize: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );

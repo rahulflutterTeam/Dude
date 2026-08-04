@@ -1,9 +1,13 @@
 import 'package:dude/DudeScreens/Chat/backend_chat_service.dart';
 import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
+import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
-import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/premium_animations.dart';
+import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 class ChatDetailScreen extends StatefulWidget {
@@ -11,6 +15,7 @@ class ChatDetailScreen extends StatefulWidget {
   final String peerMemberID;
   final String name;
   final String staffId;
+  final String? imageUrl;
 
   const ChatDetailScreen({
     super.key,
@@ -18,6 +23,7 @@ class ChatDetailScreen extends StatefulWidget {
     this.peerMemberID = '',
     required this.name,
     required this.staffId,
+    this.imageUrl,
   });
 
   @override
@@ -29,6 +35,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _textController = TextEditingController();
   String _conversationId = '';
   String _myMemberId = '';
+  String _peerImageUrl = '';
   bool _isChatLoading = true;
   bool _isSending = false;
   List<BackendChatMessage> _messages = [];
@@ -37,6 +44,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _peerImageUrl = widget.imageUrl?.trim() ?? '';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeBackendChat();
     });
@@ -48,6 +56,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _textController.dispose();
     _unsubscribeNewMessage?.call();
     super.dispose();
+  }
+
+  String _resolveStaffImage() {
+    final passed = _peerImageUrl.trim();
+    if (passed.isNotEmpty) return passed;
+
+    final widgetImage = widget.imageUrl?.trim() ?? '';
+    if (widgetImage.isNotEmpty) return widgetImage;
+
+    try {
+      final staffVM = context.read<StaffViewModel>();
+      final memberId = widget.peerMemberID.isNotEmpty
+          ? widget.peerMemberID
+          : widget.conversationID;
+      for (final staff in staffVM.allStaffList) {
+        final matchId =
+            widget.staffId.isNotEmpty && staff.id == widget.staffId;
+        final matchMember =
+            memberId.isNotEmpty && staff.memberID == memberId;
+        if (matchId || matchMember) {
+          final image = staff.image?.trim() ?? '';
+          if (image.isNotEmpty) return image;
+        }
+      }
+    } catch (_) {}
+    return '';
   }
 
   Future<void> _initializeBackendChat() async {
@@ -72,6 +106,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _conversationId = conversation.id.isNotEmpty
         ? conversation.id
         : widget.conversationID;
+    if (conversation.peerImage.trim().isNotEmpty) {
+      _peerImageUrl = conversation.peerImage.trim();
+    }
 
     await BackendChatService.instance.joinSocket(
       actorId: user.memberID,
@@ -133,18 +170,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // BLOCK: URLs, Phone Numbers, Instagram, Excessive Special Chars
-  // ─────────────────────────────────────────────────────────────
-  // ─────────────────────────────────────────────────────────────
-  // BLOCK: URLs, Phone Numbers, Instagram, AND ANY NUMBERS
-  // ─────────────────────────────────────────────────────────────
   bool _containsBlockedContent(String text) {
     if (text.trim().isEmpty) return false;
 
     final lower = text.toLowerCase().trim();
 
-    // 1. URLs & Domain Links
     if (lower.contains('http://') ||
         lower.contains('https://') ||
         lower.contains('www.') ||
@@ -154,23 +184,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       return true;
     }
 
-    // 2. ANY DIGIT (Even single number like 1, 2, 123, etc.)
     if (RegExp(r'\d').hasMatch(text)) {
       return true;
     }
 
-    // 3. Social Media & Promotion
     if (lower.contains('instagram') ||
         lower.contains('insta') ||
         lower.contains('whatsapp') ||
         lower.contains('follow') ||
-        RegExp(r'@\w{2,}').hasMatch(text) || // @username
+        RegExp(r'@\w{2,}').hasMatch(text) ||
         lower.contains('gram_') ||
         lower.contains('onlyfans')) {
       return true;
     }
 
-    // 4. Excessive Special Characters
     if (RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]{4,}').hasMatch(text)) {
       return true;
     }
@@ -186,28 +213,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       return;
     }
 
-    // Content Blocking Check
     if (_containsBlockedContent(text)) {
       Utils.snackBarErrorMessage(
-        "Links, phone numbers, Instagram IDs & promotional content not allowed",
+        'Links, phone numbers, Instagram IDs & promotional content not allowed',
       );
       return;
     }
 
     final userVM = Provider.of<UserViewModel>(context, listen: false);
+    final staffVM = Provider.of<StaffViewModel>(context, listen: false);
+    final messageCost = staffVM
+        .messageAmount(fallback: 8)
+        .round()
+        .clamp(1, 999);
     final balance = userVM.currentUser?.coinBalance ?? 0;
 
-    if (balance < 8) {
+    if (balance < messageCost) {
       Utils.snackBarErrorMessage(
-        "Insufficient balance! Need 8 coins to send a message.",
+        'Insufficient balance! Need $messageCost coins to send a message.',
       );
       return;
     }
 
-    // Deduct coins
-    final newBalance = balance - 8;
+    final previousBalance = balance;
+    final newBalance = balance - messageCost;
     userVM.updateLocalCoinBalance(newBalance);
-    userVM.updateUserCoinBalance(newBalance, widget.staffId, 8, "0", "chat");
 
     final optimistic = BackendChatMessage(
       id: 'local-${DateTime.now().microsecondsSinceEpoch}',
@@ -226,18 +256,29 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
     _scrollToBottom();
 
+    var delivered = false;
     try {
-      await BackendChatService.instance.sendMessageSocket(
+      final saved = await BackendChatService.instance.sendMessageSocket(
         _conversationId,
         text,
         notificationData: _chatNotificationData(text),
       );
+      delivered = true;
+      if (saved != null && mounted) {
+        setState(() {
+          final index = _messages.indexWhere(
+            (item) => item.id == optimistic.id,
+          );
+          if (index != -1) _messages[index] = saved;
+        });
+      }
     } catch (e) {
       try {
         final saved = await BackendChatService.instance.sendMessageRest(
           _conversationId,
           text,
         );
+        delivered = true;
         if (mounted) {
           setState(() {
             final index = _messages.indexWhere(
@@ -251,10 +292,30 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           setState(
             () => _messages.removeWhere((item) => item.id == optimistic.id),
           );
-          Utils.snackBarErrorMessage("Failed to send message");
+          Utils.snackBarErrorMessage('Failed to send message');
         }
       }
     } finally {
+      if (delivered) {
+        final charged = await userVM.updateUserCoinBalance(
+          newBalance,
+          widget.staffId,
+          messageCost,
+          '0',
+          'chat',
+          optimistic.id,
+        );
+        if (!charged && !userVM.lastBalanceUpdateQueued) {
+          userVM.updateLocalCoinBalance(previousBalance);
+          if (mounted) {
+            Utils.snackBarErrorMessage(
+              'Message sent, but charging failed. Balance restored.',
+            );
+          }
+        }
+      } else {
+        userVM.updateLocalCoinBalance(previousBalance);
+      }
       if (mounted) setState(() => _isSending = false);
     }
   }
@@ -301,19 +362,51 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     };
   }
 
+  Widget _buildStaffAvatar() {
+    final imageUrl = _resolveStaffImage();
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: DudeTheme.accent.withValues(alpha: 0.55),
+          width: 1.4,
+        ),
+        boxShadow: DudeTheme.accentGlowShadow(blur: 10, spread: -4),
+      ),
+      child: ClipOval(
+        child: imageUrl.isNotEmpty
+            ? Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Image.asset(
+                  'assets/Images/women.png',
+                  fit: BoxFit.cover,
+                ),
+              )
+            : Image.asset('assets/Images/women.png', fit: BoxFit.cover),
+      ),
+    );
+  }
+
   Widget _buildMessageList() {
     if (_messages.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          "No messages yet",
-          style: TextStyle(color: Colors.white54, fontSize: 15),
+          'No messages yet',
+          style: TextStyle(
+            color: DudeTheme.textSubtle.withValues(alpha: 0.9),
+            fontSize: 15,
+          ),
         ),
       );
     }
 
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      physics: PremiumAnimations.scrollPhysics,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       itemCount: _messages.length,
       itemBuilder: (context, index) {
         final message = _messages[index];
@@ -325,19 +418,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               maxWidth: MediaQuery.of(context).size.width * 0.74,
             ),
             margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
-              color: isMine ? DudeTheme.accent : DudeTheme.surfaceRaised,
+              gradient: isMine ? DudeTheme.premiumAccentGradient : null,
+              color: isMine ? null : DudeTheme.surfaceRaised,
               borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: Radius.circular(isMine ? 16 : 4),
-                bottomRight: Radius.circular(isMine ? 4 : 16),
+                topLeft: const Radius.circular(18),
+                topRight: const Radius.circular(18),
+                bottomLeft: Radius.circular(isMine ? 18 : 5),
+                bottomRight: Radius.circular(isMine ? 5 : 18),
               ),
+              border: isMine
+                  ? null
+                  : Border.all(
+                      color: DudeTheme.border.withValues(alpha: 0.4),
+                    ),
+              boxShadow: isMine
+                  ? DudeTheme.accentGlowShadow(blur: 10, spread: -5)
+                  : null,
             ),
             child: Text(
               message.message,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
+              style: TextStyle(
+                color: isMine ? DudeTheme.textOnAccent : DudeTheme.textPrimary,
+                fontSize: 15,
+                height: 1.35,
+              ),
             ),
           ),
         );
@@ -347,182 +453,180 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<UserViewModel>(
-      builder: (context, userVM, child) {
-        return Scaffold(
-          body: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  DudeTheme.background,
-                  DudeTheme.surface,
-                  DudeTheme.background,
-                  DudeTheme.background,
-                  DudeTheme.background,
-                  DudeTheme.background,
-                ],
-              ),
-            ),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  // Top Bar
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 16, 8),
-                    child: Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () => bondNavigator.backPage(context),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: DudeTheme.surfaceRaised,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white12),
-                            ),
-                            child: const Icon(
-                              Icons.arrow_back,
-                              color: Colors.white,
-                              size: 26,
-                            ),
+    return Scaffold(
+      backgroundColor: DudeTheme.background,
+      body: PremiumAmbientBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 16, 10),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        bondNavigator.backPage(context);
+                      },
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: DudeTheme.surface.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: DudeTheme.border.withValues(alpha: 0.5),
                           ),
                         ),
-                        const SizedBox(width: 12),
-
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: DudeTheme.surfaceRaised,
-                          child: const Icon(
-                            Icons.person,
-                            color: Color(0xFFB86AF6),
-                            size: 28,
-                          ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: DudeTheme.textPrimary,
+                          size: 18,
                         ),
-
-                        const SizedBox(width: 12),
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _buildStaffAvatar(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: DudeTheme.textPrimary,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
                             children: [
-                              Text(
-                                widget.name,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: DudeTheme.online,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'Active now',
+                                style: TextStyle(
+                                  color: DudeTheme.online,
+                                  fontSize: 12.5,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 9,
-                                    height: 9,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF7DFF63),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  const Text(
-                                    "Active now",
-                                    style: TextStyle(
-                                      color: Color(0xFF7DFF63),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Messages List
-                  Expanded(
-                    child: !_isChatLoading
-                        ? _buildMessageList()
-                        : const Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFFB86AF6),
-                            ),
-                          ),
-                  ),
-
-                  // Input Bar
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-                    decoration: const BoxDecoration(
-                      color: DudeTheme.surface,
-                      border: Border(
-                        top: BorderSide(color: Color(0xFF2E2040), width: 1),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: DudeTheme.surfaceRaised,
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(
-                                color: DudeTheme.surfaceRaised,
-                              ),
-                            ),
-                            child: TextField(
-                              controller: _textController,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                              minLines: 1,
-                              maxLines: 4,
-                              decoration: const InputDecoration(
-                                hintText: "Type a message...",
-                                hintStyle: TextStyle(color: Color(0xFF6B5F7A)),
-                                border: InputBorder.none,
-                              ),
-                            ),
-                          ),
+                  ],
+                ),
+              ),
+              Container(
+                height: 1,
+                color: DudeTheme.border.withValues(alpha: 0.3),
+              ),
+              Expanded(
+                child: !_isChatLoading
+                    ? _buildMessageList()
+                    : const Center(
+                        child: CircularProgressIndicator(
+                          color: DudeTheme.accent,
+                          strokeWidth: 2.4,
                         ),
-                        const SizedBox(width: 10),
-
-                        GestureDetector(
-                          onTap: _sendMessage,
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFFB86AF6), Color(0xFF7B4DFF)],
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.send_rounded,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
+                decoration: BoxDecoration(
+                  color: DudeTheme.surface.withValues(alpha: 0.92),
+                  border: Border(
+                    top: BorderSide(
+                      color: DudeTheme.border.withValues(alpha: 0.4),
                     ),
                   ),
-                ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: DudeTheme.background.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: DudeTheme.border.withValues(alpha: 0.55),
+                          ),
+                        ),
+                        child: TextField(
+                          controller: _textController,
+                          style: const TextStyle(
+                            color: DudeTheme.textPrimary,
+                            fontSize: 15.5,
+                          ),
+                          cursorColor: DudeTheme.accent,
+                          minLines: 1,
+                          maxLines: 4,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _sendMessage(),
+                          decoration: const InputDecoration(
+                            hintText: 'Type a message...',
+                            hintStyle: TextStyle(color: DudeTheme.textSubtle),
+                            border: InputBorder.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _sendMessage();
+                      },
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: DudeTheme.premiumAccentGradient,
+                          boxShadow: DudeTheme.accentGlowShadow(
+                            blur: 12,
+                            spread: -3,
+                          ),
+                        ),
+                        child: _isSending
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: DudeTheme.textOnAccent,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.send_rounded,
+                                color: DudeTheme.textOnAccent,
+                                size: 22,
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

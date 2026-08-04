@@ -23,7 +23,10 @@ class AuthRepository {
     String referralCode,
   ) async {
     try {
-      final body = {"phone": phoneNumber, "code": referralCode};
+      final body = {
+        "phone": phoneNumber,
+        "code": referralCode,
+      };
 
       final response = await _apiService.postResponseV2(
         ApiEndPoints().login, // → "/api/v1/auth/user/signup"

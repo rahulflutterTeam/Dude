@@ -255,10 +255,6 @@ class WalletViewModel extends ChangeNotifier {
     required String upi,
     required String confirmUpi,
     required num amount,
-    num? requestedAmount,
-    num? withdrawFeeAmount,
-    num? withdrawFeePercent,
-    num? netAmount,
     required BuildContext context,
   }) async {
     try {
@@ -274,10 +270,6 @@ class WalletViewModel extends ChangeNotifier {
         upi: upi,
         confirmUpi: confirmUpi,
         amount: amount,
-        requestedAmount: requestedAmount,
-        withdrawFeeAmount: withdrawFeeAmount,
-        withdrawFeePercent: withdrawFeePercent,
-        netAmount: netAmount,
       );
 
       if (response.status && response.data != null) {

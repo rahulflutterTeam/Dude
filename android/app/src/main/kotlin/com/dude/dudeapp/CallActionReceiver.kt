@@ -30,6 +30,7 @@ class CallActionReceiver : BroadcastReceiver() {
                 MyFirebaseMessagingService.pendingCallerName = intent.getStringExtra("callerName")
                 MyFirebaseMessagingService.pendingCallerId   = intent.getStringExtra("callerId")
                 MyFirebaseMessagingService.pendingIsVideo    = intent.getBooleanExtra("isVideo", false)
+                MyFirebaseMessagingService.pendingAction     = "ACCEPT"
 
                 // Launch MainActivity so Zego can connect the call
                 val launchIntent = Intent(context, MainActivity::class.java).apply {
@@ -43,6 +44,7 @@ class CallActionReceiver : BroadcastReceiver() {
             "DECLINE_CALL" -> {
                 // Clear pending state
                 MyFirebaseMessagingService.pendingCallId = null
+                MyFirebaseMessagingService.pendingAction = null
                 Log.d(TAG, "Call declined from notification")
             }
         }

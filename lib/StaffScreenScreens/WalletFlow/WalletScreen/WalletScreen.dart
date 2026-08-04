@@ -10,8 +10,8 @@ import 'package:dude/Reusable_Widgets/AppText_Theme/AppText_Theme.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:dude/StaffScreenScreens/WithdrawScreen/WithdrawRequestScreen.dart';
+import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 
 class StaffWalletScreen extends StatefulWidget {
@@ -124,10 +124,7 @@ class _StaffWalletScreenState extends State<StaffWalletScreen> {
                                     ),
                                   ),
                                   const Spacer(),
-                                  SvgPicture.asset(
-                                    "assets/Images/dude.svg",
-                                    height: 54,
-                                  ),
+                                  const DudeLogo(height: 40),
                                   const Spacer(),
                                   const SizedBox(width: 40),
                                 ],

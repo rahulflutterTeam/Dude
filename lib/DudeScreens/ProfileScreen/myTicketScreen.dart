@@ -1,7 +1,6 @@
-// my_tickets_screen.dart
+import 'package:dude/APIService/support_ticket_service.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:flutter/material.dart';
-import 'package:dude/APIService/support_ticket_service.dart';
 
 class MyTicketsScreen extends StatefulWidget {
   @override
@@ -10,10 +9,6 @@ class MyTicketsScreen extends StatefulWidget {
 
 class _MyTicketsScreenState extends State<MyTicketsScreen>
     with SingleTickerProviderStateMixin {
-  final Color primary = const Color(0xFFcee640); // Updated app main color
-  final Color cardBg = DudeTheme.surface;
-  final Color bg = DudeTheme.background;
-  final Color resolvedGreen = Color(0xFF3DC16B);
   late TabController _tabController;
   late SupportTicketService _service;
   List<dynamic> activeTickets = [];
@@ -25,7 +20,6 @@ class _MyTicketsScreenState extends State<MyTicketsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-
     _service = SupportTicketService();
     fetchTickets();
   }
@@ -52,109 +46,118 @@ class _MyTicketsScreenState extends State<MyTicketsScreen>
   }
 
   Widget buildTicketCard(Map ticket, {bool isActive = true}) {
-    return Card(
-      color: cardBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
+    final statusColor = isActive ? DudeTheme.accent : DudeTheme.success;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: DudeTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: DudeTheme.border.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: statusColor.withValues(alpha: 0.45),
+                  ),
+                ),
+                child: Text(
+                  isActive ? 'Active' : 'Resolved',
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isActive ? primary : resolvedGreen,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        isActive ? 'Active' : 'Resolved',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        Text(
+                          '#${ticket['ticketId'] ?? ticket['_id'] ?? ''}',
+                          style: const TextStyle(
+                            color: DudeTheme.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
+                        const Spacer(),
+                        Text(
+                          ticket['createdAt'] != null
+                              ? _formatDate(ticket['createdAt'])
+                              : '',
+                          style: const TextStyle(color: DudeTheme.textSubtle),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      ticket['description'] ?? '',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: DudeTheme.textPrimary,
                       ),
                     ),
                   ],
                 ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            '#${ticket['ticketId'] ?? ticket['_id'] ?? ''}',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Spacer(),
-                          Text(
-                            ticket['createdAt'] != null
-                                ? _formatDate(ticket['createdAt'])
-                                : '',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        ticket['description'] ?? '',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+              ),
+            ],
+          ),
+          if (!isActive &&
+              (ticket['adminNote'] != null &&
+                  (ticket['adminNote'] as String).trim().isNotEmpty))
+            Padding(
+              padding: const EdgeInsets.only(top: 12.0),
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: DudeTheme.accentDim,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: DudeTheme.accent.withValues(alpha: 0.25),
                   ),
                 ),
-              ],
-            ),
-            if (!isActive &&
-                (ticket['adminNote'] != null &&
-                    (ticket['adminNote'] as String).trim().isNotEmpty))
-              Padding(
-                padding: const EdgeInsets.only(top: 12.0),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Reply from Support',
-                        style: TextStyle(
-                          color: Color(0xFF3B7BCE),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reply from Support',
+                      style: TextStyle(
+                        color: DudeTheme.accentBright,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
                       ),
-                      SizedBox(height: 6),
-                      Text(
-                        ticket['adminNote'],
-                        style: TextStyle(color: Colors.white, fontSize: 15),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      ticket['adminNote'],
+                      style: const TextStyle(
+                        color: DudeTheme.textPrimary,
+                        fontSize: 15,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -188,49 +191,77 @@ class _MyTicketsScreenState extends State<MyTicketsScreen>
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: DudeTheme.background,
       appBar: AppBar(
-        leading: BackButton(color: Colors.white54),
-        title: Text(
+        leading: const BackButton(color: DudeTheme.textMid),
+        title: const Text(
           'My Tickets',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: DudeTheme.textPrimary,
+          ),
         ),
-        backgroundColor: cardBg,
+        backgroundColor: DudeTheme.background,
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
-          labelColor: primary,
-          unselectedLabelColor: Colors.white54,
-          indicatorColor: primary,
-          tabs: [
+          labelColor: DudeTheme.accent,
+          unselectedLabelColor: DudeTheme.textSubtle,
+          indicatorColor: DudeTheme.accent,
+          indicatorWeight: 2.5,
+          tabs: const [
             Tab(text: 'ACTIVE'),
             Tab(text: 'RESOLVED'),
           ],
         ),
       ),
       body: loading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: DudeTheme.accent,
+                strokeWidth: 2,
+              ),
+            )
           : error != null
-          ? Center(child: Text(error!))
+          ? Center(
+              child: Text(
+                error!,
+                style: const TextStyle(color: DudeTheme.danger),
+              ),
+            )
           : TabBarView(
               controller: _tabController,
               children: [
-                // Active Tickets
                 activeTickets.isEmpty
-                    ? Center(child: Text('No active tickets'))
+                    ? const Center(
+                        child: Text(
+                          'No active tickets',
+                          style: TextStyle(color: DudeTheme.textSubtle),
+                        ),
+                      )
                     : ListView.builder(
-                        padding: EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(16),
                         itemCount: activeTickets.length,
                         itemBuilder: (context, i) =>
                             buildTicketCard(activeTickets[i], isActive: true),
                       ),
-                // Resolved Tickets
                 resolvedTickets.isEmpty
-                    ? Center(child: Text('No resolved tickets'))
+                    ? const Center(
+                        child: Text(
+                          'No resolved tickets',
+                          style: TextStyle(color: DudeTheme.textSubtle),
+                        ),
+                      )
                     : ListView.builder(
-                        padding: EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(16),
                         itemCount: resolvedTickets.length,
                         itemBuilder: (context, i) => buildTicketCard(
                           resolvedTickets[i],
