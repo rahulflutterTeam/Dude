@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="facebook_app_id">1681817199800536</string>
-    <string name="facebook_client_token">fec0acc3635dc29b630e59967c4c4a9d</string>
-    <string name="fb_login_protocol_scheme">fb1681817199800536</string>
+    <string name="facebook_app_id">1338673401309093</string>
+    <string name="facebook_client_token">708591b017d3c0d9604c615a82e03150</string>
+    <string name="fb_login_protocol_scheme">fb1338673401309093</string>
     <string name="app_name">Dude</string>
 </resources>

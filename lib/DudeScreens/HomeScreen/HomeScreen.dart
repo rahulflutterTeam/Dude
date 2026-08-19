@@ -68,6 +68,7 @@ class HomeScreenState extends State<HomeScreen>
   bool _isHomeTabVisible = true;
   bool _isRefreshingVisible = false;
   DateTime? _lastVisibleRefreshAt;
+  String? _startingCallButtonKey;
 
   @override
   void initState() {
@@ -1245,7 +1246,7 @@ class HomeScreenState extends State<HomeScreen>
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 12.5,
+                fontSize: 14.5,
                 height: 1.5,
               ),
             ),
@@ -1321,8 +1322,8 @@ class HomeScreenState extends State<HomeScreen>
     required bool isLive,
     Color? statusColor,
   }) {
-    const outer = 64.0;
-    const inner = 57.0;
+    const outer = 72.0;
+    const inner = 64.0;
     final dotColor = statusColor ?? DudeTheme.textSubtle;
 
     return SizedBox(
@@ -1408,6 +1409,8 @@ class HomeScreenState extends State<HomeScreen>
   }) {
     final gap = compact ? 6.0 : 12.0;
     final chatSize = compact ? 40.0 : 50.0;
+    final audioKey = '${staff.id}|audio';
+    final videoKey = '${staff.id}|video';
 
     if (showAudio && !showVideo) {
       return Row(
@@ -1423,6 +1426,7 @@ class HomeScreenState extends State<HomeScreen>
               targetUserName: staff.name ?? 'Staff',
               targetStaffId: staff.id,
               isEnabled: isEnabled,
+              buttonKey: audioKey,
               fillWidth: true,
               compact: compact,
             ),
@@ -1447,6 +1451,7 @@ class HomeScreenState extends State<HomeScreen>
               targetUserName: staff.name ?? 'Staff',
               targetStaffId: staff.id,
               isEnabled: isEnabled,
+              buttonKey: videoKey,
               fillWidth: true,
               compact: compact,
             ),
@@ -1470,6 +1475,7 @@ class HomeScreenState extends State<HomeScreen>
             targetUserName: staff.name ?? 'Staff',
             targetStaffId: staff.id,
             isEnabled: isEnabled,
+            buttonKey: audioKey,
             fillWidth: false,
             compact: compact,
           ),
@@ -1486,6 +1492,7 @@ class HomeScreenState extends State<HomeScreen>
             targetUserName: staff.name ?? 'Staff',
             targetStaffId: staff.id,
             isEnabled: isEnabled,
+            buttonKey: videoKey,
             fillWidth: false,
             compact: compact,
           ),
@@ -1535,6 +1542,7 @@ class HomeScreenState extends State<HomeScreen>
     required String targetUserName,
     required String targetStaffId,
     required bool isEnabled,
+    required String buttonKey,
     required bool fillWidth,
     bool compact = false,
   }) {
@@ -1542,135 +1550,142 @@ class HomeScreenState extends State<HomeScreen>
       builder: (context, userVM, child) {
         final currentUser = userVM.currentUser;
         final balance = currentUser?.coinBalance ?? 0;
+        final isStartingThisCall = _startingCallButtonKey == buttonKey;
+        final canStartCall = isEnabled && _startingCallButtonKey == null;
 
         if (pricePerMin <= 0) return const SizedBox.shrink();
 
         return GestureDetector(
-          onTap: isEnabled
+          onTap: canStartCall
               ? () async {
-                  final statuses = await [
-                    Permission.microphone,
-                    if (isVideoCall) Permission.camera,
-                  ].request();
-
-                  if (!statuses[Permission.microphone]!.isGranted ||
-                      (isVideoCall &&
-                          !statuses[Permission.camera]!.isGranted)) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Permissions required")),
-                    );
-                    return;
+                  if (mounted) {
+                    setState(() {
+                      _startingCallButtonKey = buttonKey;
+                    });
                   }
-
-                  if (balance < pricePerMin) {
-                    _openPageClearingSearch(const WalletScreen());
-                    return;
-                  }
-
-                  final maxMinutes = balance ~/ pricePerMin;
-                  final maxSeconds = maxMinutes > 20
-                      ? 20 * 60
-                      : maxMinutes * 60;
-
-                  if (currentUser == null || currentUser.memberID.isEmpty) {
-                    Utils.snackBarErrorMessage("User details not available");
-                    return;
-                  }
-
                   try {
-                    await ZegoCallService().ensureInitializedForCaller(
-                      avatarUrl: currentUser.image ?? "",
-                      userId: currentUser.memberID,
-                      userName: currentUser.name ?? "User",
-                      events: _buildZegoCallEvents(),
-                    );
-                  } catch (e, stackTrace) {
-                    debugPrint("❌ [CALL] Failed to initialize Zego: $e");
-                    debugPrint("❌ [CALL] Stack trace: $stackTrace");
-                    Utils.snackBarErrorMessage(
-                      "Unable to start call. Please try again.",
-                    );
-                    return;
-                  }
+                    final statuses = await [
+                      Permission.microphone,
+                      if (isVideoCall) Permission.camera,
+                    ].request();
 
-                  final callType = isVideoCall ? "video" : "audio";
-                  final callID =
-                      "pe_${currentUser.memberID}_${targetStaffId}_${callType}_${pricePerMin}_${balance}_${maxSeconds}_${DateTime.now().millisecondsSinceEpoch}";
-
-                  final success = await ZegoUIKitPrebuiltCallInvitationService()
-                      .send(
-                        resourceID: "dude_push",
-                        invitees: [
-                          ZegoCallUser.fromUIKit(
-                            ZegoUIKitUser(
-                              id: targetUserID,
-                              name: targetUserName,
-                            ),
-                          ),
-                        ],
-                        isVideoCall: isVideoCall,
-                        callID: callID,
-                        customData: jsonEncode({
-                          "user_id": currentUser.memberID,
-                          "staff_id": targetStaffId,
-                          "price_per_min": pricePerMin,
-                          "call_type": callType,
-                          "coin_balance": balance,
-                          "max_seconds": maxSeconds,
-                        }),
-                        timeoutSeconds: 60,
+                    if (!statuses[Permission.microphone]!.isGranted ||
+                        (isVideoCall &&
+                            !statuses[Permission.camera]!.isGranted)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Permissions required")),
                       );
+                      return;
+                    }
 
-                  if (!success) {
-                    Utils.snackBarErrorMessage("Something went wrong");
-                    return;
-                  }
+                    if (balance < pricePerMin) {
+                      _openPageClearingSearch(const WalletScreen());
+                      return;
+                    }
 
-                  _callService.resetCall();
+                    final maxMinutes = balance ~/ pricePerMin;
+                    final maxSeconds = maxMinutes > 20
+                        ? 20 * 60
+                        : maxMinutes * 60;
 
-                  _callService.startCall(
-                    callID: callID,
-                    targetUserID: targetUserID,
-                    staffId: targetStaffId,
-                    pricePerMin: pricePerMin,
-                    isVideoCall: isVideoCall,
-                    initialCoinBalance: balance,
-                    maxCallSeconds: maxSeconds,
-                  );
+                    if (currentUser == null || currentUser.memberID.isEmpty) {
+                      Utils.snackBarErrorMessage("User details not available");
+                      return;
+                    }
 
-                  debugPrint(
-                    "Call invitation sent → tracking started | Target: $targetUserID | "
-                    "Staff ID: $targetStaffId | Price: $pricePerMin/min | Max: $maxSeconds sec",
-                  );
+                    try {
+                      await ZegoCallService().ensureInitializedForCaller(
+                        avatarUrl: currentUser.image ?? "",
+                        userId: currentUser.memberID,
+                        userName: currentUser.name ?? "User",
+                        events: _buildZegoCallEvents(),
+                      );
+                    } catch (e, stackTrace) {
+                      debugPrint("❌ [CALL] Failed to initialize Zego: $e");
+                      debugPrint("❌ [CALL] Stack trace: $stackTrace");
+                      Utils.snackBarErrorMessage(
+                        "Unable to start call. Please try again.",
+                      );
+                      return;
+                    }
 
-                  _callService.startCallTimer(
-                    Duration(seconds: maxSeconds),
-                    () async {
-                      if (!_callService.isCallActive || !mounted) return;
+                    final callType = isVideoCall ? "video" : "audio";
+                    final callID =
+                        "pe_${currentUser.memberID}_${targetStaffId}_${callType}_${pricePerMin}_${balance}_${maxSeconds}_${DateTime.now().millisecondsSinceEpoch}";
 
-                      debugPrint("⏰ TIME LIMIT REACHED - Ending call properly");
-
-                      try {
-                        await ZegoUIKitPrebuiltCallController().hangUp(context);
-
-                        // 2. Give Zego time to clean up and trigger onCallEnd
-                        await Future.delayed(
-                          const Duration(milliseconds: 1200),
+                    final success = await ZegoUIKitPrebuiltCallInvitationService()
+                        .send(
+                          resourceID: "dude_push",
+                          invitees: [
+                            ZegoCallUser.fromUIKit(
+                              ZegoUIKitUser(
+                                id: targetUserID,
+                                name: targetUserName,
+                              ),
+                            ),
+                          ],
+                          isVideoCall: isVideoCall,
+                          callID: callID,
+                          customData: jsonEncode({
+                            "user_id": currentUser.memberID,
+                            "staff_id": targetStaffId,
+                            "price_per_min": pricePerMin,
+                            "call_type": callType,
+                            "coin_balance": balance,
+                            "max_seconds": maxSeconds,
+                          }),
+                          timeoutSeconds: 60,
                         );
 
-                        // 3. Trigger our end logic
-                        final callData = CallService().endCall();
+                    if (!success) {
+                      Utils.snackBarErrorMessage("Something went wrong");
+                      return;
+                    }
 
-                        if (callData != null) {
-                          debugPrint("✅ endCall() executed from timer");
+                    _callService.resetCall();
+                    _callService.startCall(
+                      callID: callID,
+                      targetUserID: targetUserID,
+                      staffId: targetStaffId,
+                      pricePerMin: pricePerMin,
+                      isVideoCall: isVideoCall,
+                      initialCoinBalance: balance,
+                      maxCallSeconds: maxSeconds,
+                    );
+
+                    debugPrint(
+                      "Call invitation sent → tracking started | Target: $targetUserID | "
+                      "Staff ID: $targetStaffId | Price: $pricePerMin/min | Max: $maxSeconds sec",
+                    );
+
+                    _callService.startCallTimer(
+                      Duration(seconds: maxSeconds),
+                      () async {
+                        if (!_callService.isCallActive || !mounted) return;
+                        debugPrint("⏰ TIME LIMIT REACHED - Ending call properly");
+
+                        try {
+                          await ZegoUIKitPrebuiltCallController().hangUp(context);
+                          await Future.delayed(
+                            const Duration(milliseconds: 1200),
+                          );
+                          final callData = CallService().endCall();
+                          if (callData != null) {
+                            debugPrint("✅ endCall() executed from timer");
+                          }
+                        } catch (e) {
+                          debugPrint("❌ Error during timer end: $e");
+                          CallService().endCall();
                         }
-                      } catch (e) {
-                        debugPrint("❌ Error during timer end: $e");
-                        // Fallback
-                        CallService().endCall();
-                      }
-                    },
-                  );
+                      },
+                    );
+                  } finally {
+                    if (mounted && _startingCallButtonKey == buttonKey) {
+                      setState(() {
+                        _startingCallButtonKey = null;
+                      });
+                    }
+                  }
                 }
               : null,
           child: ClipRRect(
@@ -1696,7 +1711,22 @@ class HomeScreenState extends State<HomeScreen>
                       ? DudeTheme.accentGlowShadow(blur: 12, spread: -6)
                       : null,
                 ),
-                child: compact
+                child: isStartingThisCall
+                    ? Center(
+                        child: SizedBox(
+                          width: compact ? 18 : 20,
+                          height: compact ? 18 : 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              isEnabled
+                                  ? DudeTheme.textOnAccent
+                                  : DudeTheme.textMuted,
+                            ),
+                          ),
+                        ),
+                      )
+                    : compact
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

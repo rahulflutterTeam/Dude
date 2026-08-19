@@ -55,7 +55,7 @@ Future<void> _safeEndAllCalls() async {
 }
 
 const _kCommunityGroupUrl =
-    'https://chat.whatsapp.com/BZ8VkPf99GDGP8cU8EhpNy?s=cl&p=a&ilr=2';
+    'https://chat.whatsapp.com/LnjxBa7E2393VUZ8prxbqC';
 const _kIsOnlineKey = 'staff_is_online';
 const _kCallTypeKey = 'staff_call_type';
 
@@ -1342,7 +1342,9 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
                 onRefresh: _refreshAllData,
                 color: DudeTheme.accent,
                 backgroundColor: DudeTheme.surface,
-                child: vm.isFetchingSingleStaff
+                // Only block the whole screen on first load — pull-to-refresh
+                // should keep the dashboard visible and use the indicator only.
+                child: vm.isFetchingSingleStaff && staff == null
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         children: const [
@@ -1355,7 +1357,7 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
                           ),
                         ],
                       )
-                    : vm.singleStaffError != null
+                    : vm.singleStaffError != null && staff == null
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         children: [

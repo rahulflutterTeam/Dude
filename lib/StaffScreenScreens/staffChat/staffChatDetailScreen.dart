@@ -220,36 +220,60 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
     _scrollToBottom();
 
     try {
-      await BackendChatService.instance.sendMessageSocket(
+      final saved = await BackendChatService.instance.sendMessageSocket(
         _conversationId,
         text,
         notificationData: _chatNotificationData(text),
       );
-    } catch (e) {
-      try {
-        final saved = await BackendChatService.instance.sendMessageRest(
-          _conversationId,
-          text,
-        );
-        if (mounted) {
-          setState(() {
-            final index = _messages.indexWhere(
-              (item) => item.id == optimistic.id,
-            );
-            if (index != -1) _messages[index] = saved;
-          });
-        }
-      } catch (_) {
-        if (mounted) {
-          setState(
-            () => _messages.removeWhere((item) => item.id == optimistic.id),
+      if (saved != null && mounted) {
+        setState(() {
+          final index = _messages.indexWhere(
+            (item) => item.id == optimistic.id,
           );
-          Utils.snackBarErrorMessage("Failed to send message");
+          if (index != -1) _messages[index] = saved;
+        });
+      }
+    } catch (e) {
+      // Socket often already saved + emitted chat_new_message without ACK.
+      // Wait before REST so we don't create a second DB row.
+      final alreadySynced = await _waitForOptimisticSync(optimistic.id);
+      if (!alreadySynced) {
+        try {
+          final saved = await BackendChatService.instance.sendMessageRest(
+            _conversationId,
+            text,
+          );
+          if (mounted) {
+            setState(() {
+              final index = _messages.indexWhere(
+                (item) => item.id == optimistic.id,
+              );
+              if (index != -1) _messages[index] = saved;
+            });
+          }
+        } catch (_) {
+          if (mounted) {
+            setState(
+              () => _messages.removeWhere((item) => item.id == optimistic.id),
+            );
+            Utils.snackBarErrorMessage("Failed to send message");
+          }
         }
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
+  }
+
+  Future<bool> _waitForOptimisticSync(String optimisticId) async {
+    for (var i = 0; i < 10; i++) {
+      if (!mounted) return false;
+      if (!_messages.any((item) => item.id == optimisticId)) {
+        return true;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    return mounted && !_messages.any((item) => item.id == optimisticId);
   }
 
   Map<String, dynamic> _chatNotificationData(String text) {

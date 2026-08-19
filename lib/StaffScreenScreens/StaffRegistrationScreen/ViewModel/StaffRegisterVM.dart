@@ -518,19 +518,22 @@ class StaffViewModel extends ChangeNotifier {
   }
 
   void _sortStaffList() {
-    // Custom sorting logic
+    // Keep online/busy grouping, then recently-called-first (backend lastCallAt).
+    // PairEver has no client sort and relies on server order; Dude must not
+    // override recency with alphabetical name sorting.
     _staffList.sort((a, b) {
-      // First sort by online status (online first, then busy, then offline)
       if (a.isOnline && !b.isOnline) return -1;
       if (!a.isOnline && b.isOnline) return 1;
 
-      // If both online, sort by busy status (available first, then busy)
       if (a.isOnline && b.isOnline) {
         if (!a.isBusy && b.isBusy) return -1;
         if (a.isBusy && !b.isBusy) return 1;
       }
 
-      // Then sort by name alphabetically
+      final aLast = a.lastCallAt?.millisecondsSinceEpoch ?? 0;
+      final bLast = b.lastCallAt?.millisecondsSinceEpoch ?? 0;
+      if (aLast != bLast) return bLast.compareTo(aLast); // most recent first
+
       return a.name.compareTo(b.name);
     });
   }

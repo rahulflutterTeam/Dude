@@ -104,21 +104,33 @@ class PushService {
       final body = n?.body ?? message.data['body']?.toString();
       if (title == null || body == null) return;
 
+      final payload = jsonEncode({
+        ...message.data,
+        if (message.messageId != null) 'messageId': message.messageId,
+      });
+
       if (_isWaveMessage(message.data)) {
         LocalNotifications.instance.showPromo(
           title: title,
           body: body,
-          payload: jsonEncode(message.data),
+          payload: payload,
+          messageId: message.messageId,
         );
       } else if (_isChatMessage(message.data)) {
         // ← gentle message_tone sound
-        LocalNotifications.instance.showChatMessage(title: title, body: body);
+        LocalNotifications.instance.showChatMessage(
+          title: title,
+          body: body,
+          payload: payload,
+          messageId: message.messageId,
+        );
       } else {
         // ← default system sound
         LocalNotifications.instance.showPromo(
           title: title,
           body: body,
-          payload: jsonEncode(message.data),
+          payload: payload,
+          messageId: message.messageId,
         );
       }
     });

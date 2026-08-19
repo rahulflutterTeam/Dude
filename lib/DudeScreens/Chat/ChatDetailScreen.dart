@@ -159,6 +159,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _scrollToBottom();
   }
 
+  /// Socket may have already saved + pushed the message even when ACK fails.
+  Future<bool> _waitForOptimisticSync(String optimisticId) async {
+    for (var i = 0; i < 10; i++) {
+      if (!mounted) return false;
+      if (!_messages.any((item) => item.id == optimisticId)) {
+        return true;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    return mounted && !_messages.any((item) => item.id == optimisticId);
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
@@ -273,26 +285,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         });
       }
     } catch (e) {
-      try {
-        final saved = await BackendChatService.instance.sendMessageRest(
-          _conversationId,
-          text,
-        );
-        delivered = true;
-        if (mounted) {
-          setState(() {
-            final index = _messages.indexWhere(
-              (item) => item.id == optimistic.id,
-            );
-            if (index != -1) _messages[index] = saved;
-          });
-        }
-      } catch (_) {
-        if (mounted) {
-          setState(
-            () => _messages.removeWhere((item) => item.id == optimistic.id),
+      // Socket often already saved the message + emitted chat_new_message,
+      // but failed to ACK. Wait briefly before REST so we don't double-save.
+      delivered = await _waitForOptimisticSync(optimistic.id);
+      if (!delivered) {
+        try {
+          final saved = await BackendChatService.instance.sendMessageRest(
+            _conversationId,
+            text,
           );
-          Utils.snackBarErrorMessage('Failed to send message');
+          delivered = true;
+          if (mounted) {
+            setState(() {
+              final index = _messages.indexWhere(
+                (item) => item.id == optimistic.id,
+              );
+              if (index != -1) _messages[index] = saved;
+            });
+          }
+        } catch (_) {
+          if (mounted) {
+            setState(
+              () => _messages.removeWhere((item) => item.id == optimistic.id),
+            );
+            Utils.snackBarErrorMessage('Failed to send message');
+          }
         }
       }
     } finally {

@@ -287,7 +287,7 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
     if (call.status == CallStatus.missed) return 0;
 
     final seconds = double.tryParse(call.callDuration) ?? 0;
-    final ratePerMinute = call.callType.toLowerCase() == "video" ? 12.0 : 3.0;
+    final ratePerMinute = call.callType.toLowerCase() == "video" ? 12.0 : 4.0;
     return (seconds / 60) * ratePerMinute;
   }
 

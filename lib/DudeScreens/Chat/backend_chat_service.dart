@@ -214,7 +214,51 @@ class BackendChatService {
       final right = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       return left.compareTo(right);
     });
-    return messages;
+    return dedupeMessages(messages);
+  }
+
+  /// Collapses accidental double-saves (same sender + text within a few seconds).
+  static List<BackendChatMessage> dedupeMessages(
+    List<BackendChatMessage> messages, {
+    Duration window = const Duration(seconds: 8),
+  }) {
+    if (messages.length < 2) return messages;
+
+    final seenIds = <String>{};
+    final result = <BackendChatMessage>[];
+
+    for (final message in messages) {
+      if (message.id.isNotEmpty && !seenIds.add(message.id)) continue;
+
+      final duplicateIndex = result.indexWhere((existing) {
+        if (existing.message != message.message) return false;
+        final sameSender =
+            (existing.senderId.isNotEmpty && message.senderId.isNotEmpty)
+            ? existing.senderId == message.senderId
+            : existing.senderType.toLowerCase() ==
+                  message.senderType.toLowerCase();
+        if (!sameSender) return false;
+        final left = existing.createdAt;
+        final right = message.createdAt;
+        if (left == null || right == null) return true;
+        return left.difference(right).abs() <= window;
+      });
+
+      if (duplicateIndex != -1) {
+        final existing = result[duplicateIndex];
+        // Prefer a real server id over a local placeholder.
+        if (existing.id.startsWith('local-') &&
+            message.id.isNotEmpty &&
+            !message.id.startsWith('local-')) {
+          result[duplicateIndex] = message;
+        }
+        continue;
+      }
+
+      result.add(message);
+    }
+
+    return result;
   }
 
   Future<BackendChatMessage> sendMessageRest(

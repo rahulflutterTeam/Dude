@@ -116,6 +116,7 @@ class LocalNotifications {
     required String title,
     required String body,
     String? payload,
+    String? messageId,
   }) async {
     await init();
     try {
@@ -123,21 +124,25 @@ class LocalNotifications {
         channel: 'chat_messages',
         title: title,
         body: body,
-        payload: payload,
+        messageId: messageId,
       );
-      if (_isDuplicate(notificationId)) return;
+      if (_isDuplicate(notificationId, contentKey: 'chat|$title|$body')) {
+        return;
+      }
 
-      const androidDetails = AndroidNotificationDetails(
+      final androidDetails = AndroidNotificationDetails(
         'chat_messages',
         'Chat Messages',
         channelDescription: 'Incoming chat message notifications',
         importance: Importance.high,
         priority: Priority.high,
         playSound: true,
-        sound: RawResourceAndroidNotificationSound('message_tone'),
+        sound: const RawResourceAndroidNotificationSound('message_tone'),
         icon: 'ic_stat_notify',
-        largeIcon: DrawableResourceAndroidBitmap('ic_promo_notify'),
-        color: Color(0xFFF2608C),
+        largeIcon: const DrawableResourceAndroidBitmap('ic_promo_notify'),
+        color: const Color(0xFFF2608C),
+        // Same sender+body replaces instead of stacking duplicates.
+        tag: 'chat_${_stableTag(title, body)}',
       );
 
       const iosDetails = DarwinNotificationDetails(
@@ -147,7 +152,7 @@ class LocalNotifications {
         presentSound: true,
       );
 
-      const details = NotificationDetails(
+      final details = NotificationDetails(
         android: androidDetails,
         iOS: iosDetails,
       );
@@ -169,6 +174,7 @@ class LocalNotifications {
     required String title,
     required String body,
     String? payload,
+    String? messageId,
   }) async {
     await init();
     try {
@@ -176,11 +182,13 @@ class LocalNotifications {
         channel: 'promo_channel',
         title: title,
         body: body,
-        payload: payload,
+        messageId: messageId,
       );
-      if (_isDuplicate(notificationId)) return;
+      if (_isDuplicate(notificationId, contentKey: 'promo|$title|$body')) {
+        return;
+      }
 
-      const androidDetails = AndroidNotificationDetails(
+      final androidDetails = AndroidNotificationDetails(
         'promo_channel',
         'Promotions',
         channelDescription: 'Promotional and announcement notifications',
@@ -188,8 +196,9 @@ class LocalNotifications {
         priority: Priority.high,
         playSound: true,
         icon: 'ic_stat_notify',
-        largeIcon: DrawableResourceAndroidBitmap('ic_promo_notify'),
-        color: Color(0xFFF2608C),
+        largeIcon: const DrawableResourceAndroidBitmap('ic_promo_notify'),
+        color: const Color(0xFFF2608C),
+        tag: 'promo_${_stableTag(title, body)}',
       );
 
       const iosDetails = DarwinNotificationDetails(
@@ -198,7 +207,7 @@ class LocalNotifications {
         presentSound: true,
       );
 
-      const details = NotificationDetails(
+      final details = NotificationDetails(
         android: androidDetails,
         iOS: iosDetails,
       );
@@ -266,26 +275,43 @@ class LocalNotifications {
     required String channel,
     required String title,
     required String body,
-    String? payload,
+    String? messageId,
   }) {
-    return Object.hash(channel, title.trim(), body.trim(), payload ?? '') &
-        0x7fffffff;
+    // Prefer FCM messageId so the same push always maps to one local id.
+    if (messageId != null && messageId.trim().isNotEmpty) {
+      return Object.hash(channel, messageId.trim()) & 0x7fffffff;
+    }
+    // Ignore payload — it used to create different ids for the same message.
+    return Object.hash(channel, title.trim(), body.trim()) & 0x7fffffff;
   }
 
-  bool _isDuplicate(int notificationId) {
-    final key = notificationId.toString();
+  String _stableTag(String title, String body) {
+    return (Object.hash(title.trim(), body.trim()) & 0x7fffffff).toString();
+  }
+
+  bool _isDuplicate(int notificationId, {String? contentKey}) {
     final now = DateTime.now();
     _recentNotifications.removeWhere(
       (_, shownAt) => now.difference(shownAt) > _duplicateWindow,
     );
 
-    final previous = _recentNotifications[key];
-    if (previous != null && now.difference(previous) <= _duplicateWindow) {
-      debugPrint('[LocalNotifications] duplicate notification suppressed');
-      return true;
+    final keys = <String>[
+      notificationId.toString(),
+      if (contentKey != null && contentKey.trim().isNotEmpty)
+        contentKey.trim().toLowerCase(),
+    ];
+
+    for (final key in keys) {
+      final previous = _recentNotifications[key];
+      if (previous != null && now.difference(previous) <= _duplicateWindow) {
+        debugPrint('[LocalNotifications] duplicate notification suppressed');
+        return true;
+      }
     }
 
-    _recentNotifications[key] = now;
+    for (final key in keys) {
+      _recentNotifications[key] = now;
+    }
     return false;
   }
 }

@@ -34,8 +34,187 @@ class _AccountSelectScreenState extends State<AccountSelectScreen> {
     setState(() => selectedAccount = 2);
     Future.delayed(const Duration(milliseconds: 180), () {
       if (!mounted) return;
-      bondNavigator.newPage(context, page: const StaffRegisterNew());
+      _showContinueAsRoleDialog();
     });
+  }
+
+  Future<void> _showContinueAsRoleDialog() async {
+    await showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.68),
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: DudeTheme.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: DudeTheme.accent.withValues(alpha: 0.28),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 28,
+                  offset: const Offset(0, 18),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    tooltip: 'Close',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: DudeTheme.textMuted,
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: DudeTheme.surfaceRaised,
+                    boxShadow: [
+                      BoxShadow(
+                        color: DudeTheme.accent.withValues(alpha: 0.25),
+                        blurRadius: 22,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.account_circle_rounded,
+                    color: DudeTheme.accent,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Continue As',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: DudeTheme.textPrimary,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose the account type you want to open.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: DudeTheme.textMuted.withValues(alpha: 0.9),
+                    fontSize: 14,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                _buildRoleOption(
+                  icon: Icons.person_search_rounded,
+                  title: 'User',
+                  subtitle: 'Discover people and start connecting',
+                  onTap: () {
+                    Navigator.of(dialogContext).pop();
+                    bondNavigator.newPage(context, page: const LoginScreen());
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildRoleOption(
+                  icon: Icons.verified_user_rounded,
+                  title: 'Host',
+                  subtitle: 'Register as Host and be active',
+                  onTap: () {
+                    Navigator.of(dialogContext).pop();
+                    bondNavigator.newPage(
+                      context,
+                      page: const StaffRegisterNew(),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRoleOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Ink(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: DudeTheme.surfaceRaised,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: DudeTheme.border.withValues(alpha: 0.55),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: DudeTheme.accent,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: DudeTheme.textOnAccent, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: DudeTheme.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: DudeTheme.textMuted.withValues(alpha: 0.9),
+                        fontSize: 12.5,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: DudeTheme.textMuted,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override

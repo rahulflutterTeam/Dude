@@ -52,6 +52,9 @@ class StaffDataProfile {
   final DateTime? lastSeen;
   final String? socketId;
 
+  /// Backend "recently-called-first" ordering key (ISO timestamp).
+  final DateTime? lastCallAt;
+
   StaffDataProfile({
     required this.id,
     required this.email,
@@ -79,6 +82,7 @@ class StaffDataProfile {
     this.bio,
     this.language,
     this.city,
+    this.lastCallAt,
   });
 
   /// ─────────────────────────────────────────
@@ -132,6 +136,11 @@ class StaffDataProfile {
       bio: (json['bio']?.toString().trim().isNotEmpty ?? false)
           ? json['bio'].toString().trim()
           : "Your search ends here. 😉",
+      lastCallAt:
+          (json['lastCallAt'] != null &&
+              json['lastCallAt'].toString().isNotEmpty)
+          ? DateTime.tryParse(json['lastCallAt'].toString())
+          : null,
     );
   }
 
@@ -146,6 +155,7 @@ class StaffDataProfile {
     String? socketId,
     String? callType,
     String? city,
+    DateTime? lastCallAt,
   }) {
     return StaffDataProfile(
       id: id,
@@ -174,6 +184,7 @@ class StaffDataProfile {
       bio: bio,
       language: language,
       city: city ?? this.city,
+      lastCallAt: lastCallAt ?? this.lastCallAt,
     );
   }
 

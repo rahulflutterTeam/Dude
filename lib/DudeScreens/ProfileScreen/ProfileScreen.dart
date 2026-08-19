@@ -90,6 +90,15 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  Future<void> _callCustomerCare() async {
+    final Uri phoneUri = Uri(scheme: 'tel', path: '+919345187850');
+    if (await canLaunchUrl(phoneUri)) {
+      await launchUrl(phoneUri);
+    } else {
+      Utils.snackBarErrorMessage("Could not open phone app");
+    }
+  }
+
   Future<void> _openPrivacyPolicy() async {
     const String privacyUrl = "https://dudee.online/privacy";
     final Uri url = Uri.parse(privacyUrl);
@@ -225,11 +234,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                       const SizedBox(height: 16),
                       PremiumStaggerItem(
                         index: 5,
+                        child: _buildCustomerCareSection(),
+                      ),
+                      const SizedBox(height: 16),
+                      PremiumStaggerItem(
+                        index: 6,
                         child: _buildLogoutSection(context, userVM),
                       ),
                       const SizedBox(height: 20),
                       PremiumStaggerItem(
-                        index: 6,
+                        index: 7,
                         child: _buildSecureVersionFooter(),
                       ),
                       const SizedBox(height: 32),
@@ -819,6 +833,84 @@ class _ProfileScreenState extends State<ProfileScreen>
     padding: const EdgeInsets.symmetric(horizontal: 16),
     child: Container(height: 1, color: DudeTheme.border),
   );
+
+  // ─────────────────────────────────────────────────────────────────────
+  // CUSTOMER CARE (before logout)
+  // ─────────────────────────────────────────────────────────────────────
+
+  Widget _buildCustomerCareSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          _callCustomerCare();
+        },
+        child: PremiumGlassCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          radius: 18,
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: DudeTheme.accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: DudeTheme.accent.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.call_rounded,
+                  color: DudeTheme.accent,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Customer Care',
+                      style: TextStyle(
+                        color: DudeTheme.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      '+91 93451 87850',
+                      style: TextStyle(
+                        color: DudeTheme.accentBright,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: DudeTheme.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: DudeTheme.accent,
+                  size: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────────────
   // LOGOUT SECTION

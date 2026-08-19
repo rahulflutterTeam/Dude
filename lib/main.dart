@@ -45,27 +45,41 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Zego/CallKit owns call invitations in the background.
   if (_isZegoCallInvitation(data)) return;
 
+  // Notification+data FCM: Android/iOS already post the system tray entry.
+  // Showing another local notification here creates duplicates.
+  if (message.notification != null) {
+    debugPrint(
+      '[Push] background: system notification present — skip local display',
+    );
+    return;
+  }
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  final n = message.notification;
-  final title = n?.title ?? data['title']?.toString();
-  final body = n?.body ?? data['body']?.toString();
-
+  final title = data['title']?.toString();
+  final body = data['body']?.toString();
   if (title == null || body == null) return;
 
   await LocalNotifications.instance.init();
+
+  final payload = jsonEncode({
+    ...data,
+    if (message.messageId != null) 'messageId': message.messageId,
+  });
 
   if (_isChatMessageData(data)) {
     await LocalNotifications.instance.showChatMessage(
       title: title,
       body: body,
-      payload: jsonEncode(data),
+      payload: payload,
+      messageId: message.messageId,
     );
   } else {
     await LocalNotifications.instance.showPromo(
       title: title,
       body: body,
-      payload: jsonEncode(data),
+      payload: payload,
+      messageId: message.messageId,
     );
   }
 }
