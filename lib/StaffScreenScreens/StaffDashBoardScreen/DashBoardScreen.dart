@@ -17,7 +17,7 @@ import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
-import 'package:dude/StaffScreenScreens/RecentCallScreen/RecentCallScreen.dart';
+import 'package:dude/StaffScreenScreens/StaffBottomNavBar/StaffBottomNavBar.dart';
 import 'package:dude/StaffScreenScreens/StaffDashBoardScreen/Model/StaffSingleDataModel.dart';
 import 'package:dude/StaffScreenScreens/StaffProfileScreen/staffProfileScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
@@ -971,7 +971,8 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
               });
             }
 
-            if (state.reason == ZegoRoomStateChangedReason.Logout) {
+            if (state.reason == ZegoRoomStateChangedReason.KickOut ||
+                state.reason == ZegoRoomStateChangedReason.Logout) {
               if (_isDashboardDisposed || _isStaffCallEnding || !_isOnCall) {
                 return;
               }
@@ -1192,6 +1193,17 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
       }
       _resetCallState(markAvailable: markAvailable);
       unawaited(_safeEndAllCalls());
+      // User-side settlement credits staff pendingBalance — refresh after a short
+      // delay so video/audio earnings show up without a manual pull-to-refresh.
+      unawaited(() async {
+        await Future.delayed(const Duration(seconds: 2));
+        if (_isDashboardDisposed || !mounted) return;
+        try {
+          await context.read<StaffViewModel>().fetchStaffDetails();
+        } catch (e) {
+          debugPrint('Staff balance refresh after call failed: $e');
+        }
+      }());
       _isStaffCallEnding = false;
     });
   }
@@ -2096,9 +2108,9 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => bondNavigator.newPage(
+                      onTap: () => bondNavigator.newPageRemoveUntil(
                         context,
-                        page: const RecentCallsPage(backPage: true),
+                        page: const StaffBottomBar(index: 3),
                       ),
                       child: Text(
                         'View all',

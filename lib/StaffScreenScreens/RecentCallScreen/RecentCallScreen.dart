@@ -9,12 +9,22 @@ import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
 import 'package:dude/StaffScreenScreens/RecentCallScreen/Model/recentCallModel.dart';
 import 'package:dude/StaffScreenScreens/StaffBottomNavBar/StaffBottomNavBar.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
+import 'package:dude/StaffScreenScreens/staffChat/staffChatDetailScreen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 class RecentCallsPage extends StatefulWidget {
   final bool backPage;
-  const RecentCallsPage({super.key, required this.backPage});
+  final ValueNotifier<int>? activeTab;
+  final int? tabIndex;
+
+  const RecentCallsPage({
+    super.key,
+    required this.backPage,
+    this.activeTab,
+    this.tabIndex,
+  });
 
   @override
   State<RecentCallsPage> createState() => _RecentCallsPageState();
@@ -32,9 +42,25 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
   @override
   void initState() {
     super.initState();
+    widget.activeTab?.addListener(_onActiveTabChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<StaffViewModel>().fetchCallHistory();
     });
+  }
+
+  @override
+  void dispose() {
+    widget.activeTab?.removeListener(_onActiveTabChanged);
+    super.dispose();
+  }
+
+  void _onActiveTabChanged() {
+    final tabIndex = widget.tabIndex;
+    final activeTab = widget.activeTab;
+    if (tabIndex == null || activeTab == null) return;
+    if (activeTab.value == tabIndex && mounted) {
+      context.read<StaffViewModel>().fetchCallHistory();
+    }
   }
 
   List<CallHistoryItem> get filteredCalls {
@@ -45,13 +71,24 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
     switch (selectedFilter) {
       case "video calls":
         calls = calls
-            .where((c) => c.callType.toLowerCase() == "video")
+            .where(
+              (c) =>
+                  c.callType.toLowerCase() == "video" &&
+                  c.status != CallStatus.missed,
+            )
             .toList();
         break;
       case "audio calls":
         calls = calls
-            .where((c) => c.callType.toLowerCase() == "audio")
+            .where(
+              (c) =>
+                  c.callType.toLowerCase() == "audio" &&
+                  c.status != CallStatus.missed,
+            )
             .toList();
+        break;
+      case "missed calls":
+        calls = calls.where((c) => c.status == CallStatus.missed).toList();
         break;
     }
 
@@ -147,7 +184,13 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
                         const SizedBox(height: 12),
                         _filterChips(),
                         const SizedBox(height: 8),
-                        Expanded(child: _callList(vm)),
+                        Expanded(
+                          child: RefreshIndicator(
+                            color: DudeTheme.accent,
+                            onRefresh: () => vm.refresh(),
+                            child: _callList(vm),
+                          ),
+                        ),
                       ],
                     ),
             ),
@@ -222,7 +265,7 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
   }
 
   Widget _filterChips() {
-    final filters = ["all calls", "video calls", "audio calls"];
+    final filters = ["all calls", "video calls", "audio calls", "missed calls"];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -286,7 +329,11 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
   static double _earnedAmountForCall(CallHistoryItem call) {
     if (call.status == CallStatus.missed) return 0;
 
+    // Prefer server-settled earnings (already summed across minute slices).
+    if (call.staffEarned > 0) return call.staffEarned;
+
     final seconds = double.tryParse(call.callDuration) ?? 0;
+    if (seconds <= 0) return 0;
     final ratePerMinute = call.callType.toLowerCase() == "video" ? 12.0 : 4.0;
     return (seconds / 60) * ratePerMinute;
   }
@@ -297,57 +344,65 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
 
   Widget _callList(StaffViewModel vm) {
     if (vm.callHistory.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Center(
-              child: Icon(
-                Icons.call_end_rounded,
-                size: 60,
-                color: DudeTheme.textSubtle.withOpacity(0.5),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+          Center(
+            child: Icon(
+              Icons.call_end_rounded,
+              size: 60,
+              color: DudeTheme.textSubtle.withOpacity(0.5),
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            "No Call History Yet",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: DudeTheme.textPrimary,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              "Your call history will appear here.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: DudeTheme.textSubtle,
+                fontSize: 15,
+                height: 1.4,
               ),
             ),
-            const SizedBox(height: 22),
-            Text("No Call History Yet", style: TextStyle(
-                color: DudeTheme.textPrimary,
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: Text(
-                "Your call history will appear here.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: DudeTheme.textSubtle,
-                  fontSize: 15,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
     if (filteredCalls.isEmpty) {
-      return Center(
-        child: Text(
-          "No ${selectedFilter} yet",
-          style: TextStyle(
-            color: DudeTheme.textMuted,
-            fontSize: 18,
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+          Center(
+            child: Text(
+              "No ${selectedFilter} yet",
+              style: TextStyle(
+                color: DudeTheme.textMuted,
+                fontSize: 18,
+              ),
+            ),
           ),
-        ),
+        ],
       );
     }
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      physics: PremiumAnimations.scrollPhysics,
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: filteredCalls.length,
       itemBuilder: (context, index) {
         final call = filteredCalls[index];
@@ -412,6 +467,8 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
               ],
             ),
           ),
+          _chatButton(call),
+          const SizedBox(width: 8),
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -422,7 +479,9 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                formatCallDurationCompact(call.callDuration),
+                isMissed
+                    ? "Missed"
+                    : formatCallDurationCompact(call.callDuration),
                 style: TextStyle(
                   color: isMissed ? DudeTheme.danger : DudeTheme.textMuted,
                   fontSize: 13,
@@ -443,6 +502,54 @@ class _RecentCallsPageState extends State<RecentCallsPage> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _chatButton(CallHistoryItem call) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openChatWithUser(call),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: DudeTheme.surfaceRaised,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: DudeTheme.border),
+          ),
+          child: const Icon(
+            Icons.chat_bubble_rounded,
+            size: 18,
+            color: DudeTheme.accent,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openChatWithUser(CallHistoryItem call) {
+    final memberId = call.userMemberID.trim();
+    if (memberId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('Unable to open chat for this call'),
+        ),
+      );
+      return;
+    }
+    HapticFeedback.selectionClick();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => staffChatDetailScreen(
+          conversationID: memberId,
+          peerMemberID: memberId,
+          name: call.userName,
+        ),
       ),
     );
   }

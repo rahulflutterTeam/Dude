@@ -1,7 +1,7 @@
 class ApiEndPoints {
-  // Local testing — Mac LAN IP (AirPlay uses 7000, so backend uses 7010)
-  // final String baseUrl = "http://192.168.1.4:7010/api/v1/";
-  // final String webSocketUrl = "http://192.168.1.4:7010";
+  // Local testing — Mac LAN IP (backend PORT=7010 from .env)
+  // final String baseUrl = "http://192.168.1.36:8000/api/v1/";
+  // final String webSocketUrl = "http://192.168.1.36:8000";
   // Production
   final String baseUrl = "https://api.dudee.online/api/v1/";
   final String webSocketUrl = "https://api.dudee.online";

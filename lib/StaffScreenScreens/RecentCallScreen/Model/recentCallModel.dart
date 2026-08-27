@@ -33,7 +33,9 @@ class CallHistoryItem {
   final String staffPhone;
   final String staffName;
   final String staffMemberID;
-  final String? staffImage; // ← NEW FIELD (nullable URL string)
+  final String? staffImage;
+  final String? userImage;
+  final String? callSessionId;
   final bool missedCall;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -54,7 +56,9 @@ class CallHistoryItem {
     required this.staffPhone,
     required this.staffName,
     required this.staffMemberID,
-    this.staffImage, // ← added here (nullable)
+    this.staffImage,
+    this.userImage,
+    this.callSessionId,
     required this.missedCall,
     required this.createdAt,
     required this.updatedAt,
@@ -63,26 +67,89 @@ class CallHistoryItem {
 
   factory CallHistoryItem.fromJson(Map<String, dynamic> json) {
     return CallHistoryItem(
-      id: json['_id'] as String? ?? '',
+      id: _stringValue(json['_id'], fallback: ''),
       callDuration: _stringValue(json['callDuration'], fallback: '0'),
-      callType: json['callType'] as String? ?? 'audio',
-      userPhone: json['userPhone'] as String? ?? '',
-      userName: json['userName'] as String? ?? 'Unknown',
-      userMemberID: json['userMemberID'] as String? ?? '',
+      callType: _stringValue(json['callType'], fallback: 'audio'),
+      userPhone: _stringValue(json['userPhone'], fallback: ''),
+      userName: _stringValue(json['userName'], fallback: 'Unknown'),
+      userMemberID: _stringValue(json['userMemberID'], fallback: ''),
       userSpentAmount: _doubleValue(json['userSpentAmount']),
-      userId: json['userId'] as String? ?? '',
+      userId: _stringValue(json['userId'], fallback: ''),
       staffEarned: _doubleValue(json['staffEarned']),
-      staffId: json['staffId'] as String? ?? '',
-      staffEmail: json['staffEmail'] as String? ?? '',
-      staffPhone: json['staffPhone'] as String? ?? '',
-      staffName: json['staffName'] as String? ?? 'Unknown',
-      staffMemberID: json['staffMemberID'] as String? ?? '',
-      staffImage: json['staffImage'] as String?, // ← added parsing
+      staffId: _stringValue(json['staffId'], fallback: ''),
+      staffEmail: _stringValue(json['staffEmail'], fallback: ''),
+      staffPhone: _stringValue(json['staffPhone'], fallback: ''),
+      staffName: _stringValue(json['staffName'], fallback: 'Unknown'),
+      staffMemberID: _stringValue(json['staffMemberID'], fallback: ''),
+      staffImage: json['staffImage']?.toString(),
+      userImage: json['userImage']?.toString(),
+      callSessionId: json['callSessionId']?.toString(),
       missedCall: _boolValue(json['missedCall']),
       createdAt: HistoryTimeFormatter.parseLocal(json['createdAt']),
       updatedAt: HistoryTimeFormatter.parseLocal(json['updatedAt']),
-      v: json['__v'] as int? ?? 0,
+      v: json['__v'] is int ? json['__v'] as int : 0,
     );
+  }
+
+  /// Group key for collapsing leftover minute slices if the API returns them raw.
+  String get groupKey {
+    final session = (callSessionId ?? '').trim();
+    if (session.isNotEmpty) {
+      return session.split('#').first;
+    }
+    final rawId = id.trim();
+    if (rawId.contains('#')) return rawId.split('#').first;
+    // pe_... call ids without slice marker
+    if (rawId.startsWith('pe_')) return rawId;
+    return rawId.isNotEmpty ? rawId : '$userId|$staffId|${createdAt.millisecondsSinceEpoch}';
+  }
+
+  int get durationSeconds {
+    if (missedCall || callDuration == '-1') return 0;
+    return double.tryParse(callDuration)?.round() ?? 0;
+  }
+
+  CallHistoryItem mergeSlice(CallHistoryItem other) {
+    final mergedMissed = missedCall || other.missedCall;
+    final totalSecs = durationSeconds + other.durationSeconds;
+    return CallHistoryItem(
+      id: groupKey,
+      callDuration: mergedMissed ? '-1' : totalSecs.toString(),
+      callType: callType.isNotEmpty ? callType : other.callType,
+      userPhone: userPhone.isNotEmpty ? userPhone : other.userPhone,
+      userName: userName.isNotEmpty ? userName : other.userName,
+      userMemberID: userMemberID.isNotEmpty ? userMemberID : other.userMemberID,
+      userSpentAmount: userSpentAmount + other.userSpentAmount,
+      userId: userId.isNotEmpty ? userId : other.userId,
+      staffEarned: staffEarned + other.staffEarned,
+      staffId: staffId.isNotEmpty ? staffId : other.staffId,
+      staffEmail: staffEmail.isNotEmpty ? staffEmail : other.staffEmail,
+      staffPhone: staffPhone.isNotEmpty ? staffPhone : other.staffPhone,
+      staffName: staffName.isNotEmpty ? staffName : other.staffName,
+      staffMemberID:
+          staffMemberID.isNotEmpty ? staffMemberID : other.staffMemberID,
+      staffImage: staffImage ?? other.staffImage,
+      userImage: userImage ?? other.userImage,
+      callSessionId: groupKey,
+      missedCall: mergedMissed,
+      createdAt: createdAt.isBefore(other.createdAt) ? createdAt : other.createdAt,
+      updatedAt: updatedAt.isAfter(other.updatedAt) ? updatedAt : other.updatedAt,
+      v: v,
+    );
+  }
+
+  /// Collapse minute-billing slices into one row per logical call.
+  static List<CallHistoryItem> coalesce(List<CallHistoryItem> items) {
+    if (items.length <= 1) return items;
+    final map = <String, CallHistoryItem>{};
+    for (final item in items) {
+      final key = item.groupKey;
+      final existing = map[key];
+      map[key] = existing == null ? item : existing.mergeSlice(item);
+    }
+    final list = map.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
   }
 
   static String _stringValue(dynamic value, {required String fallback}) {
@@ -101,15 +168,13 @@ class CallHistoryItem {
     return value?.toString().toLowerCase().trim() == 'true';
   }
 
-  // Helper to determine status (for UI)
   CallStatus get status {
     if (missedCall) return CallStatus.missed;
     if (callDuration == "-1") return CallStatus.missed;
-    return CallStatus.completed; // or outgoing/incoming based on logic
+    return CallStatus.completed;
   }
 }
 
-// Reuse your existing enum or define here
 enum CallStatus { completed, missed, outgoing }
 
 enum CallType { audio, video }

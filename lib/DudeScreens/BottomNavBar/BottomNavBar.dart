@@ -10,9 +10,11 @@ import 'package:dude/DudeScreens/IncomingCall/FakeIncomingCallScreen.dart';
 import 'package:dude/DudeScreens/ProfileScreen/ProfileScreen.dart';
 import 'package:dude/DudeScreens/Transactions/TransactionScreen.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
+import 'package:dude/Dude_Utils/push/push_service.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_animations.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_nav_icon.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
+import 'package:dude/main.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -75,7 +77,32 @@ class _MainBottomBarState extends State<MainBottomBar>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _homeKey.currentState?.setHomeTabVisible(_selectedIndex == 0);
       _showLowBalanceCallIfNeeded();
+      unawaited(_bootstrapUserPush());
     });
+  }
+
+  /// First login used to skip push bootstrap (only splash did it on 2nd open).
+  Future<void> _bootstrapUserPush() async {
+    if (!mounted) return;
+    final userVM = context.read<UserViewModel>();
+    var user = userVM.currentUser;
+    if (user == null || user.memberID.isEmpty) {
+      await userVM.fetchUserDetails();
+      if (!mounted) return;
+      user = userVM.currentUser;
+    }
+    final memberId = user?.memberID.trim() ?? '';
+    if (memberId.isEmpty) return;
+
+    final role = (user?.role.trim().isNotEmpty == true)
+        ? user!.role.trim().toLowerCase()
+        : 'user';
+
+    await PushService.instance.bootstrapAndRegister(
+      memberId: memberId,
+      role: role,
+    );
+    PushService.instance.attachMessageOpenHandlers(navigatorKey: navigatorKey);
   }
 
   Future<void> _showLowBalanceCallIfNeeded() async {

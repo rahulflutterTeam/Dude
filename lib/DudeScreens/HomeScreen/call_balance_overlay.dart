@@ -194,44 +194,104 @@ class _CallBalanceOverlayState extends State<CallBalanceOverlay> {
       return const SizedBox.shrink();
     }
 
+    final showLowBalance =
+        remainingSeconds > 0 && remainingSeconds <= 120 && pricePerMin > 0;
+
     return SafeArea(
       child: Align(
         alignment: Alignment.topCenter,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0x9E000000),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFD2EA46), width: 1),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _InfoPill(
-                    icon: 'assets/Images/dudecoin.jpg',
-                    label: '${remainingBalance.clamp(0, initialBalance)}',
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(0x9E000000),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: showLowBalance
+                        ? const Color(0xFFFFB020)
+                        : const Color(0xFFD2EA46),
+                    width: 1,
                   ),
-                  const SizedBox(width: 8),
-                  _InfoPill(
-                    icon: 'assets/Images/time.png',
-                    label: _formatDuration(remainingSeconds),
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _InfoPill(
+                        icon: 'assets/Images/dudecoin.jpg',
+                        label: '${remainingBalance.clamp(0, initialBalance)}',
+                      ),
+                      const SizedBox(width: 8),
+                      _InfoPill(
+                        icon: 'assets/Images/time.png',
+                        label: _formatDuration(remainingSeconds),
+                      ),
+                      if (widget.showAddCoinButton) ...[
+                        const SizedBox(width: 8),
+                        _AddCoinButton(
+                          onTap: () {
+                            final sheetContext =
+                                navigatorKey.currentContext ?? context;
+                            InCallAddCoinSheet.show(sheetContext);
+                          },
+                        ),
+                      ],
+                    ],
                   ),
-                  if (widget.showAddCoinButton) ...[
-                    const SizedBox(width: 8),
-                    _AddCoinButton(
-                      onTap: () {
-                        final sheetContext =
-                            navigatorKey.currentContext ?? context;
-                        InCallAddCoinSheet.show(sheetContext);
-                      },
-                    ),
-                  ],
-                ],
+                ),
               ),
-            ),
+              if (showLowBalance) ...[
+                const SizedBox(height: 8),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xE6FF8A00),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          remainingSeconds > 60
+                              ? 'Low balance — 2 minutes left'
+                              : 'Low balance — 1 minute left',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (widget.showAddCoinButton) ...[
+                          const SizedBox(width: 10),
+                          _AddCoinButton(
+                            onTap: () {
+                              final sheetContext =
+                                  navigatorKey.currentContext ?? context;
+                              InCallAddCoinSheet.show(sheetContext);
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),

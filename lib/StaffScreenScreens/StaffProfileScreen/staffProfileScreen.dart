@@ -9,7 +9,6 @@ import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
-import 'package:dude/StaffScreenScreens/RecentCallScreen/RecentCallScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffBottomNavBar/StaffBottomNavBar.dart';
 import 'package:dude/StaffScreenScreens/StaffProfileScreen/StaffRewardsScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
@@ -725,9 +724,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen>
         icon: Icons.history_rounded,
         label: 'Recent Calls',
         color: DudeTheme.success,
-        onTap: () => bondNavigator.newPage(
+        onTap: () => bondNavigator.newPageRemoveUntil(
           context,
-          page: const RecentCallsPage(backPage: true),
+          page: const StaffBottomBar(index: 3),
         ),
       ),
       _QuickAction(

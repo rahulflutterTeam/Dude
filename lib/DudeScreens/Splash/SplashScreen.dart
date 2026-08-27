@@ -66,9 +66,15 @@ class _SplashscreenState extends State<Splashscreen> {
 
   Future<bool> _hasInternetConnection() async {
     try {
-      final result = await InternetAddress.lookup('google.com');
+      final result = await InternetAddress.lookup(
+        'google.com',
+      ).timeout(const Duration(seconds: 4));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
     } on SocketException catch (_) {
+      return false;
+    } on TimeoutException catch (_) {
+      return false;
+    } catch (_) {
       return false;
     }
   }
@@ -79,155 +85,169 @@ class _SplashscreenState extends State<Splashscreen> {
 
     if (!mounted) return;
 
-    // === NETWORK CHECK ===
-    final connectivityResult = await Connectivity().checkConnectivity();
-    final hasInternet = await _hasInternetConnection();
-    if (!mounted) return;
+    try {
+      // === NETWORK CHECK ===
+      final connectivityResult = await Connectivity()
+          .checkConnectivity()
+          .timeout(const Duration(seconds: 4));
+      final hasInternet = await _hasInternetConnection();
+      if (!mounted) return;
 
-    if (connectivityResult.contains(ConnectivityResult.none) || !hasInternet) {
-      if (mounted) {
-        setState(() => _isOffline = true);
+      if (connectivityResult.contains(ConnectivityResult.none) || !hasInternet) {
+        if (mounted) {
+          setState(() => _isOffline = true);
+        }
+        return; // Stay on splash screen
       }
-      return; // Stay on splash screen
-    }
 
-    final shouldBlockApp = await AppUpdateService.checkForUpdate(
-      context,
-      showOptionalUpdate: false,
-    );
-    if (!mounted || shouldBlockApp) return;
-
-    // === ONLINE → Proceed with normal flow ===
-    final isLoggedIn = await AuthService.isLoggedIn();
-    if (!mounted) return;
-
-    if (!isLoggedIn) {
-      Navigator.pushReplacement(
+      final shouldBlockApp = await AppUpdateService.checkForUpdate(
         context,
-        MaterialPageRoute(builder: (_) => const SplashScreen2()),
-      );
-      return;
-    }
+        showOptionalUpdate: false,
+      ).timeout(const Duration(seconds: 8), onTimeout: () => false);
+      if (!mounted || shouldBlockApp) return;
 
-    final userVM = Provider.of<UserViewModel>(context, listen: false);
-    final staffVM = Provider.of<StaffViewModel>(context, listen: false);
+      // === ONLINE → Proceed with normal flow ===
+      final isLoggedIn = await AuthService.isLoggedIn();
+      if (!mounted) return;
 
-    await Future.wait([
-      userVM.fetchUserDetails(),
-      staffVM.fetchStaffSingleData(),
-    ]);
-
-    if (!mounted) return;
-
-    final user = userVM.currentUser;
-    final staff = staffVM.currentStaff;
-
-    if (user == null && staff == null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const SplashScreen2()),
-      );
-      return;
-    }
-
-    String? role;
-    String? formStatusStr;
-    String? formStatusStr1;
-    String? memberId;
-
-    if (staff != null) {
-      role = staff.role.toLowerCase();
-      formStatusStr = staff.formStatus;
-      memberId = staff.memberID;
-    } else if (user != null) {
-      role = user.role.toLowerCase();
-      formStatusStr1 = user.formStatus;
-      memberId = user.memberID;
-    }
-
-    // Push notification setup
-    if (memberId != null && role != null) {
-      // ignore: unawaited_futures
-      PushService.instance.bootstrapAndRegister(memberId: memberId, role: role);
-      PushService.instance.attachMessageOpenHandlers(
-        navigatorKey: navigatorKey,
-      );
-    }
-
-    final status = int.tryParse(formStatusStr ?? '-1') ?? -1;
-    final status1 = int.tryParse(formStatusStr1 ?? '0') ?? 0;
-
-    // ────────────────────────────────────────────────
-    // STAFF FLOW
-    // ────────────────────────────────────────────────
-    if (role == 'staff') {
-      if (status == -1) {
+      if (!isLoggedIn) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const StaffRegisterScreen()),
+          MaterialPageRoute(builder: (_) => const SplashScreen2()),
         );
-      } else if (status == 0) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ProfileVerficationScreen()),
-        );
-      } else if (status == 1) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LiveVerificationScreen()),
-        );
-      } else if (status == 2) {
-        final approval = staff!.isApproved?.toLowerCase().trim() ?? 'pending';
+        return;
+      }
 
-        if (approval == '1') {
+      final userVM = Provider.of<UserViewModel>(context, listen: false);
+      final staffVM = Provider.of<StaffViewModel>(context, listen: false);
+
+      // Never hang forever on splash if profile APIs are slow/offline.
+      await Future.wait([
+        userVM.fetchUserDetails(),
+        staffVM.fetchStaffSingleData(),
+      ]).timeout(const Duration(seconds: 15));
+
+      if (!mounted) return;
+
+      final user = userVM.currentUser;
+      final staff = staffVM.currentStaff;
+
+      if (user == null && staff == null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const SplashScreen2()),
+        );
+        return;
+      }
+
+      String? role;
+      String? formStatusStr;
+      String? formStatusStr1;
+      String? memberId;
+
+      if (staff != null) {
+        role = staff.role.toLowerCase();
+        formStatusStr = staff.formStatus;
+        memberId = staff.memberID;
+      } else if (user != null) {
+        role = user.role.toLowerCase();
+        formStatusStr1 = user.formStatus;
+        memberId = user.memberID;
+      }
+
+      // Push notification setup
+      if (memberId != null && role != null) {
+        // ignore: unawaited_futures
+        PushService.instance.bootstrapAndRegister(memberId: memberId, role: role);
+        PushService.instance.attachMessageOpenHandlers(
+          navigatorKey: navigatorKey,
+        );
+      }
+
+      final status = int.tryParse(formStatusStr ?? '-1') ?? -1;
+      final status1 = int.tryParse(formStatusStr1 ?? '0') ?? 0;
+
+      // ────────────────────────────────────────────────
+      // STAFF FLOW
+      // ────────────────────────────────────────────────
+      if (role == 'staff') {
+        if (status == -1) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const ApprovedScreen()),
+            MaterialPageRoute(builder: (_) => const StaffRegisterScreen()),
           );
-        } else if (approval.contains('2') ||
-            approval == 'declined' ||
-            approval == 'not approved') {
+        } else if (status == 0) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (_) => const VerificationUnsuccessScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const ProfileVerficationScreen()),
+          );
+        } else if (status == 1) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LiveVerificationScreen()),
+          );
+        } else if (status == 2) {
+          final approval = staff!.isApproved?.toLowerCase().trim() ?? 'pending';
+
+          if (approval == '1') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ApprovedScreen()),
+            );
+          } else if (approval.contains('2') ||
+              approval == 'declined' ||
+              approval == 'not approved') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const VerificationUnsuccessScreen(),
+              ),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const VerificationInprogressScreen(),
+              ),
+            );
+          }
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const StaffBottomBar()),
+          );
+        }
+      }
+      // ────────────────────────────────────────────────
+      // USER FLOW
+      // ────────────────────────────────────────────────
+      else {
+        if (status1 == 0 || status1 == 1) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const IdentityScreen()),
+          );
+        } else if (status1 == 2) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const InterestLanguageScreen()),
           );
         } else {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (_) => const VerificationInprogressScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const MainBottomBar()),
           );
         }
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const StaffBottomBar()),
-        );
       }
-    }
-    // ────────────────────────────────────────────────
-    // USER FLOW
-    // ────────────────────────────────────────────────
-    else {
-      if (status1 == 0 || status1 == 1) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const IdentityScreen()),
-        );
-      } else if (status1 == 2) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const InterestLanguageScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainBottomBar()),
-        );
-      }
+    } catch (e, stack) {
+      debugPrint('❌ [Splash] startup failed: $e');
+      debugPrint('$stack');
+      if (!mounted) return;
+      // Fail open to login/welcome so users are never stuck on the logo.
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SplashScreen2()),
+      );
     }
   }
 
@@ -275,12 +295,12 @@ class _SplashscreenState extends State<Splashscreen> {
                   ),
                 ] else
                   const SizedBox(
-                    // width: 36,
-                    // height: 36,
-                    // child: CircularProgressIndicator(
-                    //   color: DudeTheme.accent,
-                    //   strokeWidth: 3,
-                    // ),
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      color: DudeTheme.accent,
+                      strokeWidth: 2.4,
+                    ),
                   ),
               ],
             ),

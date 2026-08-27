@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:dude/APIService/Remote/network/NetworkApiService.dart';
+import 'package:dude/DudeScreens/HomeScreen/call_billing_observer.dart';
 import 'package:dude/DudeScreens/HomeScreen/Repo/UserDataRepo.dart';
 import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
 import 'package:dude/DudeScreens/HomeScreen/zego_lifecycle.dart';
@@ -217,19 +218,21 @@ class MyApp extends StatelessWidget {
             final base =
                 Theme.of(context).textTheme.bodyMedium ??
                 const TextStyle(fontSize: 14);
-            return DefaultTextStyle(
-              style: base.copyWith(
-                fontFamily: DudeTheme.fontFamily,
-                color: DudeTheme.textPrimary,
-              ),
-              child: Stack(
-                children: [
-                  child ?? const SizedBox.shrink(),
-                  ZegoUIKitPrebuiltCallMiniOverlayPage(
-                    contextQuery: () =>
-                        navigatorKey.currentState?.context ?? context,
-                  ),
-                ],
+            return CallBillingObserver(
+              child: DefaultTextStyle(
+                style: base.copyWith(
+                  fontFamily: DudeTheme.fontFamily,
+                  color: DudeTheme.textPrimary,
+                ),
+                child: Stack(
+                  children: [
+                    child ?? const SizedBox.shrink(),
+                    ZegoUIKitPrebuiltCallMiniOverlayPage(
+                      contextQuery: () =>
+                          navigatorKey.currentState?.context ?? context,
+                    ),
+                  ],
+                ),
               ),
             );
           },

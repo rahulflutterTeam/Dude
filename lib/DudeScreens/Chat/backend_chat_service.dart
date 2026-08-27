@@ -121,6 +121,28 @@ class BackendChatMessage {
   }
 }
 
+/// Result of a successful chat send (socket ack or REST).
+class BackendChatSendResult {
+  final BackendChatMessage? message;
+  final int? balance;
+
+  const BackendChatSendResult({this.message, this.balance});
+}
+
+/// Thrown when the backend rejects a send for insufficient coins.
+class ChatInsufficientBalanceException implements Exception {
+  final String message;
+  final int? balance;
+
+  const ChatInsufficientBalanceException(
+    this.message, {
+    this.balance,
+  });
+
+  @override
+  String toString() => message;
+}
+
 class BackendChatService {
   BackendChatService._();
   static final BackendChatService instance = BackendChatService._();
@@ -261,7 +283,7 @@ class BackendChatService {
     return result;
   }
 
-  Future<BackendChatMessage> sendMessageRest(
+  Future<BackendChatSendResult> sendMessageRest(
     String conversationId,
     String message, {
     String messageType = 'text',
@@ -271,7 +293,15 @@ class BackendChatService {
       'chat/conversation/$conversationId/messages',
       body: {'message': message, 'messageType': messageType},
     );
-    return BackendChatMessage.fromJson(_extractMap(json));
+    _throwIfInsufficient(json);
+    final messageMap = _extractMessageMap(json);
+    final saved = messageMap.isEmpty
+        ? null
+        : BackendChatMessage.fromJson(messageMap);
+    return BackendChatSendResult(
+      message: saved?.message.isEmpty == true ? null : saved,
+      balance: _extractBalance(json),
+    );
   }
 
   Future<void> markRead(String conversationId) async {
@@ -314,7 +344,7 @@ class BackendChatService {
     if (!emitted) throw Exception('Socket is not connected');
   }
 
-  Future<BackendChatMessage?> sendMessageSocket(
+  Future<BackendChatSendResult> sendMessageSocket(
     String conversationId,
     String message, {
     Map<String, dynamic>? notificationData,
@@ -332,16 +362,23 @@ class BackendChatService {
       payload,
     );
     final ackMap = _asMap(acknowledgement);
-    if (ackMap != null && ackMap['status'] == false) {
-      throw Exception(
-        _string(ackMap['message']).ifEmpty('Message delivery failed'),
-      );
+    if (ackMap != null) {
+      _throwIfInsufficient(ackMap);
+      if (ackMap['status'] == false) {
+        throw Exception(
+          _string(ackMap['message']).ifEmpty('Message delivery failed'),
+        );
+      }
     }
 
     final messageMap = _extractMessageMap(acknowledgement);
-    if (messageMap.isEmpty) return null;
-    final saved = BackendChatMessage.fromJson(messageMap);
-    return saved.message.isEmpty ? null : saved;
+    final saved = messageMap.isEmpty
+        ? null
+        : BackendChatMessage.fromJson(messageMap);
+    return BackendChatSendResult(
+      message: saved == null || saved.message.isEmpty ? null : saved,
+      balance: _extractBalance(acknowledgement),
+    );
   }
 
   BackendChatUnsubscribe onNewMessage(BackendChatMessageListener listener) {
@@ -431,15 +468,72 @@ class BackendChatService {
     final decoded = response.body.isEmpty
         ? <String, dynamic>{}
         : jsonDecode(response.body);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-        _string(_asMap(decoded)?['message']).ifEmpty(response.body),
+    final decodedMap = decoded is Map<String, dynamic>
+        ? decoded
+        : <String, dynamic>{'data': decoded};
+
+    if (response.statusCode == 402 || _isInsufficientPayload(decodedMap)) {
+      throw ChatInsufficientBalanceException(
+        _string(decodedMap['message']).ifEmpty(
+          'Insufficient balance. Please recharge to continue chatting.',
+        ),
+        balance: _extractBalance(decodedMap),
       );
     }
-    return decoded is Map<String, dynamic> ? decoded : {'data': decoded};
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _string(decodedMap['message']).ifEmpty(response.body),
+      );
+    }
+    return decodedMap;
   }
 
   Future<String> _token() async => (await AuthService.getToken()) ?? '';
+
+  void _throwIfInsufficient(Map<String, dynamic> payload) {
+    if (!_isInsufficientPayload(payload)) return;
+    throw ChatInsufficientBalanceException(
+      _string(payload['message']).ifEmpty(
+        'Insufficient balance. Please recharge to continue chatting.',
+      ),
+      balance: _extractBalance(payload),
+    );
+  }
+}
+
+bool _isInsufficientPayload(Map<String, dynamic> payload) {
+  final code = _string(payload['code'] ?? payload['errorCode']).toUpperCase();
+  if (code == 'INSUFFICIENT_BALANCE' || code == 'INSUFFICIENT_COINS') {
+    return true;
+  }
+  if (payload['status'] == false) {
+    final message = _string(payload['message']).toLowerCase();
+    if (message.contains('insufficient') && message.contains('balance')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+int? _extractBalance(dynamic value) {
+  final root = _asMap(value);
+  if (root == null) return null;
+  final direct = root['balance'] ?? root['coinBalance'] ?? root['coins'];
+  if (direct is num) return direct.toInt();
+  if (direct is String) return int.tryParse(direct);
+
+  final data = _asMap(root['data']);
+  if (data != null) {
+    final nested = _extractBalance(data);
+    if (nested != null) return nested;
+  }
+  final conversation = _asMap(root['conversation']);
+  if (conversation != null) {
+    final nested = _extractBalance(conversation);
+    if (nested != null) return nested;
+  }
+  return null;
 }
 
 Map<String, dynamic> _extractMap(dynamic value) {

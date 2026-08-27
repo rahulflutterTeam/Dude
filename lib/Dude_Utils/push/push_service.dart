@@ -8,6 +8,7 @@ import 'package:dude/DudeScreens/BottomNavBar/BottomNavBar.dart';
 import 'package:dude/NotificationService/NotificationService.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PushService {
@@ -74,6 +75,14 @@ class PushService {
         sound: true,
       );
       debugPrint('[Push] permission: ${settings.authorizationStatus}');
+
+      // Android 13+: system notification prompt needs POST_NOTIFICATIONS.
+      if (Platform.isAndroid) {
+        final status = await Permission.notification.status;
+        if (!status.isGranted) {
+          await Permission.notification.request();
+        }
+      }
 
       if (Platform.isIOS) {
         await _messaging.setForegroundNotificationPresentationOptions(

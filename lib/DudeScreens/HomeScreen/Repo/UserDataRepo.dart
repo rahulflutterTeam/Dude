@@ -126,6 +126,9 @@ class UserRepository {
     required String callDuration,
     required String callType,
     String? callID,
+    bool incremental = false,
+    int? billedSeconds,
+    int? totalDurationSeconds,
   }) async {
     try {
       final body = {
@@ -135,6 +138,10 @@ class UserRepository {
         "callDuration": callDuration,
         "callType": callType,
         if (callID != null && callID.isNotEmpty) "callID": callID,
+        if (incremental) "incremental": true,
+        if (billedSeconds != null) "billedSeconds": billedSeconds,
+        if (totalDurationSeconds != null)
+          "totalDurationSeconds": totalDurationSeconds,
       };
       print("body :: $body");
 

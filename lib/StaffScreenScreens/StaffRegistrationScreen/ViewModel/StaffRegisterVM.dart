@@ -850,7 +850,7 @@ class StaffViewModel extends ChangeNotifier {
 
     try {
       final response = await _staffRepo.getStaffCallHistory();
-      _callHistory = response.data ?? [];
+      _callHistory = CallHistoryItem.coalesce(response.data ?? []);
     } catch (e) {
       _errorMessage = e.toString();
       debugPrint("Call history error: $e");

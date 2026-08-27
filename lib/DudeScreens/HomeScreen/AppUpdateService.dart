@@ -30,7 +30,7 @@ class AppUpdateService {
         headers: {
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 8));
       if (!context.mounted) return false;
 
       print('Update API Status: ${response.statusCode}');

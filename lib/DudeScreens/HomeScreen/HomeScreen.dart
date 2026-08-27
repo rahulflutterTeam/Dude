@@ -10,6 +10,7 @@ import 'package:dude/DudeScreens/HomeScreen/Model/StaffDataModel.dart';
 import 'package:dude/DudeScreens/HomeScreen/Model/UserDataModel.dart';
 import 'package:dude/DudeScreens/HomeScreen/Socket.dart';
 import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
+import 'package:dude/DudeScreens/HomeScreen/call_rates.dart';
 import 'package:dude/DudeScreens/HomeScreen/callServic.dart';
 import 'package:dude/DudeScreens/HomeScreen/callService.dart';
 import 'package:dude/DudeScreens/ProfileScreen/ProfileScreen.dart';
@@ -86,54 +87,19 @@ class HomeScreenState extends State<HomeScreen>
     _callEndedSubscription = CallService().onCallEnded.listen((callData) async {
       if (!mounted) return;
 
-      print("🔄 Call ended listener triggered");
+      // Billing (minute + end) is owned by CallBillingObserver.
+      // Home only shows the post-call review when the user is back here.
+      final staffId = callData['staffId']?.toString() ?? '';
+      final isVideo = callData['isVideoCall'] == true;
+      if (staffId.isEmpty) return;
 
-      final userVM = context.read<UserViewModel>();
-
-      final spent = callData['spent'] as int;
-      final durationSeconds = callData['durationSeconds'] as int;
-      final staffId = callData['staffId'] as String;
-      final isVideo = callData['isVideoCall'] as bool;
-      final callID = callData['callID']?.toString();
-
-      final currentBalance = userVM.currentUser?.coinBalance ?? 0;
-      final newBalance = currentBalance - spent;
-
-      debugPrint(
-        "💳 Updating balance: $currentBalance → $newBalance | Duration: ${durationSeconds}s",
-      );
-
-      try {
-        final success = await userVM.updateUserCoinBalance(
-          newBalance,
-          staffId,
-          spent,
-          durationSeconds.toString(),
-          isVideo ? "video" : "audio",
-          callID,
-        );
-
-        if (success == true) {
-          userVM.updateLocalCoinBalance(newBalance);
-          await userVM.fetchUserDetails();
-
-          debugPrint("✅ Balance updated successfully");
-
-          // Show review dialog only if user is back on HomeScreen
-          if (ModalRoute.of(context)?.isCurrent == true && mounted) {
-            if (isVideo) {
-              await Future.delayed(const Duration(milliseconds: 800));
-            }
-            if (mounted) {
-              await showStaffReviewDialog(context, staffId);
-            }
-          }
-        } else {
-          debugPrint("⚠️ updateUserCoinBalance returned false");
+      if (ModalRoute.of(context)?.isCurrent == true && mounted) {
+        if (isVideo) {
+          await Future.delayed(const Duration(milliseconds: 800));
         }
-      } catch (e, stack) {
-        debugPrint("❌ Balance API failed: $e");
-        debugPrint("Stack: $stack");
+        if (mounted) {
+          await showStaffReviewDialog(context, staffId);
+        }
       }
     });
     _addCallEventListeners();
@@ -290,6 +256,12 @@ class HomeScreenState extends State<HomeScreen>
     _callService.updateRoomState(
       state.reason == ZegoRoomStateChangedReason.Logined,
     );
+
+    if (state.reason == ZegoRoomStateChangedReason.KickOut) {
+      debugPrint("📞 HomeScreen: Room kick-out (out of coins backstop)");
+      _callService.endCall(endReason: 'out_of_coins');
+      return;
+    }
 
     if (state.reason == ZegoRoomStateChangedReason.Logout) {
       debugPrint("📞 HomeScreen: Room logout detected");
@@ -655,6 +627,18 @@ class HomeScreenState extends State<HomeScreen>
           if (state.reason == ZegoRoomStateChangedReason.Logined) {
             _callService.updateRoomState(true);
           }
+          if (state.reason == ZegoRoomStateChangedReason.KickOut) {
+            // Backend force-end when coins run out — treat as clean out-of-coins.
+            unawaited(() async {
+              try {
+                if (mounted) {
+                  await ZegoUIKitPrebuiltCallController().hangUp(context);
+                }
+              } catch (_) {}
+              _callService.endCall(endReason: 'out_of_coins');
+            }());
+            return;
+          }
           if (state.reason == ZegoRoomStateChangedReason.Logout) {
             _callService.endCall();
           }
@@ -710,7 +694,7 @@ class HomeScreenState extends State<HomeScreen>
         map['staffName']?.toString() ??
         'Someone is online';
     final body = map['body']?.toString() ??
-        'They are waiting for you. Tap to connect.';
+        'I am free now call me 😊';
     unawaited(
       LocalNotifications.instance.showWave(
         title: title,
@@ -1418,9 +1402,9 @@ class HomeScreenState extends State<HomeScreen>
           Expanded(
             child: _customCallButton(
               label: 'Audio Call',
-              coinText: '20',
+              coinText: '${CallRates.audioPerMin}',
               min: '/min',
-              pricePerMin: 20,
+              pricePerMin: CallRates.audioPerMin,
               isVideoCall: false,
               targetUserID: staff.memberID,
               targetUserName: staff.name ?? 'Staff',
@@ -1443,9 +1427,9 @@ class HomeScreenState extends State<HomeScreen>
           Expanded(
             child: _customCallButton(
               label: 'Video Call',
-              coinText: '60',
+              coinText: '${CallRates.videoPerMin}',
               min: '/min',
-              pricePerMin: 60,
+              pricePerMin: CallRates.videoPerMin,
               isVideoCall: true,
               targetUserID: staff.memberID,
               targetUserName: staff.name ?? 'Staff',
@@ -1466,10 +1450,10 @@ class HomeScreenState extends State<HomeScreen>
       children: [
         Expanded(
           child: _customCallButton(
-            label: compact ? 'Audio Call' : '20/min',
-            coinText: '20',
+            label: compact ? 'Audio Call' : '${CallRates.audioPerMin}/min',
+            coinText: '${CallRates.audioPerMin}',
             min: '/min',
-            pricePerMin: 20,
+            pricePerMin: CallRates.audioPerMin,
             isVideoCall: false,
             targetUserID: staff.memberID,
             targetUserName: staff.name ?? 'Staff',
@@ -1483,10 +1467,10 @@ class HomeScreenState extends State<HomeScreen>
         SizedBox(width: gap),
         Expanded(
           child: _customCallButton(
-            label: compact ? 'Video Call' : '60/min',
-            coinText: '60',
+            label: compact ? 'Video Call' : '${CallRates.videoPerMin}/min',
+            coinText: '${CallRates.videoPerMin}',
             min: '/min',
-            pricePerMin: 60,
+            pricePerMin: CallRates.videoPerMin,
             isVideoCall: true,
             targetUserID: staff.memberID,
             targetUserName: staff.name ?? 'Staff',
@@ -1548,8 +1532,6 @@ class HomeScreenState extends State<HomeScreen>
   }) {
     return Consumer<UserViewModel>(
       builder: (context, userVM, child) {
-        final currentUser = userVM.currentUser;
-        final balance = currentUser?.coinBalance ?? 0;
         final isStartingThisCall = _startingCallButtonKey == buttonKey;
         final canStartCall = isEnabled && _startingCallButtonKey == null;
 
@@ -1578,26 +1560,35 @@ class HomeScreenState extends State<HomeScreen>
                       return;
                     }
 
-                    if (balance < pricePerMin) {
+                    // Pre-call gate: refresh balance before opening Zego.
+                    await userVM.fetchUserDetails();
+                    if (!mounted) return;
+                    final freshUser = userVM.currentUser;
+                    final freshBalance = freshUser?.coinBalance ?? 0;
+
+                    if (freshBalance < pricePerMin) {
+                      Utils.snackBarErrorMessage(
+                        'Add coins to start a call',
+                      );
                       _openPageClearingSearch(const WalletScreen());
                       return;
                     }
 
-                    final maxMinutes = balance ~/ pricePerMin;
-                    final maxSeconds = maxMinutes > 20
-                        ? 20 * 60
-                        : maxMinutes * 60;
+                    final maxSeconds = CallRates.remainingSecondsForBalance(
+                      freshBalance,
+                      pricePerMin,
+                    );
 
-                    if (currentUser == null || currentUser.memberID.isEmpty) {
+                    if (freshUser == null || freshUser.memberID.isEmpty) {
                       Utils.snackBarErrorMessage("User details not available");
                       return;
                     }
 
                     try {
                       await ZegoCallService().ensureInitializedForCaller(
-                        avatarUrl: currentUser.image ?? "",
-                        userId: currentUser.memberID,
-                        userName: currentUser.name ?? "User",
+                        avatarUrl: freshUser.image ?? "",
+                        userId: freshUser.memberID,
+                        userName: freshUser.name ?? "User",
                         events: _buildZegoCallEvents(),
                       );
                     } catch (e, stackTrace) {
@@ -1611,7 +1602,7 @@ class HomeScreenState extends State<HomeScreen>
 
                     final callType = isVideoCall ? "video" : "audio";
                     final callID =
-                        "pe_${currentUser.memberID}_${targetStaffId}_${callType}_${pricePerMin}_${balance}_${maxSeconds}_${DateTime.now().millisecondsSinceEpoch}";
+                        "pe_${freshUser.memberID}_${targetStaffId}_${callType}_${pricePerMin}_${freshBalance}_${maxSeconds}_${DateTime.now().millisecondsSinceEpoch}";
 
                     final success = await ZegoUIKitPrebuiltCallInvitationService()
                         .send(
@@ -1627,11 +1618,11 @@ class HomeScreenState extends State<HomeScreen>
                           isVideoCall: isVideoCall,
                           callID: callID,
                           customData: jsonEncode({
-                            "user_id": currentUser.memberID,
+                            "user_id": freshUser.memberID,
                             "staff_id": targetStaffId,
                             "price_per_min": pricePerMin,
                             "call_type": callType,
-                            "coin_balance": balance,
+                            "coin_balance": freshBalance,
                             "max_seconds": maxSeconds,
                           }),
                           timeoutSeconds: 60,
@@ -1649,7 +1640,7 @@ class HomeScreenState extends State<HomeScreen>
                       staffId: targetStaffId,
                       pricePerMin: pricePerMin,
                       isVideoCall: isVideoCall,
-                      initialCoinBalance: balance,
+                      initialCoinBalance: freshBalance,
                       maxCallSeconds: maxSeconds,
                     );
 
@@ -1662,20 +1653,26 @@ class HomeScreenState extends State<HomeScreen>
                       Duration(seconds: maxSeconds),
                       () async {
                         if (!_callService.isCallActive || !mounted) return;
-                        debugPrint("⏰ TIME LIMIT REACHED - Ending call properly");
+                        debugPrint(
+                          "⏰ TIME LIMIT REACHED - Ending call (out of coins)",
+                        );
 
                         try {
-                          await ZegoUIKitPrebuiltCallController().hangUp(context);
-                          await Future.delayed(
-                            const Duration(milliseconds: 1200),
+                          await ZegoUIKitPrebuiltCallController().hangUp(
+                            context,
                           );
-                          final callData = CallService().endCall();
+                          await Future.delayed(
+                            const Duration(milliseconds: 800),
+                          );
+                          final callData = CallService().endCall(
+                            endReason: 'out_of_coins',
+                          );
                           if (callData != null) {
                             debugPrint("✅ endCall() executed from timer");
                           }
                         } catch (e) {
                           debugPrint("❌ Error during timer end: $e");
-                          CallService().endCall();
+                          CallService().endCall(endReason: 'out_of_coins');
                         }
                       },
                     );

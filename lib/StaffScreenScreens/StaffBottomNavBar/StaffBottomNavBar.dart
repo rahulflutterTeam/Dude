@@ -3,9 +3,9 @@ import 'dart:ui';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_animations.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_nav_icon.dart';
+import 'package:dude/StaffScreenScreens/RecentCallScreen/RecentCallScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffDashBoardScreen/DashBoardScreen.dart';
 import 'package:dude/StaffScreenScreens/StaffProfileScreen/staffProfileScreen.dart';
-import 'package:dude/StaffScreenScreens/WithdrawScreen/WithdrawHistory.dart';
 import 'package:dude/StaffScreenScreens/OnlineUsersScreen/staff_online_users_screen.dart';
 import 'package:dude/StaffScreenScreens/staffChat/staffChatListScreen.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +43,7 @@ class _StaffBottomBarState extends State<StaffBottomBar>
     StaffNavTab.dashboard,
     StaffNavTab.chat,
     StaffNavTab.onlineUsers,
-    StaffNavTab.withdrawals,
+    StaffNavTab.recentCalls,
     StaffNavTab.profile,
   ];
 
@@ -65,7 +65,11 @@ class _StaffBottomBarState extends State<StaffBottomBar>
         activeTab: _activeTab,
         tabIndex: 2,
       ),
-      const WithdrawHistory(backPage: false),
+      RecentCallsPage(
+        backPage: false,
+        activeTab: _activeTab,
+        tabIndex: 3,
+      ),
       const StaffProfileScreen(backPage: false),
     ];
     _tabFadeCtrl = AnimationController(

@@ -53,32 +53,8 @@ class _HistoryScreenState extends State<HistoryScreen>
     WidgetsBinding.instance.addObserver(this);
     CallService().onCallEnded.listen((callData) {
       if (!mounted) return;
-
-      final userVM = context.read<UserViewModel>();
-
-      final spent = callData['spent'] as int;
-      final durationSeconds = callData['durationSeconds'] as int;
-      final staffId = callData['staffId'] as String;
-      final isVideo = callData['isVideoCall'] as bool;
-      final callID = callData['callID']?.toString();
-
-      final currentBalance = userVM.currentUser?.coinBalance ?? 0;
-      final newBalance = currentBalance - spent;
-
-      debugPrint("💳 Updating balance: $currentBalance → $newBalance");
-
-      userVM
-          .updateUserCoinBalance(
-            newBalance,
-            staffId,
-            spent,
-            durationSeconds.toString(),
-            isVideo ? "video" : "audio",
-            callID,
-          )
-          .then((_) {
-            userVM.updateLocalCoinBalance(newBalance);
-          });
+      // Billing is handled by CallBillingObserver — keep History screen lean.
+      debugPrint('📞 HistoryScreen: call ended → $callData');
     });
 
     _addCallEventListeners();
@@ -103,6 +79,12 @@ class _HistoryScreenState extends State<HistoryScreen>
     _callService.updateRoomState(
       state.reason == ZegoRoomStateChangedReason.Logined,
     );
+
+    if (state.reason == ZegoRoomStateChangedReason.KickOut) {
+      debugPrint("📞 HistoryScreen: Room kick-out (out of coins)");
+      CallService().endCall(endReason: 'out_of_coins');
+      return;
+    }
 
     if (state.reason == ZegoRoomStateChangedReason.Logout) {
       debugPrint("📞 HistoryScreen: Room logout detected");

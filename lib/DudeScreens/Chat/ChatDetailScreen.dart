@@ -1,5 +1,7 @@
 import 'package:dude/DudeScreens/Chat/backend_chat_service.dart';
+import 'package:dude/DudeScreens/Chat/chat_recharge_sheet.dart';
 import 'package:dude/DudeScreens/HomeScreen/ViewModel/UserVM.dart';
+import 'package:dude/DudeScreens/HomeScreen/call_rates.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
@@ -235,21 +237,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final userVM = Provider.of<UserViewModel>(context, listen: false);
     final staffVM = Provider.of<StaffViewModel>(context, listen: false);
     final messageCost = staffVM
-        .messageAmount(fallback: 8)
+        .messageAmount(fallback: CallRates.chatPerMessage.toDouble())
         .round()
         .clamp(1, 999);
     final balance = userVM.currentUser?.coinBalance ?? 0;
 
     if (balance < messageCost) {
-      Utils.snackBarErrorMessage(
-        'Insufficient balance! Need $messageCost coins to send a message.',
+      await showChatRechargeSheet(
+        context,
+        message: 'Recharge to continue chatting',
+        messageCost: messageCost,
       );
       return;
     }
 
     final previousBalance = balance;
-    final newBalance = balance - messageCost;
-    userVM.updateLocalCoinBalance(newBalance);
+    // Optimistic −cost; server balance wins on success.
+    userVM.updateLocalCoinBalance(balance - messageCost);
 
     final optimistic = BackendChatMessage(
       id: 'local-${DateTime.now().microsecondsSinceEpoch}',
@@ -269,20 +273,39 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _scrollToBottom();
 
     var delivered = false;
+    int? serverBalance;
+
     try {
-      final saved = await BackendChatService.instance.sendMessageSocket(
+      final result = await BackendChatService.instance.sendMessageSocket(
         _conversationId,
         text,
         notificationData: _chatNotificationData(text),
       );
       delivered = true;
-      if (saved != null && mounted) {
+      serverBalance = result.balance;
+      if (result.message != null && mounted) {
         setState(() {
           final index = _messages.indexWhere(
             (item) => item.id == optimistic.id,
           );
-          if (index != -1) _messages[index] = saved;
+          if (index != -1) _messages[index] = result.message!;
         });
+      }
+    } on ChatInsufficientBalanceException catch (e) {
+      if (mounted) {
+        setState(
+          () => _messages.removeWhere((item) => item.id == optimistic.id),
+        );
+        if (e.balance != null) {
+          userVM.updateLocalCoinBalance(e.balance!);
+        } else {
+          userVM.updateLocalCoinBalance(previousBalance);
+        }
+        await showChatRechargeSheet(
+          context,
+          message: 'Recharge to continue chatting',
+          messageCost: messageCost,
+        );
       }
     } catch (e) {
       // Socket often already saved the message + emitted chat_new_message,
@@ -290,48 +313,61 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       delivered = await _waitForOptimisticSync(optimistic.id);
       if (!delivered) {
         try {
-          final saved = await BackendChatService.instance.sendMessageRest(
+          final result = await BackendChatService.instance.sendMessageRest(
             _conversationId,
             text,
           );
           delivered = true;
-          if (mounted) {
+          serverBalance = result.balance;
+          if (result.message != null && mounted) {
             setState(() {
               final index = _messages.indexWhere(
                 (item) => item.id == optimistic.id,
               );
-              if (index != -1) _messages[index] = saved;
+              if (index != -1) _messages[index] = result.message!;
             });
+          }
+        } on ChatInsufficientBalanceException catch (e) {
+          if (mounted) {
+            setState(
+              () => _messages.removeWhere((item) => item.id == optimistic.id),
+            );
+            if (e.balance != null) {
+              userVM.updateLocalCoinBalance(e.balance!);
+            } else {
+              userVM.updateLocalCoinBalance(previousBalance);
+            }
+            await showChatRechargeSheet(
+              context,
+              message: 'Recharge to continue chatting',
+              messageCost: messageCost,
+            );
           }
         } catch (_) {
           if (mounted) {
             setState(
               () => _messages.removeWhere((item) => item.id == optimistic.id),
             );
+            userVM.updateLocalCoinBalance(previousBalance);
             Utils.snackBarErrorMessage('Failed to send message');
           }
         }
       }
     } finally {
       if (delivered) {
-        final charged = await userVM.updateUserCoinBalance(
-          newBalance,
-          widget.staffId,
-          messageCost,
-          '0',
-          'chat',
-          optimistic.id,
-        );
-        if (!charged && !userVM.lastBalanceUpdateQueued) {
-          userVM.updateLocalCoinBalance(previousBalance);
-          if (mounted) {
-            Utils.snackBarErrorMessage(
-              'Message sent, but charging failed. Balance restored.',
-            );
-          }
+        // Backend owns the debit — sync from ack balance when present.
+        if (serverBalance != null) {
+          userVM.updateLocalCoinBalance(serverBalance);
+        } else {
+          await userVM.fetchUserDetails();
         }
-      } else {
-        userVM.updateLocalCoinBalance(previousBalance);
+      } else if (mounted) {
+        // Ensure we didn't leave a stale optimistic debit after a hard fail
+        // that restored elsewhere.
+        final current = userVM.currentUser?.coinBalance;
+        if (current != null && current < previousBalance && serverBalance == null) {
+          // already restored in insufficient / fail paths
+        }
       }
       if (mounted) setState(() => _isSending = false);
     }

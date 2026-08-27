@@ -1,4 +1,5 @@
 import 'package:dude/DudeScreens/Chat/backend_chat_service.dart';
+import 'package:dude/DudeScreens/HomeScreen/call_rates.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 
@@ -220,17 +221,17 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
     _scrollToBottom();
 
     try {
-      final saved = await BackendChatService.instance.sendMessageSocket(
+      final result = await BackendChatService.instance.sendMessageSocket(
         _conversationId,
         text,
         notificationData: _chatNotificationData(text),
       );
-      if (saved != null && mounted) {
+      if (result.message != null && mounted) {
         setState(() {
           final index = _messages.indexWhere(
             (item) => item.id == optimistic.id,
           );
-          if (index != -1) _messages[index] = saved;
+          if (index != -1) _messages[index] = result.message!;
         });
       }
     } catch (e) {
@@ -239,16 +240,16 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
       final alreadySynced = await _waitForOptimisticSync(optimistic.id);
       if (!alreadySynced) {
         try {
-          final saved = await BackendChatService.instance.sendMessageRest(
+          final result = await BackendChatService.instance.sendMessageRest(
             _conversationId,
             text,
           );
-          if (mounted) {
+          if (result.message != null && mounted) {
             setState(() {
               final index = _messages.indexWhere(
                 (item) => item.id == optimistic.id,
               );
-              if (index != -1) _messages[index] = saved;
+              if (index != -1) _messages[index] = result.message!;
             });
           }
         } catch (_) {
@@ -437,6 +438,24 @@ class _staffChatDetailScreenState extends State<staffChatDetailScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                color: DudeTheme.surfaceRaised.withValues(alpha: 0.85),
+                child: Text(
+                  'Earn ${CallRates.staffChatEarnPerMessage} coins per user message · your replies are free',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: DudeTheme.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
 

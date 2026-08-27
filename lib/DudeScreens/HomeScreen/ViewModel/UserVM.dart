@@ -83,6 +83,9 @@ class UserViewModel extends ChangeNotifier {
     String callDuration,
     String callType, [
     String? callID,
+    bool incremental = false,
+    int? billedSeconds,
+    int? totalDurationSeconds,
   ]) async {
     _lastBalanceUpdateQueued = false;
     try {
@@ -96,14 +99,23 @@ class UserViewModel extends ChangeNotifier {
         callDuration: callDuration,
         callType: callType,
         callID: callID,
+        incremental: incremental,
+        billedSeconds: billedSeconds,
+        totalDurationSeconds: totalDurationSeconds,
       );
 
       print("status");
       print("data");
 
       if (response.status && response.data != null) {
+        // Trust server balance after settlement (audio + video).
+        final serverBalance = response.data!.user.coinBalance;
+        updateLocalCoinBalance(serverBalance);
         notifyListeners();
-        // Utils.snackBar("Balance updated successfully");
+        return true;
+      } else if (response.status) {
+        // Duplicate settlement still returns status true — refresh from profile.
+        await fetchUserDetails();
         return true;
       } else {
         print("Error: ${response.message}");

@@ -1,6 +1,7 @@
 // lib/Services/CallService.dart
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:dude/APIService/Remote/network/NetworkApiService.dart';
 import 'package:dude/Analytics/meta_app_events.dart';
 import 'package:dude/DudeScreens/HomeScreen/Repo/UserDataRepo.dart';
@@ -45,6 +46,16 @@ class CallService {
   bool _missedCallReported = false;
   String? _lastMissedCallReportKey;
   DateTime? _lastMissedCallReportAt;
+  int _billedSeconds = 0;
+  int _billedCoins = 0;
+  /// Only coins the API actually accepted — used so a failed/duplicate minute
+  /// charge cannot suppress the end-of-call settlement (video bug).
+  int _confirmedBilledCoins = 0;
+  int _confirmedBilledSeconds = 0;
+  /// Survives [_forceReset] so late minute-charge ACKs still apply, and so we
+  /// can attribute confirmations to the call that just ended.
+  String? _lastSettledCallID;
+  bool _lowBalanceWarned = false;
 
   // Add a flag to track if a call is currently active
   bool _isCallActive = false;
@@ -98,6 +109,24 @@ class CallService {
   final _callEndController = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onCallEnded => _callEndController.stream;
 
+  final _minuteChargeController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onCallMinuteCharge =>
+      _minuteChargeController.stream;
+
+  /// True when ~1–2 minutes of paid time remain.
+  bool get isLowBalanceWarningActive {
+    if (!_isCallActive || !_wasCallReallyConnected) return false;
+    final remaining = remainingCallSeconds;
+    return remaining > 0 && remaining <= 120;
+  }
+
+  bool get didShowLowBalanceWarning => _lowBalanceWarned;
+
+  void markLowBalanceWarned() {
+    _lowBalanceWarned = true;
+  }
+
   static int maxCallSecondsForBalance(int balance, int pricePerMin) {
     if (balance <= 0 || pricePerMin <= 0) return 0;
     final maxMinutes = balance ~/ pricePerMin;
@@ -124,6 +153,28 @@ class CallService {
     }
 
     return ((durationSeconds / 60.0) * pricePerMin).ceil();
+  }
+
+  /// Coins / seconds still owed after completed-minute slices already emitted.
+  ///
+  /// Hangup often races the async minute POST: `_confirmedBilled*` is still 0
+  /// while `_billed*` already counts the in-flight minute. Using only confirmed
+  /// totals here double-charged ~1-minute video (60+60 coins / 12+12 staff).
+  static ({int remainingCoins, int remainingSeconds}) remainingAfterAccounted({
+    required int totalSpent,
+    required int durationSeconds,
+    required int billedCoins,
+    required int billedSeconds,
+    int confirmedCoins = 0,
+    int confirmedSeconds = 0,
+  }) {
+    final accountedCoins = math.max(billedCoins, confirmedCoins);
+    final accountedSeconds = math.max(billedSeconds, confirmedSeconds);
+    return (
+      remainingCoins: (totalSpent - accountedCoins).clamp(0, totalSpent),
+      remainingSeconds:
+          (durationSeconds - accountedSeconds).clamp(0, durationSeconds),
+    );
   }
 
   void addListener(VoidCallback listener) {
@@ -207,6 +258,7 @@ class CallService {
   }) {
     // Reset any previous call state first
     _forceReset();
+    _lastSettledCallID = null;
 
     _callStartTime = DateTime.now();
     _currentCallID = callID;
@@ -221,6 +273,11 @@ class CallService {
     _missedCallReported = false;
     _isCallActive = true;
     _isProcessingCallEnd = false;
+    _billedSeconds = 0;
+    _billedCoins = 0;
+    _confirmedBilledCoins = 0;
+    _confirmedBilledSeconds = 0;
+    _lowBalanceWarned = false;
 
     // Emit busy status when call starts
     _emitBusyStatus(true);
@@ -285,9 +342,76 @@ class CallService {
     _uiTicker?.cancel();
     _uiTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_isCallActive) {
+        _emitIncrementalMinuteCharges();
         _notifyListeners();
       }
     });
+  }
+
+  /// Charge each completed minute while the call is connected.
+  void _emitIncrementalMinuteCharges() {
+    if (!_isCallActive || !_wasCallReallyConnected) return;
+    final pricePerMin = _currentCallPricePerMin ?? 0;
+    if (pricePerMin <= 0) return;
+
+    final elapsed = connectedElapsedSeconds;
+    while (_billedSeconds + 60 <= elapsed) {
+      _billedSeconds += 60;
+      _billedCoins += pricePerMin;
+      final payload = <String, dynamic>{
+        'staffId': _staffId,
+        'callID': _currentCallID,
+        'isVideoCall': _isCurrentCallVideo,
+        'durationSeconds': 60,
+        'spent': pricePerMin,
+        'incremental': true,
+        'billedSeconds': _billedSeconds,
+      };
+      debugPrint('💳 Minute charge → $payload');
+      _minuteChargeController.add(payload);
+    }
+  }
+
+  /// Public flush for lifecycle observers (background / pause).
+  void flushPendingMinuteCharges() => _emitIncrementalMinuteCharges();
+
+  /// Mark a minute/end slice as successfully settled by the backend.
+  void confirmServerBilling({
+    required int spentCoins,
+    required int durationSeconds,
+    String? callID,
+  }) {
+    // Minute POSTs often ACK after hangup reset — accept for the settling call.
+    final expectedCallID = _currentCallID ?? _lastSettledCallID;
+    if (callID != null &&
+        callID.isNotEmpty &&
+        expectedCallID != null &&
+        callID != expectedCallID) {
+      return;
+    }
+    if (expectedCallID == null && !_isCallActive) return;
+    if (spentCoins <= 0 && durationSeconds <= 0) return;
+    _confirmedBilledCoins += spentCoins.clamp(0, 1 << 30);
+    _confirmedBilledSeconds += durationSeconds.clamp(0, 1 << 30);
+    debugPrint(
+      '✅ Confirmed server billing +$spentCoins coins / ${durationSeconds}s '
+      '(total confirmed: $_confirmedBilledCoins / ${_confirmedBilledSeconds}s)',
+    );
+  }
+
+  /// Undo an emitted minute slice when the API rejects it while the call is live,
+  /// so hangup can still settle that minute.
+  void revokeEmittedBilling({
+    required int spentCoins,
+    required int durationSeconds,
+  }) {
+    if (!_isCallActive) return;
+    _billedCoins = (_billedCoins - spentCoins).clamp(0, 1 << 30);
+    _billedSeconds = (_billedSeconds - durationSeconds).clamp(0, 1 << 30);
+    debugPrint(
+      '↩️ Revoked emitted billing -$spentCoins coins / ${durationSeconds}s '
+      '(now: $_billedCoins / ${_billedSeconds}s)',
+    );
   }
 
   void updateRoomState(bool isInRoom) {
@@ -363,27 +487,55 @@ class CallService {
 
     _callTimer?.cancel();
 
+    // Flush any completed minutes that landed on this tick.
+    _emitIncrementalMinuteCharges();
+
     final pricePerMin = _currentCallPricePerMin ?? 0;
 
-    final spent = calculateSpentCoins(
+    final totalSpent = calculateSpentCoins(
       durationSeconds: durationSeconds,
       pricePerMin: pricePerMin,
     );
-    debugPrint("spent:::::::$spent");
+    // Subtract emitted minute slices (not only API-confirmed). Confirmed lags the
+    // POST, so using it alone double-billed the first video minute at hangup.
+    final remaining = remainingAfterAccounted(
+      totalSpent: totalSpent,
+      durationSeconds: durationSeconds,
+      billedCoins: _billedCoins,
+      billedSeconds: _billedSeconds,
+      confirmedCoins: _confirmedBilledCoins,
+      confirmedSeconds: _confirmedBilledSeconds,
+    );
+    final remainingSpent = remaining.remainingCoins;
+    final unbilledSeconds = remaining.remainingSeconds;
+
+    debugPrint(
+      "spent:::::::$totalSpent (emitted: $_billedCoins / ${_billedSeconds}s, "
+      "confirmed: $_confirmedBilledCoins / ${_confirmedBilledSeconds}s, "
+      "remaining: $remainingSpent / ${unbilledSeconds}s)",
+    );
     debugPrint("durationSeconds:::::::$durationSeconds");
 
     MetaAppEvents.spendCredits(
-      credits: spent,
+      credits: totalSpent,
       isVideoCall: _isCurrentCallVideo,
     );
+
+    _lastSettledCallID = _currentCallID;
 
     final callData = {
       'staffId': _staffId,
       'callID': _currentCallID,
       'isVideoCall': _isCurrentCallVideo,
-      'durationSeconds': durationSeconds,
-      'spent': spent,
+      // Never re-send full wall time when minutes already covered the call.
+      'durationSeconds': remainingSpent > 0 ? unbilledSeconds : 0,
+      'spent': remainingSpent,
+      'totalDurationSeconds': durationSeconds,
+      'totalSpent': totalSpent,
       'endReason': endReason,
+      'outOfCoins': endReason == 'out_of_coins',
+      'incremental': false,
+      'billedSeconds': durationSeconds,
     };
 
     debugPrint("💰 Emitting call end event → $callData");
@@ -391,8 +543,20 @@ class CallService {
     // Emit available status (not busy) when call ends
     _emitBusyStatus(false);
 
-    // 🔥 EMIT EVENT HERE
-    _callEndController.add(callData);
+    // Always emit end when there is remaining to charge; otherwise emit a marker
+    // so UI can refresh after fully incremental settlements.
+    if (remainingSpent > 0) {
+      _callEndController.add(callData);
+    } else if (totalSpent > 0) {
+      _callEndController.add({
+        ...callData,
+        'spent': 0,
+        'durationSeconds': 0,
+        'alreadyBilled': true,
+      });
+    } else {
+      _callEndController.add(callData);
+    }
 
     _forceReset();
 
@@ -426,6 +590,7 @@ class CallService {
     _initialCoinBalance += addedCoins;
     final additionalSeconds = secondsForCoinAmount(addedCoins, pricePerMin);
     _maxCallSeconds += additionalSeconds;
+    _lowBalanceWarned = false;
 
     debugPrint(
       "In-call top-up: +$addedCoins coins, +${additionalSeconds}s | "
@@ -455,6 +620,11 @@ class CallService {
     _currentCallPricePerMin = null;
     _initialCoinBalance = 0;
     _maxCallSeconds = 0;
+    _billedSeconds = 0;
+    _billedCoins = 0;
+    _confirmedBilledCoins = 0;
+    _confirmedBilledSeconds = 0;
+    _lowBalanceWarned = false;
     _isCurrentCallVideo = false;
     _wasCallReallyConnected = false;
     _notInRoomCount = 0;
@@ -529,6 +699,7 @@ class CallService {
     _connectivitySub?.cancel();
     _connectivitySub = null;
     _callEndController.close();
+    _minuteChargeController.close();
     _listeners.clear();
     _pendingCallEnds.clear();
   }

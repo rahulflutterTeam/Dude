@@ -882,6 +882,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ),
                     SizedBox(height: 2),
                     Text(
+                      'Call Surya Prakash',
+                      style: TextStyle(
+                        color: DudeTheme.textMuted,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
                       '+91 93451 87850',
                       style: TextStyle(
                         color: DudeTheme.accentBright,
