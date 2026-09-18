@@ -7,6 +7,7 @@ import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/DudeScreens/HomeScreen/call_balance_overlay.dart';
 import 'package:dude/DudeScreens/HomeScreen/callService.dart';
 import 'package:dude/DudeScreens/HomeScreen/zego_lifecycle.dart';
+import 'package:dude/Reusable_Widgets/dude_cached_image.dart';
 import 'package:flutter/material.dart';
 import 'package:zego_uikit/zego_uikit.dart';
 import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
@@ -193,7 +194,7 @@ class ZegoCallService {
               // ── Resolve image: network URL if available, else fallback asset ──
               final ImageProvider imageProvider =
                   (avatarUrl != null && avatarUrl.isNotEmpty)
-                  ? NetworkImage(avatarUrl)
+                  ? DudeCachedImage.provider(avatarUrl)
                   : const AssetImage('assets/Images/women.png')
                         as ImageProvider;
 

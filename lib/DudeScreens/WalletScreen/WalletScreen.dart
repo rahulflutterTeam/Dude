@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
+import 'package:dude/Reusable_Widgets/dude_cached_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cashfree_pg_sdk/api/cferrorresponse/cferrorresponse.dart';
@@ -691,11 +692,15 @@ class _WalletScreenState extends State<WalletScreen> {
                           ),
                         ),
                       ),
-                    Image.network(
-                      package.image,
+                    DudeCachedImage(
+                      imageUrl: package.image,
                       height: 32,
-                      errorBuilder: (_, __, ___) =>
-                          Image.asset('assets/Images/dudecoin.jpg', height: 32),
+                      fit: BoxFit.contain,
+                      memCacheHeight: 64,
+                      errorWidget: Image.asset(
+                        'assets/Images/dudecoin.jpg',
+                        height: 32,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -859,10 +864,11 @@ class _WalletScreenState extends State<WalletScreen> {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Image.network(
-                        package.image,
+                      child: DudeCachedImage(
+                        imageUrl: package.image,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Image.asset(
+                        memCacheHeight: 240,
+                        errorWidget: Image.asset(
                           'assets/Images/dudecoin.jpg',
                           fit: BoxFit.contain,
                         ),
@@ -1020,11 +1026,15 @@ class _WalletScreenState extends State<WalletScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (image != null)
-              Image.network(
-                image,
+              DudeCachedImage(
+                imageUrl: image,
                 height: 72,
-                errorBuilder: (_, __, ___) =>
-                    Image.asset('assets/Images/dudecoin.jpg', height: 72),
+                fit: BoxFit.contain,
+                memCacheHeight: 144,
+                errorWidget: Image.asset(
+                  'assets/Images/dudecoin.jpg',
+                  height: 72,
+                ),
               )
             else
               Image.asset('assets/Images/dudecoin.jpg', height: 72),
@@ -1356,37 +1366,30 @@ class _WalletScreenState extends State<WalletScreen> {
                   SizedBox(
                     height: 110,
                     width: double.infinity,
-                    child: Image.network(
-                      bannerVM.bannerImageUrl!,
+                    child: DudeCachedImage(
+                      imageUrl: bannerVM.bannerImageUrl!,
                       fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
-                          color: DudeTheme.surface,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                  : null,
-                              color: DudeTheme.accent,
-                              strokeWidth: 2,
-                            ),
+                      memCacheWidth: 800,
+                      memCacheHeight: 220,
+                      placeholder: Container(
+                        color: DudeTheme.surface,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            color: DudeTheme.accent,
+                            strokeWidth: 2,
                           ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: DudeTheme.surface,
-                          child: const Center(
-                            child: Icon(
-                              Icons.broken_image_outlined,
-                              color: DudeTheme.textSubtle,
-                              size: 32,
-                            ),
+                        ),
+                      ),
+                      errorWidget: Container(
+                        color: DudeTheme.surface,
+                        child: const Center(
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            color: DudeTheme.textSubtle,
+                            size: 32,
                           ),
-                        );
-                      },
+                        ),
+                      ),
                     ),
                   ),
                   if (_isBannerSelected)

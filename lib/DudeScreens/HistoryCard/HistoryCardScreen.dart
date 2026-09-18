@@ -18,6 +18,7 @@ import 'package:dude/Reusable_Widgets/shimmer_loader.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:dude/Dude_Utils/App_Theme/DudeTheme.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
+import 'package:dude/Reusable_Widgets/dude_cached_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -597,9 +598,18 @@ class _HistoryScreenState extends State<HistoryScreen>
                           ),
                           child:
                               (staff.image != null && staff.image!.isNotEmpty)
-                              ? Image.network(staff.image!, fit: BoxFit.cover)
+                              ? DudeCachedImage(
+                                  imageUrl: staff.image!,
+                                  fit: BoxFit.cover,
+                                  memCacheWidth: 140,
+                                  memCacheHeight: 140,
+                                  errorWidget: Image.asset(
+                                    'assets/Images/women.png',
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
                               : Image.asset(
-                                  "assets/Images/women.png",
+                                  'assets/Images/women.png',
                                   fit: BoxFit.cover,
                                 ),
                         ),

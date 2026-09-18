@@ -19,6 +19,7 @@ import 'package:dude/Dude_Utils/CustomSnackBar/StatusMessage.dart';
 import 'package:dude/Dude_Utils/navigation/route_observer.dart';
 import 'package:dude/Reusable_Widgets/ActivePopupService.dart';
 import 'package:dude/Reusable_Widgets/BondingNavigator.dart';
+import 'package:dude/Reusable_Widgets/dude_cached_image.dart';
 import 'package:dude/StaffScreenScreens/StaffRegistrationScreen/ViewModel/StaffRegisterVM.dart';
 import 'package:dude/Reusable_Widgets/shimmer_loader.dart';
 import 'package:flutter/material.dart';
@@ -523,11 +524,24 @@ class HomeScreenState extends State<HomeScreen>
         return;
       }
 
-      // debugPrint(
-      //   "✅ [HOMESCREEN] User fetched → memberID: ${user.memberID}, name: ${user.name}",
-      // );
-
-      // debugPrint("🔌 [HOMESCREEN] Step 3: Connecting socket...");
+      // Pre-warm ZEGO signaling so the Call button does not pay cold-connect (~5s).
+      // Idempotent — Call-button ensureInitializedForCaller becomes a no-op.
+      // Re-runs after login because logout calls ZegoCallService().uninitialize().
+      if (user.memberID.isNotEmpty) {
+        unawaited(() async {
+          try {
+            await ZegoCallService().ensureInitializedForCaller(
+              avatarUrl: user.image ?? '',
+              userId: user.memberID,
+              userName: user.name ?? 'User',
+              events: _buildZegoCallEvents(),
+            );
+          } catch (e, st) {
+            debugPrint('⚠️ [HOMESCREEN] ZEGO pre-warm failed: $e');
+            debugPrint('$st');
+          }
+        }());
+      }
 
       final staffID = user.memberID;
       staffVM.setStaffListRequestContext(
@@ -751,15 +765,23 @@ class HomeScreenState extends State<HomeScreen>
                             child: SizedBox(
                               width: 44,
                               height: 44,
-                              child: Image(
-                                image:
-                                    (currentUser?.image != null &&
-                                        currentUser!.image!.isNotEmpty)
-                                    ? NetworkImage(currentUser.image!)
-                                    : const AssetImage("assets/Images/men.png")
-                                          as ImageProvider,
-                                fit: BoxFit.cover,
-                              ),
+                              child:
+                                  (currentUser?.image != null &&
+                                      currentUser!.image!.isNotEmpty)
+                                  ? DudeCachedImage(
+                                      imageUrl: currentUser.image!,
+                                      fit: BoxFit.cover,
+                                      memCacheWidth: 88,
+                                      memCacheHeight: 88,
+                                      errorWidget: Image.asset(
+                                        'assets/Images/men.png',
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  : Image.asset(
+                                      'assets/Images/men.png',
+                                      fit: BoxFit.cover,
+                                    ),
                             ),
                           ),
                         ),
@@ -1212,9 +1234,9 @@ class HomeScreenState extends State<HomeScreen>
                         _statusPill(statusText, statusColor),
                         if (age != null) _glassChip('$age yrs'),
                         if ((staff.language ?? '').isNotEmpty)
-                          _glassChip(staff.language!),
+                          _glassChip(staff.language!, bold: true),
                         if ((staff.city ?? '').isNotEmpty)
-                          _glassChip(staff.city!),
+                          _glassChip(staff.city!, bold: true),
                       ],
                     ),
                   ],
@@ -1282,7 +1304,7 @@ class HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _glassChip(String label) {
+  Widget _glassChip(String label, {bool bold = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
@@ -1292,10 +1314,10 @@ class HomeScreenState extends State<HomeScreen>
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: DudeTheme.textMid,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
+        style: TextStyle(
+          color: bold ? Colors.white : DudeTheme.textMid,
+          fontSize: bold ? 11.5 : 10,
+          fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
         ),
       ),
     );
@@ -1346,16 +1368,19 @@ class HomeScreenState extends State<HomeScreen>
   }
 
   Widget _staffHeroImage(StaffDataProfile staff) {
-    final image = (staff.image != null && staff.image!.isNotEmpty)
-        ? Image.network(
-            staff.image!,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) =>
-                Image.asset('assets/Images/women.png', fit: BoxFit.cover),
-          )
-        : Image.asset('assets/Images/women.png', fit: BoxFit.cover);
-
-    return image;
+    if (staff.image != null && staff.image!.isNotEmpty) {
+      return DudeCachedImage(
+        imageUrl: staff.image!,
+        fit: BoxFit.cover,
+        memCacheWidth: 160,
+        memCacheHeight: 160,
+        errorWidget: Image.asset(
+          'assets/Images/women.png',
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    return Image.asset('assets/Images/women.png', fit: BoxFit.cover);
   }
 
   Widget _statusPill(String text, Color color, {bool compact = false}) {
@@ -1604,6 +1629,8 @@ class HomeScreenState extends State<HomeScreen>
                     final callID =
                         "pe_${freshUser.memberID}_${targetStaffId}_${callType}_${pricePerMin}_${freshBalance}_${maxSeconds}_${DateTime.now().millisecondsSinceEpoch}";
 
+                    // resourceID must match the Offline Push resource configured in
+                    // ZEGO Console (ZPNs + FCM, high priority, India/nearest region).
                     final success = await ZegoUIKitPrebuiltCallInvitationService()
                         .send(
                           resourceID: "dude_push",

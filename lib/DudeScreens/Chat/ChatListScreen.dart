@@ -16,6 +16,7 @@ import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_animations.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
+import 'package:dude/Reusable_Widgets/dude_cached_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -491,7 +492,7 @@ class _ConversationTile extends StatelessWidget {
             backgroundColor: DudeTheme.surfaceRaised,
             backgroundImage: conversation.peerImage.isEmpty
                 ? null
-                : NetworkImage(conversation.peerImage),
+                : DudeCachedImage.provider(conversation.peerImage),
             child: conversation.peerImage.isEmpty
                 ? Text(
                     conversation.peerName.isEmpty

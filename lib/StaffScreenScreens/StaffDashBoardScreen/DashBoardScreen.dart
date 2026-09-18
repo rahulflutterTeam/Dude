@@ -17,6 +17,7 @@ import 'package:dude/Reusable_Widgets/Premium_UI/dude_logo.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_ambient_background.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_glass_card.dart';
 import 'package:dude/Reusable_Widgets/Premium_UI/premium_stagger.dart';
+import 'package:dude/Reusable_Widgets/dude_cached_image.dart';
 import 'package:dude/StaffScreenScreens/StaffBottomNavBar/StaffBottomNavBar.dart';
 import 'package:dude/StaffScreenScreens/StaffDashBoardScreen/Model/StaffSingleDataModel.dart';
 import 'package:dude/StaffScreenScreens/StaffProfileScreen/staffProfileScreen.dart';
@@ -823,6 +824,8 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
   Future<void> _initZego(StaffSingleProfile staff) async {
     if (_zegoInitialized) return;
 
+    // Offline rings need ZPNs resource "dude_push" (same as caller send) configured
+    // in ZEGO Console with FCM high-priority + India/nearest region.
     await Permission.notification.request();
     await FlutterCallkitIncoming.requestFullIntentPermission();
 
@@ -1497,14 +1500,21 @@ class _BondingDashboardPageState extends State<BondingDashboardPage>
               ),
               padding: const EdgeInsets.all(2),
               child: ClipOval(
-                child: Image(
-                  image: (staff.image != null && staff.image!.isNotEmpty)
-                      ? NetworkImage(staff.image!)
-                      : const AssetImage('assets/Images/women.png'),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
-                      Image.asset('assets/Images/women.png', fit: BoxFit.cover),
-                ),
+                child: (staff.image != null && staff.image!.isNotEmpty)
+                    ? DudeCachedImage(
+                        imageUrl: staff.image!,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 92,
+                        memCacheHeight: 92,
+                        errorWidget: Image.asset(
+                          'assets/Images/women.png',
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Image.asset(
+                        'assets/Images/women.png',
+                        fit: BoxFit.cover,
+                      ),
               ),
             ),
           ),
